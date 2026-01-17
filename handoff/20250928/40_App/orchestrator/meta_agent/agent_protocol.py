@@ -22,8 +22,17 @@ from abc import abstractmethod  # noqa: F401 - kept for future use in base class
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
+import re
 from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 import uuid
+
+
+# =============================================================================
+# AIP v2 Protocol Version Constant
+# =============================================================================
+
+AIP_VERSION = "2.0"
+"""Current AIP (Agent Interaction Protocol) version."""
 
 
 # =============================================================================
@@ -210,7 +219,6 @@ class AgentMessage:
         Raises:
             MessageValidationError: If sender or receiver format is invalid.
         """
-        import re
         valid_pattern = r"^[a-zA-Z][a-zA-Z0-9_-]*$"
 
         sender = data["sender"]
@@ -312,6 +320,15 @@ class CapabilityDeclaration:
     constraints: Dict[str, Any] = field(default_factory=dict)
     rate_limit: Optional[int] = None
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert capability declaration to dictionary."""
+        return {
+            "capability": self.capability.value,
+            "version": self.version,
+            "constraints": self.constraints,
+            "rate_limit": self.rate_limit,
+        }
+
 
 @dataclass
 class AgentHandshake:
@@ -334,7 +351,7 @@ class AgentHandshake:
     agent_id: str
     agent_type: str
     capabilities: List[CapabilityDeclaration]
-    protocol_version: str = "2.0"
+    protocol_version: str = AIP_VERSION
     status: HandshakeStatus = HandshakeStatus.PENDING
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -349,15 +366,7 @@ class AgentHandshake:
             receiver=orchestrator_id,
             payload={
                 "agent_type": self.agent_type,
-                "capabilities": [
-                    {
-                        "capability": cap.capability.value,
-                        "version": cap.version,
-                        "constraints": cap.constraints,
-                        "rate_limit": cap.rate_limit,
-                    }
-                    for cap in self.capabilities
-                ],
+                "capabilities": [cap.to_dict() for cap in self.capabilities],
                 "protocol_version": self.protocol_version,
                 "supported_message_types": [mt.value for mt in self.supported_message_types],
             },
@@ -371,15 +380,7 @@ class AgentHandshake:
         return {
             "agent_id": self.agent_id,
             "agent_type": self.agent_type,
-            "capabilities": [
-                {
-                    "capability": cap.capability.value,
-                    "version": cap.version,
-                    "constraints": cap.constraints,
-                    "rate_limit": cap.rate_limit,
-                }
-                for cap in self.capabilities
-            ],
+            "capabilities": [cap.to_dict() for cap in self.capabilities],
             "protocol_version": self.protocol_version,
             "status": self.status.value,
             "timestamp": self.timestamp.isoformat(),
@@ -530,7 +531,7 @@ class ContextFrame:
             frame_id="ctx_001",
             source_agent="planner_agent",
             data={"task_plan": [...], "constraints": [...]},
-            scope=ContextScope.TASK,
+            scope="task",
         )
     """
     frame_id: str
