@@ -43,7 +43,6 @@ logger = logging.getLogger(__name__)
 EVIDENCE_LEDGER_KEY = "governance:evidence_ledger"
 EVIDENCE_LEDGER_INDEX_KEY = "governance:evidence_ledger:index"
 REASONING_CHAIN_KEY = "governance:reasoning_chain"
-DECISION_RECORD_TTL = 86400 * 90  # 90 days default retention
 
 
 class DecisionType(str, Enum):
@@ -116,7 +115,7 @@ class ReasoningStep:
             description=data["description"],
             evidence_refs=data.get("evidence_refs", []),
             confidence=data.get("confidence", 1.0),
-            timestamp=data.get("timestamp", datetime.now(timezone.utc).isoformat()),
+            timestamp=data["timestamp"],
             metadata=data.get("metadata", {}),
         )
 
@@ -186,7 +185,7 @@ class ReasoningChain:
             chain_id=data["chain_id"],
             decision_id=data["decision_id"],
             total_confidence=data.get("total_confidence", 1.0),
-            created_at=data.get("created_at", datetime.now(timezone.utc).isoformat()),
+            created_at=data["created_at"],
             completed_at=data.get("completed_at"),
         )
         chain.steps = [
@@ -287,7 +286,7 @@ class DecisionRecord:
             policy_refs=data.get("policy_refs", []),
             context=data.get("context", {}),
             metadata=data.get("metadata", {}),
-            created_at=data.get("created_at", datetime.now(timezone.utc).isoformat()),
+            created_at=data["created_at"],
             updated_at=data.get("updated_at"),
             rollback_available=data.get("rollback_available", False),
             rollback_data=data.get("rollback_data"),
@@ -543,6 +542,41 @@ class EvidenceLedger:
 
         return False
 
+    def _update_decision(self, record: DecisionRecord) -> bool:
+        """
+        Update an existing decision record in storage.
+
+        Unlike _store_decision, this does not increment statistics or append
+        to the deque. It updates the record in-place in memory and Redis.
+
+        Args:
+            record: The updated DecisionRecord
+
+        Returns:
+            True if Redis update succeeded, False otherwise
+        """
+        # Update in memory (find and replace)
+        with self._lock:
+            for i, existing in enumerate(self._decisions):
+                if existing.decision_id == record.decision_id:
+                    self._decisions[i] = record
+                    break
+
+        # Update in Redis if available
+        if self.redis_client:
+            try:
+                ttl = self.retention_policy.get_ttl_for_type(record.decision_type)
+                key = f"{EVIDENCE_LEDGER_KEY}:{record.decision_id}"
+                self.redis_client.setex(key, ttl, json.dumps(record.to_dict()))
+                return True
+            except Exception as e:
+                logger.warning(
+                    f"[EvidenceLedger] Failed to update in Redis: {e}",
+                    extra={"operation": "evidence_ledger_update", "error": str(e)}
+                )
+
+        return False
+
     def _store_reasoning_chain(self, chain: ReasoningChain) -> bool:
         """Store a reasoning chain"""
         with self._lock:
@@ -687,8 +721,6 @@ class EvidenceLedger:
             for record in self._decisions:
                 if self._matches_query(record, query):
                     results.append(record)
-                    if len(results) >= query.limit:
-                        break
 
         return results[query.offset:query.offset + query.limit]
 
@@ -754,11 +786,13 @@ class EvidenceLedger:
         if reason:
             record.metadata["rollback_reason"] = reason
 
-        # Update in storage
-        self._store_decision(record)
+        # Update in storage (use _update_decision instead of _store_decision)
+        self._update_decision(record)
 
+        # Sanitize rolled_back_by for log injection prevention
+        safe_rolled_back_by = rolled_back_by.replace('\n', '_').replace('\r', '_')
         logger.info(
-            f"[EvidenceLedger] Decision rolled back: id={decision_id}, by={rolled_back_by}",
+            f"[EvidenceLedger] Decision rolled back: id={decision_id}, by={safe_rolled_back_by}",
             extra={
                 "operation": "evidence_ledger_rollback",
                 "decision_id": decision_id,
@@ -801,17 +835,20 @@ class EvidenceLedger:
                 )
 
         # Clean up memory (keep min_records_to_keep)
+        # Use per-type TTL for consistency with Redis storage
         with self._lock:
             if len(self._decisions) > self.retention_policy.min_records_to_keep:
-                cutoff = datetime.now(timezone.utc) - timedelta(
-                    days=self.retention_policy.default_ttl_days
-                )
+                now = datetime.now(timezone.utc)
                 original_count = len(self._decisions)
 
-                # Filter to keep recent records
+                # Filter to keep records that haven't expired based on their type-specific TTL
                 recent_decisions = [
                     d for d in self._decisions
-                    if datetime.fromisoformat(d.created_at) > cutoff
+                    if datetime.fromisoformat(d.created_at) > (
+                        now - timedelta(
+                            seconds=self.retention_policy.get_ttl_for_type(d.decision_type)
+                        )
+                    )
                 ]
 
                 # Ensure we keep minimum records
@@ -890,9 +927,16 @@ def get_evidence_ledger(
 
     Thread-safe singleton using double-checked locking pattern.
 
+    Note: The redis_client and retention_policy parameters are only used
+    on the FIRST call that initializes the singleton. Subsequent calls
+    will return the already-initialized instance and ignore these parameters.
+    To reconfigure, call reset_evidence_ledger() first.
+
     Args:
-        redis_client: Optional Redis client for persistent storage
-        retention_policy: Optional retention policy configuration
+        redis_client: Optional Redis client for persistent storage.
+            **Only used on first initialization.**
+        retention_policy: Optional retention policy configuration.
+            **Only used on first initialization.**
 
     Returns:
         The global EvidenceLedger singleton
