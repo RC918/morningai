@@ -8881,6 +8881,18 @@ def publisher_node(state: AgentState) -> AgentState:
             review_result = state.get("review_result", {})
             code_quality_score = state.get("code_quality_score", 0)
 
+            # Issue #4133: Extract Multi-Specialist findings for PRSummary rendering
+            multi_specialist_review = state.get("multi_specialist_review_v1", {})
+            specialist_findings = multi_specialist_review.get("findings", [])
+
+            # Issue #4133: Extract Test Coverage gaps (B-11)
+            test_coverage_analysis = state.get("test_coverage_analysis_v1", {})
+            test_coverage_gaps = test_coverage_analysis.get("coverage_gaps", [])
+
+            # Issue #4133: Extract Dependency issues (B-12)
+            dependency_analysis = state.get("dependency_analysis_v1", {})
+            dependency_issues = dependency_analysis.get("issues", [])
+
             # Build PRSummary artifact
             pr_summary = build_pr_summary(
                 review_outcome=review_outcome,
@@ -8889,7 +8901,10 @@ def publisher_node(state: AgentState) -> AgentState:
                 trace_id=trace_id,
                 pr_number=pr_number,
                 repo=state.get("repo"),
-                head_sha=state.get("diff_head_sha")
+                head_sha=state.get("diff_head_sha"),
+                specialist_findings=specialist_findings,
+                test_coverage_gaps=test_coverage_gaps,
+                dependency_issues=dependency_issues
             )
 
             # Render to GitHub markdown
@@ -9399,6 +9414,18 @@ def publisher_node(state: AgentState) -> AgentState:
         review_result = state.get("review_result", {})
         code_quality_score = state.get("code_quality_score", 0)
 
+        # Issue #4133: Extract Multi-Specialist findings for PRSummary rendering
+        multi_specialist_review = state.get("multi_specialist_review_v1", {})
+        specialist_findings = multi_specialist_review.get("findings", [])
+
+        # Issue #4133: Extract Test Coverage gaps (B-11)
+        test_coverage_analysis = state.get("test_coverage_analysis_v1", {})
+        test_coverage_gaps = test_coverage_analysis.get("coverage_gaps", [])
+
+        # Issue #4133: Extract Dependency issues (B-12)
+        dependency_analysis = state.get("dependency_analysis_v1", {})
+        dependency_issues = dependency_analysis.get("issues", [])
+
         # Convert file_level_comments to format expected by PRSummary
         file_level_comment_dicts = [
             {
@@ -9418,7 +9445,10 @@ def publisher_node(state: AgentState) -> AgentState:
             trace_id=trace_id,
             pr_number=pr_number,
             repo=state.get("repo"),
-            head_sha=stored_head_sha
+            head_sha=stored_head_sha,
+            specialist_findings=specialist_findings,
+            test_coverage_gaps=test_coverage_gaps,
+            dependency_issues=dependency_issues
         )
 
         # Render simple markdown (header + file-level appendix) for inline comment reviews
