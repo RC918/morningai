@@ -622,6 +622,46 @@ class TestMergedPRFastPath:
 
         assert recorded_decision_mode == DecisionMode.MERGED_PR_FAST_PATH
 
+    def test_none_pr_context_does_not_crash(self):
+        """Test that explicit None pr_context doesn't cause AttributeError (Cursor Bugbot fix)."""
+        from unittest.mock import patch, MagicMock
+        from core.flow.schema import DecisionMode, RoutingDecision, RoutingResult
+
+        state = {
+            "trace_id": "test-trace-none-context",
+            "pr_context": None,
+            "messages": [],
+            "review_outcome": {
+                "verdict": "approve",
+                "severity": "none",
+                "summary": "All good",
+                "blocker_count": 0,
+            },
+        }
+
+        with patch("langgraph_orchestrator.time") as mock_time:
+            mock_time.monotonic.return_value = 1000.0
+            with patch("langgraph_orchestrator._get_metrics") as mock_metrics:
+                mock_metrics.return_value = MagicMock()
+                with patch("core.flow.hybrid_router.get_hybrid_router") as mock_router:
+                    mock_decision = RoutingDecision(
+                        next_node="publisher",
+                        reasoning="Approved",
+                        risk_assessment="low",
+                        requires_hitl_approval=False,
+                    )
+                    mock_result = RoutingResult(
+                        decision=mock_decision,
+                        decision_mode=DecisionMode.FAST_PATH,
+                    )
+                    mock_router.return_value.route_with_meta.return_value = mock_result
+
+                    from langgraph_orchestrator import router_node
+                    result = router_node(state)
+
+        assert mock_router.return_value.route_with_meta.called
+        assert result["routing_decision"]["next_node"] == "publisher"
+
     def test_open_pr_with_unknown_verdict_still_triggers_hitl(self):
         """Test that open PRs with unknown verdict still trigger HITL (safety maintained)."""
         from unittest.mock import patch, MagicMock

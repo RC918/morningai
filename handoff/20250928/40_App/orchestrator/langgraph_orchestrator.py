@@ -8208,7 +8208,8 @@ def router_node(state: AgentState) -> AgentState:
     # When a PR is already merged or closed, skip HITL and route to finalizer.
     # This aligns with Blueprint Section 9 (Self-Governed) - no human intervention
     # needed for already-completed actions.
-    pr_context = state.get("pr_context", {})
+    # Note: Use `or {}` to handle both missing key AND explicit None value
+    pr_context = state.get("pr_context") or {}
     pr_state = pr_context.get("state", "").lower()
     if pr_state in ("merged", "closed"):
         fast_path_start = time.monotonic()
