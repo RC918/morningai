@@ -604,7 +604,7 @@ def get_safety_decisions():
                 'timestamp': _utc_now_iso()
             }), 503
 
-        limit = min(int(request.args.get('limit', 100)), 500)
+        limit = max(1, min(int(request.args.get('limit', 100)), 500))
         action = request.args.get('action')
         category = request.args.get('category')
         policy_id = request.args.get('policy_id')
@@ -671,7 +671,7 @@ def get_safety_overrides():
                 'timestamp': _utc_now_iso()
             }), 503
 
-        limit = min(int(request.args.get('limit', 100)), 500)
+        limit = max(1, min(int(request.args.get('limit', 100)), 500))
         status = request.args.get('status')
 
         requests_list = metrics_collector.get_override_requests(

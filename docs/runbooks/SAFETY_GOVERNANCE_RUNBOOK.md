@@ -156,7 +156,7 @@ False positives can be identified through:
 3. Include:
    - Trace ID
    - Pattern ID
-   - Matched text (sanitized)
+   - Matched text (sanitized to prevent PII exposure or sensitive data leaks in issue trackers)
    - Resolution applied
 
 ### Metrics to Monitor

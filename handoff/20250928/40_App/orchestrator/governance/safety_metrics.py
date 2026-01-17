@@ -139,8 +139,8 @@ class SafetyMetricsCollector:
         self.alert_cooldown_minutes = alert_cooldown_minutes
         self.window_minutes = window_minutes
 
-        # Thread-safe counters
-        self._lock = threading.Lock()
+        # Thread-safe counters (RLock allows reentrant locking for nested calls)
+        self._lock = threading.RLock()
 
         # In-memory counters (fallback when Redis unavailable)
         self._decisions_total: Dict[Tuple[str, str], int] = defaultdict(int)
@@ -373,6 +373,7 @@ class SafetyMetricsCollector:
         Returns:
             True if approved, False if not found
         """
+        approved_request = None
         with self._lock:
             for request in self._override_events:
                 if request.trace_id == trace_id and request.status == "pending":
@@ -382,13 +383,19 @@ class SafetyMetricsCollector:
 
                     self._override_requests["pending"] -= 1
                     self._override_requests["approved"] += 1
+                    approved_request = request
 
                     logger.info(
                         "[SafetyMetrics] Override approved: trace=%s, approver=%s",
                         trace_id,
                         approver_id,
                     )
-                    return True
+                    break
+
+        if approved_request:
+            # Update Redis persistence outside the lock
+            self._persist_override_to_redis(approved_request)
+            return True
 
         return False
 
@@ -407,6 +414,7 @@ class SafetyMetricsCollector:
         Returns:
             True if rejected, False if not found
         """
+        rejected_request = None
         with self._lock:
             for request in self._override_events:
                 if request.trace_id == trace_id and request.status == "pending":
@@ -416,13 +424,19 @@ class SafetyMetricsCollector:
 
                     self._override_requests["pending"] -= 1
                     self._override_requests["rejected"] += 1
+                    rejected_request = request
 
                     logger.info(
                         "[SafetyMetrics] Override rejected: trace=%s, approver=%s",
                         trace_id,
                         approver_id,
                     )
-                    return True
+                    break
+
+        if rejected_request:
+            # Update Redis persistence outside the lock
+            self._persist_override_to_redis(rejected_request)
+            return True
 
         return False
 
@@ -432,20 +446,24 @@ class SafetyMetricsCollector:
 
         if block_rate >= self.block_rate_threshold:
             current_time = time.time()
+            should_alert = False
 
-            # Check cooldown
-            if self._last_alert_time is not None:
-                elapsed_minutes = (current_time - self._last_alert_time) / 60
-                if elapsed_minutes < self.alert_cooldown_minutes:
-                    return
+            # Atomic check-then-set for cooldown to prevent race conditions
+            with self._lock:
+                if self._last_alert_time is not None:
+                    elapsed_minutes = (current_time - self._last_alert_time) / 60
+                    if elapsed_minutes < self.alert_cooldown_minutes:
+                        return
 
-            self._last_alert_time = current_time
+                self._last_alert_time = current_time
+                should_alert = True
 
-            logger.warning(
-                "[SafetyMetrics] HIGH BLOCK RATE ALERT: %.1f%% (threshold: %.1f%%)",
-                block_rate,
-                self.block_rate_threshold,
-            )
+            if should_alert:
+                logger.warning(
+                    "[SafetyMetrics] HIGH BLOCK RATE ALERT: %.1f%% (threshold: %.1f%%)",
+                    block_rate,
+                    self.block_rate_threshold,
+                )
 
             # TODO: Integrate with HealthAlertService for Slack/webhook notifications
 
