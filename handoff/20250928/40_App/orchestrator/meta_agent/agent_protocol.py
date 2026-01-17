@@ -16,6 +16,11 @@ All agents must implement AIP v2 interface to join the MorningAI ecosystem.
 Blueprint Reference: Section 4.5 - Agent Interaction Protocol v2 (AIP v2)
 Issue: #4098 - EPIC K P3: AIP v2 Complete Message Schema
 Original Issue: #1821 - Meta Agent 自主任務規劃與執行
+
+Note: Issue #4139 introduced a modular structure in the `aip_v2/` subpackage.
+New code can import from `meta_agent.aip_v2` for cleaner organization:
+    from meta_agent.aip_v2 import AgentMessage, AIPv2Agent, MessageValidator
+This file is kept for backward compatibility with existing imports.
 """
 
 from abc import abstractmethod  # noqa: F401 - kept for future use in base classes
