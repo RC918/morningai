@@ -862,6 +862,12 @@ class Settings(BaseSettings):
         description="Enable degradation advisory system (EPIC I-4 Phase A, observe-only)"
     )
 
+    degradation_advisory_dry_run: bool = Field(
+        default=True,
+        alias="DEGRADATION_ADVISORY_DRY_RUN",
+        description="Run degradation advisory in dry-run mode (EPIC I-4). When True (Phase A), recommendations are logged but not applied. When False (Phase B), recommendations are passed to RoutingPolicyEvolver for auto-apply."
+    )
+
     # EPIC I-4 Phase B: Degradation Enforcement (Hard Gating)
     degradation_enforcement_enabled: bool = Field(
         default=False,
