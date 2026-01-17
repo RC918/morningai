@@ -367,9 +367,9 @@ class PRSummary(BaseModel):
             for gap in self.test_coverage_gaps:
                 type_label = "class" if gap.function_type == "class" else "function"
                 test_types = ", ".join(gap.suggested_test_types)
-                # Issue #4141: Sanitize function_name and file_path for defense-in-depth
+                # Issue #4141: Sanitize function_name, file_path, and reason for defense-in-depth
                 parts.append(f"- **{sanitize_markdown(gap.function_name)}** ({type_label}) in `{sanitize_markdown(gap.file_path)}`")
-                parts.append(f"  - {gap.reason}")
+                parts.append(f"  - {sanitize_markdown(gap.reason)}")
                 parts.append(f"  - Suggested tests: {test_types}")
             parts.append("")
 
@@ -409,11 +409,11 @@ class PRSummary(BaseModel):
             parts.append("*The following comments could not be posted inline:*")
             parts.append("")
             for comment in self.file_level_comments:
-                # Issue #4141: Sanitize file path and message for defense-in-depth
+                # Issue #4141: Sanitize file path, message, and reason for defense-in-depth
                 parts.append(f"**`{sanitize_markdown(comment.file)}`**")
                 parts.append(f"> {sanitize_markdown(comment.message)}")
                 if comment.reason:
-                    parts.append(f"> *(Reason: {comment.reason})*")
+                    parts.append(f"> *(Reason: {sanitize_markdown(comment.reason)})*")
                 parts.append("")
 
         # Add policy note
@@ -444,11 +444,11 @@ class PRSummary(BaseModel):
             parts.append("*The following comments could not be posted inline:*")
             parts.append("")
             for comment in self.file_level_comments:
-                # Issue #4141: Sanitize file path and message for defense-in-depth
+                # Issue #4141: Sanitize file path, message, and reason for defense-in-depth
                 parts.append(f"**`{sanitize_markdown(comment.file)}`**")
                 parts.append(f"> {sanitize_markdown(comment.message)}")
                 if comment.reason:
-                    parts.append(f"> *(Reason: {comment.reason})*")
+                    parts.append(f"> *(Reason: {sanitize_markdown(comment.reason)})*")
                 parts.append("")
 
         return "\n".join(parts)
