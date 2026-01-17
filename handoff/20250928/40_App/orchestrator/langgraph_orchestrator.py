@@ -8887,7 +8887,7 @@ def publisher_node(state: AgentState) -> AgentState:
 
             # Issue #4133: Extract Test Coverage gaps (B-11)
             test_coverage_analysis = state.get("test_coverage_analysis_v1", {})
-            test_coverage_gaps = test_coverage_analysis.get("gaps", [])
+            test_coverage_gaps = test_coverage_analysis.get("coverage_gaps", [])
 
             # Issue #4133: Extract Dependency issues (B-12)
             dependency_analysis = state.get("dependency_analysis_v1", {})
@@ -9420,7 +9420,7 @@ def publisher_node(state: AgentState) -> AgentState:
 
         # Issue #4133: Extract Test Coverage gaps (B-11)
         test_coverage_analysis = state.get("test_coverage_analysis_v1", {})
-        test_coverage_gaps = test_coverage_analysis.get("gaps", [])
+        test_coverage_gaps = test_coverage_analysis.get("coverage_gaps", [])
 
         # Issue #4133: Extract Dependency issues (B-12)
         dependency_analysis = state.get("dependency_analysis_v1", {})

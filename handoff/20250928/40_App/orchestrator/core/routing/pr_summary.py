@@ -82,6 +82,36 @@ class SpecialistFindingSummary(BaseModel):
     suggestion: Optional[str] = Field(default=None, description="Suggested fix")
 
 
+class CoverageGapSummary(BaseModel):
+    """Summary of a test coverage gap for PR summary rendering.
+
+    Issue #4133: Include B-11 Test Coverage gaps in PRSummary output.
+    Maps from CoverageGap.to_dict() structure.
+    """
+    function_name: str = Field(description="Name of function/class missing tests")
+    file_path: str = Field(description="File path containing the function")
+    function_type: str = Field(default="function", description="Type: function or class")
+    reason: str = Field(default="New code without corresponding test")
+    suggested_test_types: List[str] = Field(
+        default_factory=lambda: ["unit"],
+        description="Suggested test types"
+    )
+
+
+class DependencyIssueSummary(BaseModel):
+    """Summary of a dependency issue for PR summary rendering.
+
+    Issue #4133: Include B-12 Dependency issues in PRSummary output.
+    Maps from DependencyIssue.to_dict() structure.
+    """
+    package_name: str = Field(description="Name of the package")
+    issue_type: str = Field(description="Type of issue (outdated/vulnerability/license/etc)")
+    severity: str = Field(default="low", description="Issue severity")
+    description: str = Field(default="", description="Issue description")
+    current_version: Optional[str] = Field(default=None, description="Current version")
+    recommended_action: Optional[str] = Field(default=None, description="Recommended fix")
+
+
 class PRSummary(BaseModel):
     """Standardized PR Summary artifact (Issue #3221)
 
@@ -129,13 +159,13 @@ class PRSummary(BaseModel):
     )
 
     # B-11: Test coverage gaps
-    test_coverage_gaps: List[str] = Field(
+    test_coverage_gaps: List[CoverageGapSummary] = Field(
         default_factory=list,
         description="Test coverage gaps identified by B-11 analyzer"
     )
 
     # B-12: Dependency issues
-    dependency_issues: List[str] = Field(
+    dependency_issues: List[DependencyIssueSummary] = Field(
         default_factory=list,
         description="Dependency issues identified by B-12 analyzer"
     )
@@ -288,7 +318,11 @@ class PRSummary(BaseModel):
             parts.append("### :test_tube: Test Coverage Gaps")
             parts.append("")
             for gap in self.test_coverage_gaps:
-                parts.append(f"- {gap}")
+                type_label = "class" if gap.function_type == "class" else "function"
+                test_types = ", ".join(gap.suggested_test_types)
+                parts.append(f"- **{gap.function_name}** ({type_label}) in `{gap.file_path}`")
+                parts.append(f"  - {gap.reason}")
+                parts.append(f"  - Suggested tests: {test_types}")
             parts.append("")
 
         # Add Dependency issues (B-12)
@@ -298,8 +332,21 @@ class PRSummary(BaseModel):
             parts.append("")
             parts.append("### :package: Dependency Issues")
             parts.append("")
+            severity_icons = {
+                "critical": ":red_circle:",
+                "high": ":orange_circle:",
+                "medium": ":yellow_circle:",
+                "low": ":white_circle:"
+            }
             for issue in self.dependency_issues:
-                parts.append(f"- {issue}")
+                icon = severity_icons.get(issue.severity.lower(), ":white_circle:")
+                parts.append(f"- {icon} **{issue.package_name}** [{issue.issue_type}]")
+                if issue.description:
+                    parts.append(f"  - {issue.description}")
+                if issue.current_version:
+                    parts.append(f"  - Current version: `{issue.current_version}`")
+                if issue.recommended_action:
+                    parts.append(f"  - Recommended: {issue.recommended_action}")
             parts.append("")
 
         # Add file-level comments appendix if present
@@ -406,8 +453,8 @@ def build_pr_summary(
     repo: Optional[str] = None,
     head_sha: Optional[str] = None,
     specialist_findings: Optional[List[Dict[str, Any]]] = None,
-    test_coverage_gaps: Optional[List[str]] = None,
-    dependency_issues: Optional[List[str]] = None
+    test_coverage_gaps: Optional[List[Dict[str, Any]]] = None,
+    dependency_issues: Optional[List[Dict[str, Any]]] = None
 ) -> PRSummary:
     """
     Build PRSummary from reviewer state fields.
@@ -425,8 +472,8 @@ def build_pr_summary(
         repo: Optional repository in owner/repo format
         head_sha: Optional head commit SHA
         specialist_findings: Optional list of specialist finding dicts (Issue #4133)
-        test_coverage_gaps: Optional list of test coverage gap descriptions (B-11)
-        dependency_issues: Optional list of dependency issue descriptions (B-12)
+        test_coverage_gaps: Optional list of coverage gap dicts from B-11 analyzer
+        dependency_issues: Optional list of dependency issue dicts from B-12 analyzer
 
     Returns:
         PRSummary instance ready for rendering
@@ -474,6 +521,31 @@ def build_pr_summary(
                 suggestion=f.get("suggestion")
             ))
 
+    # Convert test coverage gaps to CoverageGapSummary objects (Issue #4133, B-11)
+    coverage_gap_objs = []
+    if test_coverage_gaps:
+        for g in test_coverage_gaps:
+            coverage_gap_objs.append(CoverageGapSummary(
+                function_name=g.get("function_name", "unknown"),
+                file_path=g.get("file_path", "unknown"),
+                function_type=g.get("function_type", "function"),
+                reason=g.get("reason", "New code without corresponding test"),
+                suggested_test_types=g.get("suggested_test_types", ["unit"])
+            ))
+
+    # Convert dependency issues to DependencyIssueSummary objects (Issue #4133, B-12)
+    dependency_issue_objs = []
+    if dependency_issues:
+        for i in dependency_issues:
+            dependency_issue_objs.append(DependencyIssueSummary(
+                package_name=i.get("package_name", "unknown"),
+                issue_type=i.get("issue_type", "unknown"),
+                severity=i.get("severity", "low"),
+                description=i.get("description", ""),
+                current_version=i.get("current_version"),
+                recommended_action=i.get("recommended_action")
+            ))
+
     # Normalize head_sha: only accept non-empty strings, convert invalid types to None
     # This ensures graceful degradation when diff_head_sha is missing or invalid
     normalized_head_sha = head_sha if isinstance(head_sha, str) and head_sha.strip() else None
@@ -485,8 +557,8 @@ def build_pr_summary(
         analysis=llm_summary,
         file_level_comments=file_comments,
         specialist_findings=specialist_finding_objs,
-        test_coverage_gaps=test_coverage_gaps or [],
-        dependency_issues=dependency_issues or [],
+        test_coverage_gaps=coverage_gap_objs,
+        dependency_issues=dependency_issue_objs,
         trace_id=trace_id,
         pr_number=pr_number,
         repo=repo,
