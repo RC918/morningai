@@ -866,7 +866,7 @@ class LLMReviewerAdapter:
                     latency_ms=0,
                     success=False,
                     provider=self.llm_client.provider_name if self.llm_client else "unknown",
-                    json_parse_success=True,  # Not a JSON parse failure
+                    json_parse_success=False,  # No JSON was successfully parsed
                     error_type=fallback_reason,
                 )
             except Exception as metrics_error:

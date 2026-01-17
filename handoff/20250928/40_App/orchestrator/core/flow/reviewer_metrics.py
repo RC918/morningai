@@ -40,7 +40,7 @@ Usage:
 import logging
 from collections import defaultdict, deque
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from threading import Lock
 from typing import Deque, Dict, Optional
 
@@ -56,7 +56,7 @@ class ReviewerRecord:
     """Record of a single LLM review operation.
 
     Note:
-        All timestamps are in UTC (using datetime.utcnow()).
+        All timestamps are in UTC (using datetime.now(timezone.utc)).
     """
 
     trace_id: str
@@ -148,7 +148,7 @@ class ReviewerMetrics:
         """
         record = ReviewerRecord(
             trace_id=trace_id,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             latency_ms=latency_ms,
             success=success,
             provider=provider,
@@ -230,7 +230,7 @@ class ReviewerMetrics:
         """
         record = JsonParseFailureRecord(
             trace_id=trace_id,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             error_type=error_type,
             repair_attempted=repair_attempted,
             repair_success=repair_success,
@@ -264,7 +264,7 @@ class ReviewerMetrics:
         Returns:
             Failure rate as a float (0.0 to 1.0)
         """
-        cutoff = datetime.utcnow() - timedelta(minutes=window_minutes)
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
 
         with self._lock:
             recent_records = [
@@ -287,7 +287,7 @@ class ReviewerMetrics:
         Returns:
             Success rate as a float (0.0 to 1.0), or 0.0 if no repairs attempted
         """
-        cutoff = datetime.utcnow() - timedelta(minutes=window_minutes)
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
 
         with self._lock:
             recent_records = [
@@ -310,7 +310,7 @@ class ReviewerMetrics:
         Returns:
             Fallback rate as a float (0.0 to 1.0)
         """
-        cutoff = datetime.utcnow() - timedelta(minutes=window_minutes)
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
 
         with self._lock:
             recent_records = [
@@ -333,7 +333,7 @@ class ReviewerMetrics:
         Returns:
             Success rate as a float (0.0 to 1.0)
         """
-        cutoff = datetime.utcnow() - timedelta(minutes=window_minutes)
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
 
         with self._lock:
             recent_records = [
@@ -356,7 +356,7 @@ class ReviewerMetrics:
         Returns:
             Average latency in milliseconds
         """
-        cutoff = datetime.utcnow() - timedelta(minutes=window_minutes)
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
 
         with self._lock:
             recent_records = [
@@ -381,7 +381,7 @@ class ReviewerMetrics:
         Returns:
             Dict mapping provider name to count
         """
-        cutoff = datetime.utcnow() - timedelta(minutes=window_minutes)
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
 
         with self._lock:
             distribution: Dict[str, int] = defaultdict(int)
@@ -402,7 +402,7 @@ class ReviewerMetrics:
         Returns:
             Dict mapping error type to count
         """
-        cutoff = datetime.utcnow() - timedelta(minutes=window_minutes)
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
 
         with self._lock:
             distribution: Dict[str, int] = defaultdict(int)
@@ -420,7 +420,7 @@ class ReviewerMetrics:
         Returns:
             Dict with summary metrics
         """
-        cutoff = datetime.utcnow() - timedelta(minutes=window_minutes)
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
 
         with self._lock:
             recent_records = [
