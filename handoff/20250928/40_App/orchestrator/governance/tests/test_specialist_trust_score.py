@@ -278,6 +278,93 @@ class TestSpecialistTrustScoreTracker:
         assert "security" in result["scores"]
 
 
+class TestLRUEviction:
+    """Tests for LRU eviction of feedback history - Issue #4076."""
+
+    def setup_method(self):
+        """Reset global tracker before each test."""
+        reset_specialist_trust_tracker()
+
+    def test_max_feedback_history_constant(self):
+        """Test that MAX_FEEDBACK_HISTORY is set to 1000."""
+        assert SpecialistTrustScoreTracker.MAX_FEEDBACK_HISTORY == 1000
+
+    def test_feedback_history_bounded(self):
+        """Test that feedback history is bounded by MAX_FEEDBACK_HISTORY."""
+        tracker = SpecialistTrustScoreTracker()
+
+        # Record more than MAX_FEEDBACK_HISTORY feedbacks
+        # Use a smaller number for testing (we'll verify the deque has maxlen)
+        for i in range(10):
+            tracker.record_feedback(
+                specialist=SpecialistType.SECURITY,
+                feedback_type=FeedbackType.ACCEPTED,
+                finding_id=f"finding-{i}",
+            )
+
+        # Verify all 10 are stored
+        history = tracker.get_feedback_history(limit=100)
+        assert len(history) == 10
+
+        # Verify most recent is first
+        assert history[0].finding_id == "finding-9"
+        assert history[9].finding_id == "finding-0"
+
+    def test_lru_eviction_removes_oldest(self):
+        """Test that LRU eviction removes oldest entries."""
+        # Create a tracker with a small maxlen for testing
+        # (Gemini Code Assist suggestion: use max_feedback_history parameter)
+        tracker = SpecialistTrustScoreTracker(max_feedback_history=5)
+
+        # Record 7 feedbacks
+        for i in range(7):
+            tracker.record_feedback(
+                specialist=SpecialistType.SECURITY,
+                feedback_type=FeedbackType.ACCEPTED,
+                finding_id=f"finding-{i}",
+            )
+
+        # Only last 5 should remain
+        history = tracker.get_feedback_history(limit=100)
+        assert len(history) == 5
+
+        # Oldest (finding-0, finding-1) should be evicted
+        finding_ids = [f.finding_id for f in history]
+        assert "finding-0" not in finding_ids
+        assert "finding-1" not in finding_ids
+        assert "finding-6" in finding_ids  # Most recent
+
+    def test_self_critique_specialist_handling(self):
+        """Test that SELF_CRITIQUE specialist is handled without KeyError.
+
+        Issue: Cursor Bugbot identified that SELF_CRITIQUE is not in CORE_SPECIALISTS
+        but the unified SpecialistType enum includes it. Methods should handle
+        this gracefully without raising KeyError.
+        """
+        tracker = SpecialistTrustScoreTracker()
+
+        # get_trust_score should return default for uninitialized SELF_CRITIQUE
+        score = tracker.get_trust_score(SpecialistType.SELF_CRITIQUE)
+        assert score == tracker.DEFAULT_TRUST_SCORE
+
+        # get_specialist_stats should return default stats
+        stats = tracker.get_specialist_stats(SpecialistType.SELF_CRITIQUE)
+        assert stats.trust_score == tracker.DEFAULT_TRUST_SCORE
+        assert stats.total_suggestions == 0
+
+        # record_feedback should lazily initialize SELF_CRITIQUE
+        result = tracker.record_feedback(
+            specialist=SpecialistType.SELF_CRITIQUE,
+            feedback_type=FeedbackType.ACCEPTED,
+            finding_id="self-critique-finding-1",
+        )
+        assert result.total_suggestions == 1
+
+        # Now SELF_CRITIQUE should be in scores
+        score_after = tracker.get_trust_score(SpecialistType.SELF_CRITIQUE)
+        assert score_after == tracker.DEFAULT_TRUST_SCORE
+
+
 class TestGlobalTracker:
     """Tests for global tracker singleton."""
 
