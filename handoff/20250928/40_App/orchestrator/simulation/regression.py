@@ -13,15 +13,22 @@ H-2.3 Test Generation Integration:
 - Bridges RegressionTestGenerator with LLM for actual test code generation
 - Uses MRE from Diagnostic Agent to create functional tests
 - Falls back to template generation if LLM fails
+
+H-2.4 Regression Test Execution:
+- Writes generated tests to disk (regression_test_output_dir)
+- CI enforcement rules (block PR on failure, require approval on modification)
+- Safety Governor integration (block deletion of protected tests)
 """
 
 import ast
 import hashlib
 import logging
+import os
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 logger = logging.getLogger(__name__)
 
@@ -1020,6 +1027,420 @@ REGRESSION_METADATA = {{
             )
             results.append(result)
         return results
+
+    # =========================================================================
+    # H-2.4: Regression Test Execution - Write Tests to Disk
+    # =========================================================================
+
+    def write_test_to_disk(
+        self,
+        test_code: str,
+        test_name: str,
+        candidate_id: str,
+        repo_path: str,
+        output_dir: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Write a generated regression test to disk.
+
+        H-2.4 Regression Test Execution (Blueprint Section 5.4):
+        - Writes generated tests to regression_test_output_dir
+        - Sanitizes file paths to prevent directory traversal
+        - Creates directory structure if needed
+        - Adds REGRESSION_METADATA for CI enforcement
+
+        Args:
+            test_code: Generated test code to write
+            test_name: Name of the test (used for filename)
+            candidate_id: ID of the regression candidate
+            repo_path: Path to the repository root
+            output_dir: Output directory (relative to repo_path).
+                       Uses regression_test_output_dir setting if not specified.
+
+        Returns:
+            Dict with:
+                - success: bool
+                - file_path: str (absolute path to written file)
+                - relative_path: str (path relative to repo_path)
+                - error: Optional[str] (if failed)
+        """
+        result: Dict[str, Any] = {
+            "success": False,
+            "file_path": "",
+            "relative_path": "",
+            "error": None,
+        }
+
+        # Get output directory from settings if not specified
+        if output_dir is None:
+            try:
+                from common.config.settings import settings
+                output_dir = getattr(
+                    settings, 'regression_test_output_dir', 'tests/regression'
+                )
+            except ImportError:
+                output_dir = "tests/regression"
+
+        # Sanitize test_name to prevent directory traversal
+        safe_test_name = self._sanitize_filename(test_name)
+        if not safe_test_name:
+            result["error"] = "Invalid test name after sanitization"
+            logger.warning(
+                "[Regression] H-2.4: Invalid test name",
+                extra={
+                    "operation": "simulation.regression.write",
+                    "test_name": test_name,
+                    "candidate_id": candidate_id,
+                }
+            )
+            return result
+
+        # Build file path
+        filename = f"{safe_test_name}.py"
+        relative_path = os.path.join(output_dir, filename)
+
+        # Validate path doesn't escape repo_path (directory traversal protection)
+        abs_repo_path = os.path.abspath(repo_path)
+        abs_file_path = os.path.abspath(os.path.join(repo_path, relative_path))
+
+        if not abs_file_path.startswith(abs_repo_path):
+            result["error"] = "Path traversal detected - file path escapes repo"
+            logger.error(
+                "[Regression] H-2.4: Path traversal attempt blocked",
+                extra={
+                    "operation": "simulation.regression.write",
+                    "test_name": test_name,
+                    "candidate_id": candidate_id,
+                    "attempted_path": relative_path,
+                }
+            )
+            return result
+
+        try:
+            # Create directory if it doesn't exist
+            abs_output_dir = os.path.dirname(abs_file_path)
+            os.makedirs(abs_output_dir, exist_ok=True)
+
+            # Write test file
+            with open(abs_file_path, 'w', encoding='utf-8') as f:
+                f.write(test_code)
+
+            result["success"] = True
+            result["file_path"] = abs_file_path
+            result["relative_path"] = relative_path
+
+            logger.info(
+                f"[Regression] H-2.4: Wrote test to disk: {relative_path}",
+                extra={
+                    "operation": "simulation.regression.write",
+                    "test_name": test_name,
+                    "candidate_id": candidate_id,
+                    "file_path": abs_file_path,
+                    "relative_path": relative_path,
+                }
+            )
+
+        except OSError as e:
+            result["error"] = f"Failed to write file: {e}"
+            logger.error(
+                f"[Regression] H-2.4: Failed to write test: {e}",
+                extra={
+                    "operation": "simulation.regression.write",
+                    "test_name": test_name,
+                    "candidate_id": candidate_id,
+                    "error": str(e),
+                }
+            )
+
+        return result
+
+    def _sanitize_filename(self, name: str) -> str:
+        """
+        Sanitize a filename to prevent directory traversal and invalid chars.
+
+        Args:
+            name: Original filename (without extension)
+
+        Returns:
+            Sanitized filename safe for filesystem use
+        """
+        # Remove path separators and parent directory references
+        name = name.replace("/", "_").replace("\\", "_")
+        name = name.replace("..", "_")
+
+        # Remove or replace invalid characters
+        # Keep only alphanumeric, underscore, hyphen
+        name = re.sub(r'[^a-zA-Z0-9_\-]', '_', name)
+
+        # Remove leading/trailing underscores and collapse multiple underscores
+        name = re.sub(r'_+', '_', name).strip('_')
+
+        # Ensure name is not empty and has reasonable length
+        if not name:
+            return ""
+        if len(name) > 200:
+            name = name[:200]
+
+        return name
+
+    def write_tests_to_disk(
+        self,
+        repo_path: str,
+        output_dir: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Write all generated tests to disk.
+
+        H-2.4 Regression Test Execution (Blueprint Section 5.4).
+
+        Args:
+            repo_path: Path to the repository root
+            output_dir: Output directory (relative to repo_path)
+
+        Returns:
+            Dict with:
+                - success: bool (True if all tests written successfully)
+                - written_count: int
+                - failed_count: int
+                - files: List[Dict] (details of each written file)
+                - errors: List[str] (any errors encountered)
+        """
+        result: Dict[str, Any] = {
+            "success": True,
+            "written_count": 0,
+            "failed_count": 0,
+            "files": [],
+            "errors": [],
+        }
+
+        for test_info in self._generated_tests:
+            write_result = self.write_test_to_disk(
+                test_code=test_info["test_code"],
+                test_name=test_info["test_name"],
+                candidate_id=test_info["candidate_id"],
+                repo_path=repo_path,
+                output_dir=output_dir,
+            )
+
+            if write_result["success"]:
+                result["written_count"] += 1
+                result["files"].append({
+                    "test_name": test_info["test_name"],
+                    "file_path": write_result["file_path"],
+                    "relative_path": write_result["relative_path"],
+                })
+            else:
+                result["failed_count"] += 1
+                result["success"] = False
+                result["errors"].append(
+                    f"{test_info['test_name']}: {write_result['error']}"
+                )
+
+        logger.info(
+            f"[Regression] H-2.4: Wrote {result['written_count']} tests to disk, "
+            f"{result['failed_count']} failed",
+            extra={
+                "operation": "simulation.regression.write_all",
+                "written_count": result["written_count"],
+                "failed_count": result["failed_count"],
+            }
+        )
+
+        return result
+
+
+class RegressionTestProtector:
+    """
+    Protects regression tests from unauthorized modification or deletion.
+
+    H-2.4 Regression Test Execution (Blueprint Section 5.4):
+    - CI Enforcement: regression test failure → block PR
+    - CI Enforcement: regression test modification → require reviewer approval
+    - CI Enforcement: regression test deletion → Safety Governor blocks
+
+    This class provides utilities to:
+    1. Detect if a file is a protected regression test
+    2. Check if changes to regression tests require approval
+    3. Integrate with Safety Governor for deletion protection
+    """
+
+    # Marker comment that identifies protected regression tests
+    PROTECTION_MARKER = "REGRESSION_METADATA"
+
+    def __init__(self, regression_test_dir: str = "tests/regression"):
+        """
+        Initialize the RegressionTestProtector.
+
+        Args:
+            regression_test_dir: Directory containing regression tests
+        """
+        self.regression_test_dir = regression_test_dir
+        self._protected_files: Set[str] = set()
+
+    def is_regression_test_file(self, file_path: str) -> bool:
+        """
+        Check if a file is in the regression test directory.
+
+        Args:
+            file_path: Path to check (relative or absolute)
+
+        Returns:
+            True if file is in regression test directory
+        """
+        # Normalize path separators
+        normalized_path = file_path.replace("\\", "/")
+        normalized_dir = self.regression_test_dir.replace("\\", "/")
+
+        return normalized_dir in normalized_path
+
+    def is_protected_test(self, file_path: str, file_content: str) -> bool:
+        """
+        Check if a test file is protected (has REGRESSION_METADATA marker).
+
+        Args:
+            file_path: Path to the test file
+            file_content: Content of the test file
+
+        Returns:
+            True if file contains protection marker
+        """
+        if not self.is_regression_test_file(file_path):
+            return False
+
+        return self.PROTECTION_MARKER in file_content
+
+    def check_file_modification(
+        self,
+        file_path: str,
+        old_content: Optional[str],
+        new_content: Optional[str],
+    ) -> Dict[str, Any]:
+        """
+        Check if a file modification requires approval.
+
+        H-2.4 CI Enforcement (Blueprint Section 5.4):
+        - Modification of protected test → require reviewer approval
+        - Deletion of protected test → Safety Governor blocks
+
+        Args:
+            file_path: Path to the file being modified
+            old_content: Original file content (None if new file)
+            new_content: New file content (None if deleted)
+
+        Returns:
+            Dict with:
+                - allowed: bool
+                - requires_approval: bool
+                - blocked: bool (deletion blocked by Safety Governor)
+                - reason: str
+        """
+        result: Dict[str, Any] = {
+            "allowed": True,
+            "requires_approval": False,
+            "blocked": False,
+            "reason": "",
+        }
+
+        # New file - always allowed
+        if old_content is None:
+            result["reason"] = "New file creation is allowed"
+            return result
+
+        # Check if old file was protected
+        was_protected = self.is_protected_test(file_path, old_content)
+
+        if not was_protected:
+            result["reason"] = "File is not a protected regression test"
+            return result
+
+        # Deletion of protected test - blocked by Safety Governor
+        if new_content is None:
+            result["allowed"] = False
+            result["blocked"] = True
+            result["reason"] = (
+                "Deletion of protected regression test blocked by Safety Governor. "
+                "Protected tests cannot be deleted without explicit override."
+            )
+            logger.warning(
+                f"[Regression] H-2.4: Blocked deletion of protected test: {file_path}",
+                extra={
+                    "operation": "simulation.regression.protect",
+                    "file_path": file_path,
+                    "action": "delete_blocked",
+                }
+            )
+            return result
+
+        # Modification of protected test - requires approval
+        result["requires_approval"] = True
+        result["reason"] = (
+            "Modification of protected regression test requires reviewer approval. "
+            "This test was auto-generated to prevent regression of a known bug."
+        )
+        logger.info(
+            f"[Regression] H-2.4: Modification of protected test requires approval: "
+            f"{file_path}",
+            extra={
+                "operation": "simulation.regression.protect",
+                "file_path": file_path,
+                "action": "requires_approval",
+            }
+        )
+        return result
+
+    def scan_directory_for_protected_tests(
+        self,
+        repo_path: str,
+    ) -> List[str]:
+        """
+        Scan the regression test directory for protected tests.
+
+        Args:
+            repo_path: Path to the repository root
+
+        Returns:
+            List of relative paths to protected test files
+        """
+        protected_files: List[str] = []
+        abs_test_dir = os.path.join(repo_path, self.regression_test_dir)
+
+        if not os.path.exists(abs_test_dir):
+            return protected_files
+
+        for root, _, files in os.walk(abs_test_dir):
+            for filename in files:
+                if not filename.endswith('.py'):
+                    continue
+
+                abs_path = os.path.join(root, filename)
+                rel_path = os.path.relpath(abs_path, repo_path)
+
+                try:
+                    with open(abs_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+
+                    if self.is_protected_test(rel_path, content):
+                        protected_files.append(rel_path)
+                        self._protected_files.add(rel_path)
+
+                except OSError as e:
+                    logger.warning(
+                        f"[Regression] H-2.4: Could not read file {rel_path}: {e}"
+                    )
+
+        logger.info(
+            f"[Regression] H-2.4: Found {len(protected_files)} protected tests",
+            extra={
+                "operation": "simulation.regression.scan",
+                "protected_count": len(protected_files),
+            }
+        )
+
+        return protected_files
+
+    def get_protected_files(self) -> Set[str]:
+        """Get the set of known protected files."""
+        return self._protected_files.copy()
 
 
 # Global collector instance for convenience
