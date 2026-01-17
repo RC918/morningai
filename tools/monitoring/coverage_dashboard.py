@@ -73,7 +73,9 @@ def get_coverage_thresholds() -> Dict[str, int]:
                     settings, 'coverage_threshold_owner_console', defaults['owner-console']
                 ),
             }
-    except ImportError:
+    except Exception:
+        # Catch all exceptions including ImportError, ValidationError, etc.
+        # Fall back to defaults if settings are unavailable or invalid
         pass
 
     return defaults

@@ -6693,9 +6693,9 @@ def fixer_node(state: AgentState) -> AgentState:
                 ErrorSource,
             )
 
-            failed_check_name = ci_context.get("failed_check_name", "unknown")
-            error_summary = ci_context.get("error_summary", "")
-            head_sha = ci_context.get("head_sha", "")
+            failed_check_name = ci_context.get("failed_check_name") or "unknown"
+            error_summary = ci_context.get("error_summary") or ""
+            head_sha = ci_context.get("head_sha") or ""
 
             candidate = collect_regression_candidate(
                 source=ErrorSource.CI_FAILURE,
