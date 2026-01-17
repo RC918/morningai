@@ -32,11 +32,14 @@ class AgentType(str, Enum):
     Blueprint Reference: Section 3.3 - 13 Agent Types
     Issue: #4118 (EPIC K P0: AgentType Enum Extension)
 
-    Categories:
+    Categories (13 Blueprint types → 19 enum values total):
     - Core Engineering Agents (5): Planner, Coding, Reviewer, Test, Debugger
     - UX/UI Agents (4): UI Consistency, UX Heuristic, Visual Regression, Design Token
-    - Governance/Reasoning Agents (3): Judge, Debate (Left/Right), Risk Analyzer
+    - Governance/Reasoning Agents (3 types, 4 values): Judge, Debate Left, Debate Right, Risk Analyzer
     - Legacy/Compatibility (6): dev_agent, ops_agent, pm_agent, etc.
+
+    Note: VALID_AGENT_TYPES in reputation_engine.py only includes legacy types.
+    New Blueprint agent types will be integrated in follow-up issues.
     """
     # === Core Engineering Agents (Blueprint 3.3) ===
     PLANNER = "planner"
