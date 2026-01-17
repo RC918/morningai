@@ -652,7 +652,7 @@ class DegradationAdvisor:
                 health_score=original.health_score,
                 health_score_normalized=original.health_score_normalized,
                 reason=original.reason,
-                dry_run=True,
+                dry_run=self.dry_run,  # Phase A/B: inherit from advisor config
                 floor_protected=True,
                 previous_severity=original.previous_severity,
             )

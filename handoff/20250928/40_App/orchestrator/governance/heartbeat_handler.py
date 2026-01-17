@@ -34,8 +34,11 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional, Tuple, TYPE_CHECKING
 
+from governance.routing_policy_evolver import get_routing_policy_evolver
+
 if TYPE_CHECKING:
     from redis import Redis
+    from governance.degradation_advisor import DegradationAdvisor
 
 logger = logging.getLogger(__name__)
 
@@ -294,6 +297,61 @@ def _update_health_snapshot(
         return False
 
 
+def _handle_policy_evolution(
+    advisor: "DegradationAdvisor",
+    advisory_results: Dict[str, Any],
+    redis_client: Optional["Redis"],
+    evaluator_node_id: str,
+) -> None:
+    """
+    EPIC I-4 Phase B: Pass degradation recommendations to RoutingPolicyEvolver.
+
+    This helper function is called when dry_run=False (Phase B mode) to forward
+    degradation recommendations to the routing policy evolver for auto-apply.
+
+    Args:
+        advisor: DegradationAdvisor instance
+        advisory_results: Results from compute_all_advisories()
+        redis_client: Redis client for evolver
+        evaluator_node_id: Node ID for logging
+    """
+    if advisor.dry_run:
+        return
+
+    recommendations = advisory_results.get("recommendations", [])
+    if not recommendations:
+        return
+
+    try:
+        policy_evolver = get_routing_policy_evolver(redis_client)
+        if not policy_evolver:
+            return
+
+        rec_dicts = [r.to_dict() for r in recommendations]
+        evolution_result = policy_evolver.evolve_from_degradation_recommendations(
+            rec_dicts
+        )
+        logger.info(
+            f"[Governance] Routing policy evolution from degradation: "
+            f"changes_generated={evolution_result.get('changes_generated', 0)}, "
+            f"changes_auto_applied={evolution_result.get('changes_auto_applied', 0)}",
+            extra={
+                "operation": "governance_routing_evolution",
+                "evaluator_node_id": evaluator_node_id,
+                "evolution_result": evolution_result,
+            },
+        )
+    except Exception as e:
+        logger.warning(
+            f"[Governance] Routing policy evolution failed: {e}",
+            extra={
+                "operation": "governance_routing_evolution",
+                "evaluator_node_id": evaluator_node_id,
+                "error": str(e),
+            },
+        )
+
+
 def run_governance_cycle(
     redis_client: Optional["Redis"],
     evaluator_node_id: str,
@@ -412,40 +470,9 @@ def run_governance_cycle(
                     )
 
                 # EPIC I-4 Phase B: Pass recommendations to RoutingPolicyEvolver
-                # Only when dry_run=False (Phase B mode)
-                if not advisor.dry_run:
-                    recommendations = advisory_results.get("recommendations", [])
-                    if recommendations:
-                        try:
-                            from governance.routing_policy_evolver import (
-                                get_routing_policy_evolver,
-                            )
-
-                            policy_evolver = get_routing_policy_evolver(redis_client)
-                            if policy_evolver:
-                                rec_dicts = [r.to_dict() for r in recommendations]
-                                evolution_result = policy_evolver.evolve_from_degradation_recommendations(
-                                    rec_dicts
-                                )
-                                logger.info(
-                                    f"[Governance] Routing policy evolution from degradation: "
-                                    f"changes_generated={evolution_result.get('changes_generated', 0)}, "
-                                    f"changes_auto_applied={evolution_result.get('changes_auto_applied', 0)}",
-                                    extra={
-                                        "operation": "governance_routing_evolution",
-                                        "evaluator_node_id": evaluator_node_id,
-                                        "evolution_result": evolution_result,
-                                    }
-                                )
-                        except Exception as e:
-                            logger.warning(
-                                f"[Governance] Routing policy evolution failed: {e}",
-                                extra={
-                                    "operation": "governance_routing_evolution",
-                                    "evaluator_node_id": evaluator_node_id,
-                                    "error": str(e),
-                                }
-                            )
+                _handle_policy_evolution(
+                    advisor, advisory_results, redis_client, evaluator_node_id
+                )
         except Exception as e:
             logger.warning(
                 f"[Governance] Degradation advisory failed: {e}",
