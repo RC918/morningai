@@ -94,19 +94,16 @@ class ReferenceContext:
         if not isinstance(data, dict):
             raise ValueError(f"Expected dict, got {type(data).__name__}")
 
-        # Validate required fields
-        required_field_names = ["file_path", "content", "line_count"]
-        for field_name in required_field_names:
+        # Validate required fields and types (Gemini Code Assist DRY suggestion)
+        expected_fields = {"file_path": str, "content": str, "line_count": int}
+        for field_name, expected_type in expected_fields.items():
             if field_name not in data:
                 raise ValueError(f"Missing required field: {field_name}")
-
-        # Validate types
-        if not isinstance(data["file_path"], str):
-            raise ValueError(f"file_path must be str, got {type(data['file_path']).__name__}")
-        if not isinstance(data["content"], str):
-            raise ValueError(f"content must be str, got {type(data['content']).__name__}")
-        if not isinstance(data["line_count"], int):
-            raise ValueError(f"line_count must be int, got {type(data['line_count']).__name__}")
+            if not isinstance(data[field_name], expected_type):
+                raise ValueError(
+                    f"{field_name} must be {expected_type.__name__}, "
+                    f"got {type(data[field_name]).__name__}"
+                )
 
         return cls(
             file_path=data["file_path"],
@@ -172,24 +169,22 @@ class ResolverResult:
             except ValueError as e:
                 raise ValueError(f"Invalid context at index {i}: {e}")
 
-        # Validate numeric fields
-        total_refs = data.get("total_references_found", 0)
-        total_ctx = data.get("total_contexts_fetched", 0)
-        total_bytes = data.get("total_bytes", 0)
-
-        if not isinstance(total_refs, int):
-            raise ValueError(f"total_references_found must be int, got {type(total_refs).__name__}")
-        if not isinstance(total_ctx, int):
-            raise ValueError(f"total_contexts_fetched must be int, got {type(total_ctx).__name__}")
-        if not isinstance(total_bytes, int):
-            raise ValueError(f"total_bytes must be int, got {type(total_bytes).__name__}")
+        # Validate numeric fields (Gemini Code Assist DRY suggestion)
+        numeric_fields = {
+            "total_references_found": data.get("total_references_found", 0),
+            "total_contexts_fetched": data.get("total_contexts_fetched", 0),
+            "total_bytes": data.get("total_bytes", 0),
+        }
+        for field_name, value in numeric_fields.items():
+            if not isinstance(value, int):
+                raise ValueError(f"{field_name} must be int, got {type(value).__name__}")
 
         return cls(
             references=[],  # References are not serialized in state
             contexts=contexts,
-            total_references_found=total_refs,
-            total_contexts_fetched=total_ctx,
-            total_bytes=total_bytes,
+            total_references_found=numeric_fields["total_references_found"],
+            total_contexts_fetched=numeric_fields["total_contexts_fetched"],
+            total_bytes=numeric_fields["total_bytes"],
             truncated=data.get("truncated", False),
             error=data.get("error"),
         )
