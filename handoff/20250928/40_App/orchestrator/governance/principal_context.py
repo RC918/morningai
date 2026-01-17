@@ -27,10 +27,37 @@ logger = logging.getLogger(__name__)
 
 
 class AgentType(str, Enum):
-    """Valid agent types as defined in DB constraint.
+    """Valid agent types as defined in Blueprint Section 3.3 (Agent Catalog V2).
 
-    Mirrors VALID_AGENT_TYPES from reputation_engine.py for consistency.
+    Blueprint Reference: Section 3.3 - 13 Agent Types
+    Issue: #4118 (EPIC K P0: AgentType Enum Extension)
+
+    Categories:
+    - Core Engineering Agents (5): Planner, Coding, Reviewer, Test, Debugger
+    - UX/UI Agents (4): UI Consistency, UX Heuristic, Visual Regression, Design Token
+    - Governance/Reasoning Agents (3): Judge, Debate (Left/Right), Risk Analyzer
+    - Legacy/Compatibility (6): dev_agent, ops_agent, pm_agent, etc.
     """
+    # === Core Engineering Agents (Blueprint 3.3) ===
+    PLANNER = "planner"
+    CODING = "coding"
+    REVIEWER = "reviewer"
+    TEST = "test"
+    DEBUGGER = "debugger"
+
+    # === UX/UI Agents (Blueprint 3.3) ===
+    UI_CONSISTENCY = "ui_consistency"
+    UX_HEURISTIC = "ux_heuristic"
+    VISUAL_REGRESSION = "visual_regression"
+    DESIGN_TOKEN_GOVERNANCE = "design_token_governance"
+
+    # === Governance/Reasoning Agents (Blueprint 3.3) ===
+    JUDGE = "judge"
+    DEBATE_LEFT = "debate_left"
+    DEBATE_RIGHT = "debate_right"
+    RISK_ANALYZER = "risk_analyzer"
+
+    # === Legacy Agent Types (backward compatibility) ===
     DEV_AGENT = "dev_agent"
     OPS_AGENT = "ops_agent"
     PM_AGENT = "pm_agent"
