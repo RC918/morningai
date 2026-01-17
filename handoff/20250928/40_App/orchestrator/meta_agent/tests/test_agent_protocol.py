@@ -36,6 +36,11 @@ class TestAgentCapability:
             "MONITORING",
             "INCIDENT_RESPONSE",
             "DATABASE_OPERATIONS",
+            # AIP v2 capabilities (Issue #4098)
+            "UI_ANALYSIS",
+            "UX_EVALUATION",
+            "RISK_ASSESSMENT",
+            "GOVERNANCE",
         }
         actual_capabilities = {member.name for member in AgentCapability}
         assert actual_capabilities == expected_capabilities
