@@ -251,17 +251,23 @@ class AgentMessage:
         payload: Dict[str, Any],
         success: bool = True,
     ) -> "AgentMessage":
-        """Create a response message to this message."""
+        """Create a response message to this message.
+
+        Note: The success parameter takes precedence over any 'success' key
+        in the payload dict to ensure explicit intent is honored.
+        """
+        # Spread payload first, then success to ensure explicit parameter wins
+        response_payload = {**payload, "success": success}
         return AgentMessage(
             sender=self.receiver,
             receiver=self.sender,
-            payload={"success": success, **payload},
+            payload=response_payload,
             trace_id=self.trace_id,
             message_type=MessageType.RESPONSE,
             priority=self.priority,
             correlation_id=self.trace_id,
             reply_to=self.trace_id,
-            metadata=self.metadata,
+            metadata=dict(self.metadata),  # Copy to prevent shared reference
         )
 
     def create_error_response(
@@ -285,7 +291,7 @@ class AgentMessage:
             priority=MessagePriority.HIGH,
             correlation_id=self.trace_id,
             reply_to=self.trace_id,
-            metadata=self.metadata,
+            metadata=dict(self.metadata),  # Copy to prevent shared reference
         )
 
 
@@ -834,9 +840,10 @@ def get_capabilities_for_agent_type(agent_type: str) -> List[AgentCapability]:
         agent_type: The agent type string (from AgentType enum).
 
     Returns:
-        List of AgentCapability for the agent type.
+        List of AgentCapability for the agent type (a copy to prevent mutation).
     """
-    return AGENT_TYPE_CAPABILITIES.get(agent_type, [])
+    # Return a copy to prevent callers from mutating the module constant
+    return list(AGENT_TYPE_CAPABILITIES.get(agent_type, []))
 
 
 # =============================================================================
