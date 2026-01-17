@@ -19,30 +19,32 @@ Design Principles:
 
 import logging
 import threading
+from collections import deque
 from copy import copy
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Deque, Dict, List, Optional
+
+# Issue #4074: Import shared types from common module
+from governance.types import (
+    SpecialistType,
+    FeedbackType,
+    CORE_SPECIALISTS,
+)
 
 logger = logging.getLogger(__name__)
 
 
-class SpecialistType(str, Enum):
-    """Specialist types for trust score tracking.
-
-    Mirrors ReviewSpecialist from multi_specialist_reviewer.py
-    """
-    SECURITY = "security"
-    PERFORMANCE = "performance"
-    ARCHITECTURE = "architecture"
-
-
-class FeedbackType(str, Enum):
-    """Types of feedback for specialist suggestions."""
-    ACCEPTED = "accepted"
-    REJECTED = "rejected"
-    PARTIAL = "partial"  # Partially accepted
+# Re-export for backward compatibility
+__all__ = [
+    "SpecialistType",
+    "FeedbackType",
+    "SpecialistFeedback",
+    "SpecialistTrustScore",
+    "SpecialistTrustScoreTracker",
+    "get_specialist_trust_tracker",
+    "reset_specialist_trust_tracker",
+]
 
 
 @dataclass
@@ -128,6 +130,7 @@ class SpecialistTrustScoreTracker:
     methods for recording feedback and retrieving scores.
 
     Issue #3925: Implements the "Recording (I)" part of E+F+I closed loop.
+    Issue #4076: Uses bounded deque with LRU eviction for feedback history.
     """
 
     # Default trust score for new specialists
@@ -139,14 +142,21 @@ class SpecialistTrustScoreTracker:
     # Weight for exponential moving average (higher = more weight on recent)
     EMA_WEIGHT = 0.3
 
+    # Issue #4076: Maximum feedback history size for bounded memory usage
+    MAX_FEEDBACK_HISTORY = 1000
+
     def __init__(self):
-        """Initialize the tracker with default scores for all specialists."""
+        """Initialize the tracker with default scores for core specialists."""
         self._scores: Dict[SpecialistType, SpecialistTrustScore] = {}
-        self._feedback_history: List[SpecialistFeedback] = []
+        # Issue #4076: Use deque with maxlen for automatic LRU eviction
+        self._feedback_history: Deque[SpecialistFeedback] = deque(
+            maxlen=self.MAX_FEEDBACK_HISTORY
+        )
         self._lock = threading.Lock()
 
-        # Initialize default scores for all specialists
-        for specialist in SpecialistType:
+        # Initialize default scores for core specialists only
+        # (excludes SELF_CRITIQUE which is a meta-specialist)
+        for specialist in CORE_SPECIALISTS:
             self._scores[specialist] = SpecialistTrustScore(
                 specialist=specialist,
                 trust_score=self.DEFAULT_TRUST_SCORE,
@@ -156,8 +166,9 @@ class SpecialistTrustScoreTracker:
             "[SpecialistTrustScoreTracker] Initialized with default scores",
             extra={
                 "operation": "trust_score_init",
-                "specialists": [s.value for s in SpecialistType],
+                "specialists": [s.value for s in CORE_SPECIALISTS],
                 "default_score": self.DEFAULT_TRUST_SCORE,
+                "max_feedback_history": self.MAX_FEEDBACK_HISTORY,
             }
         )
 
@@ -274,29 +285,33 @@ class SpecialistTrustScoreTracker:
         """
         Get feedback history, optionally filtered by specialist.
 
+        Issue #4076: Optimized for deque - no sorting needed since deque
+        maintains insertion order (oldest first, newest last).
+
         Args:
             specialist: Optional specialist to filter by
-            limit: Maximum number of records to return
+            limit: Maximum number of records to return (most recent first)
 
         Returns:
             A list of copies of SpecialistFeedback records to ensure thread-safety.
+            Ordered from most recent to oldest.
         """
         with self._lock:
             if specialist:
+                # Filter by specialist, then take last N items
                 filtered = [
                     f for f in self._feedback_history
                     if f.specialist == specialist
                 ]
+                # Take last `limit` items and reverse for most-recent-first order
+                result = list(reversed(filtered[-limit:]))
             else:
-                filtered = self._feedback_history
+                # Deque maintains insertion order, so we can slice directly
+                # Take last `limit` items and reverse for most-recent-first order
+                result = list(reversed(list(self._feedback_history)[-limit:]))
 
-            # Return copies of the most recent items to prevent mutation
-            sorted_slice = sorted(
-                filtered[-limit:],
-                key=lambda f: f.timestamp,
-                reverse=True,
-            )
-            return [copy(f) for f in sorted_slice]
+            # Return copies to prevent mutation
+            return [copy(f) for f in result]
 
     def reset_specialist(self, specialist: SpecialistType) -> None:
         """

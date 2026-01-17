@@ -278,6 +278,66 @@ class TestSpecialistTrustScoreTracker:
         assert "security" in result["scores"]
 
 
+class TestLRUEviction:
+    """Tests for LRU eviction of feedback history - Issue #4076."""
+
+    def setup_method(self):
+        """Reset global tracker before each test."""
+        reset_specialist_trust_tracker()
+
+    def test_max_feedback_history_constant(self):
+        """Test that MAX_FEEDBACK_HISTORY is set to 1000."""
+        assert SpecialistTrustScoreTracker.MAX_FEEDBACK_HISTORY == 1000
+
+    def test_feedback_history_bounded(self):
+        """Test that feedback history is bounded by MAX_FEEDBACK_HISTORY."""
+        tracker = SpecialistTrustScoreTracker()
+
+        # Record more than MAX_FEEDBACK_HISTORY feedbacks
+        # Use a smaller number for testing (we'll verify the deque has maxlen)
+        for i in range(10):
+            tracker.record_feedback(
+                specialist=SpecialistType.SECURITY,
+                feedback_type=FeedbackType.ACCEPTED,
+                finding_id=f"finding-{i}",
+            )
+
+        # Verify all 10 are stored
+        history = tracker.get_feedback_history(limit=100)
+        assert len(history) == 10
+
+        # Verify most recent is first
+        assert history[0].finding_id == "finding-9"
+        assert history[9].finding_id == "finding-0"
+
+    def test_lru_eviction_removes_oldest(self):
+        """Test that LRU eviction removes oldest entries."""
+        # Create a tracker with a small maxlen for testing
+        tracker = SpecialistTrustScoreTracker()
+
+        # Manually set a smaller maxlen for testing
+        from collections import deque
+        tracker._feedback_history = deque(maxlen=5)
+
+        # Record 7 feedbacks
+        for i in range(7):
+            tracker.record_feedback(
+                specialist=SpecialistType.SECURITY,
+                feedback_type=FeedbackType.ACCEPTED,
+                finding_id=f"finding-{i}",
+            )
+
+        # Only last 5 should remain
+        history = tracker.get_feedback_history(limit=100)
+        assert len(history) == 5
+
+        # Oldest (finding-0, finding-1) should be evicted
+        finding_ids = [f.finding_id for f in history]
+        assert "finding-0" not in finding_ids
+        assert "finding-1" not in finding_ids
+        assert "finding-6" in finding_ids  # Most recent
+
+
 class TestGlobalTracker:
     """Tests for global tracker singleton."""
 

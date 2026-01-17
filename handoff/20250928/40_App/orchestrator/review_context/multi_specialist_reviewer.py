@@ -29,29 +29,19 @@ import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from llm.client import get_client_for_task
 from core.routing import TaskType
 
+# Issue #4074: Import shared types from common module
+from governance.types import SpecialistType, CORE_SPECIALISTS
+
 logger = logging.getLogger(__name__)
 
 
-class ReviewSpecialist(Enum):
-    """
-    Review specialist types for multi-specialist review.
-
-    Each specialist focuses on specific aspects of code review:
-    - SECURITY: Vulnerabilities, injection attacks, auth issues
-    - PERFORMANCE: Inefficiencies, memory leaks, N+1 queries
-    - ARCHITECTURE: Design patterns, SOLID principles, coupling
-    - SELF_CRITIQUE: Verifies findings from other specialists (B-16)
-    """
-    SECURITY = "security"
-    PERFORMANCE = "performance"
-    ARCHITECTURE = "architecture"
-    SELF_CRITIQUE = "self_critique"
+# Alias for backward compatibility - existing code uses ReviewSpecialist
+ReviewSpecialist = SpecialistType
 
 
 @dataclass
@@ -379,11 +369,8 @@ class MultiSpecialistReviewer:
     """
 
     # Default specialists for first-pass review (excludes SELF_CRITIQUE)
-    DEFAULT_SPECIALISTS = [
-        ReviewSpecialist.SECURITY,
-        ReviewSpecialist.PERFORMANCE,
-        ReviewSpecialist.ARCHITECTURE,
-    ]
+    # Issue #4074: Use shared CORE_SPECIALISTS from governance.types
+    DEFAULT_SPECIALISTS = CORE_SPECIALISTS
 
     def __init__(
         self,
