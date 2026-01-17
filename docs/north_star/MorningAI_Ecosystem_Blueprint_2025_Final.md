@@ -149,6 +149,28 @@ Flow Controller 代表整個 MorningAI 的 **Runtime Engine**。
 * **Debate Agent（Left / Right）**
 * **Risk Analyzer Agent**
 
+### Implementation Notes
+
+> **Issue #4118**: AgentType Enum Extension
+>
+> 所有 13 種 Agent 角色已在 `governance/principal_context.py::AgentType` enum 中定義：
+>
+> | Blueprint 名稱 | AgentType Enum | 值 |
+> |---------------|----------------|-----|
+> | Planner Agent | `PLANNER` | `"planner"` |
+> | Coding Agent | `CODING` | `"coding"` |
+> | Reviewer Agent | `REVIEWER` | `"reviewer"` |
+> | Test Agent v2 | `TEST` | `"test"` |
+> | Debugger Agent | `DEBUGGER` | `"debugger"` |
+> | UI Consistency Agent | `UI_CONSISTENCY` | `"ui_consistency"` |
+> | UX Heuristic Agent | `UX_HEURISTIC` | `"ux_heuristic"` |
+> | Visual Regression Agent | `VISUAL_REGRESSION` | `"visual_regression"` |
+> | Design Token Governance | `DESIGN_TOKEN_GOVERNANCE` | `"design_token_governance"` |
+> | Judge Agent | `JUDGE` | `"judge"` |
+> | Debate Agent (Left) | `DEBATE_LEFT` | `"debate_left"` |
+> | Debate Agent (Right) | `DEBATE_RIGHT` | `"debate_right"` |
+> | Risk Analyzer Agent | `RISK_ANALYZER` | `"risk_analyzer"` |
+
 每個 Agent 都遵守：
 
 * **Agent Interaction Protocol v2（AIP v2）**
