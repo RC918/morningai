@@ -6,23 +6,18 @@ Provides validation for AIP v2 messages and handshakes.
 
 import json
 import re
-from typing import Optional
 
+from .exceptions import MessageValidationError
 from .message import AgentMessage
 from .handshake import AgentHandshake
 
 
-# =============================================================================
-# Validation Exceptions
-# =============================================================================
-
-
-class MessageValidationError(Exception):
-    """Exception raised when message validation fails."""
-
-    def __init__(self, message: str, field: Optional[str] = None):
-        self.field = field
-        super().__init__(message)
+# Re-export for backward compatibility
+__all__ = [
+    "MessageValidationError",
+    "MessageValidator",
+    "HandshakeValidator",
+]
 
 
 # =============================================================================

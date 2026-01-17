@@ -12,6 +12,20 @@ import re
 from typing import Any, Dict, Optional
 import uuid
 
+from .exceptions import MessageValidationError
+
+
+# Re-export for backward compatibility
+__all__ = [
+    "AIP_VERSION",
+    "MessagePriority",
+    "MessageType",
+    "AgentTask",
+    "AgentResult",
+    "AgentMessage",
+    "MessageValidationError",
+]
+
 
 # =============================================================================
 # AIP v2 Protocol Version Constant
@@ -108,18 +122,6 @@ class AgentResult:
 # =============================================================================
 # AIP v2 Message Schema
 # =============================================================================
-
-
-class MessageValidationError(Exception):
-    """Exception raised when message validation fails.
-
-    Note: This is duplicated here for use in from_dict validation.
-    The canonical version is in validation.py.
-    """
-
-    def __init__(self, message: str, field: Optional[str] = None):
-        self.field = field
-        super().__init__(message)
 
 
 @dataclass
