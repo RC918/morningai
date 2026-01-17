@@ -8204,6 +8204,58 @@ def router_node(state: AgentState) -> AgentState:
 
         return state
 
+    # Issue #4123: Merged/Closed PR Fast Path
+    # When a PR is already merged or closed, skip HITL and route to finalizer.
+    # This aligns with Blueprint Section 9 (Self-Governed) - no human intervention
+    # needed for already-completed actions.
+    pr_context = state.get("pr_context", {})
+    pr_state = pr_context.get("state", "").lower()
+    if pr_state in ("merged", "closed"):
+        fast_path_start = time.monotonic()
+        logger.info(
+            f"[MERGED_PR_ROUTER_FAST_PATH] PR already {pr_state}, skipping HITL "
+            f"trace_id={trace_id}",
+            extra={
+                "operation": "router",
+                "trace_id": trace_id,
+                "pr_state": pr_state,
+            }
+        )
+        state["merge_decision"] = "approve" if pr_state == "merged" else "request_changes"
+        state["requires_hitl_approval"] = False
+        state["routing_decision"] = {
+            "version": 1,
+            "next_node": "finalizer",
+            "reasoning": f"PR already {pr_state}, no HITL needed (Issue #4123)",
+            "risk_assessment": "none",
+            "requires_hitl_approval": False,
+        }
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content=f"Router: PR already {pr_state} -> finalizer (skip HITL)")
+        ]
+        latency_ms = (time.monotonic() - fast_path_start) * 1000
+        metrics.record_node_complete("router", trace_id, success=True, latency_ms=latency_ms)
+
+        router_metrics.record_decision(
+            trace_id=trace_id,
+            latency_ms=latency_ms,
+            success=True,
+            chosen_node="finalizer",
+            fallback_reason=None,
+            decision_mode=DecisionMode.MERGED_PR_FAST_PATH,
+        )
+
+        if canary_metrics:
+            canary_metrics.record_router_decision(
+                next_node="finalizer",
+                success=True,
+                latency_ms=latency_ms,
+                decision_mode=DecisionMode.MERGED_PR_FAST_PATH,
+                fallback_reason=None,
+            )
+
+        return state
+
     # Extract ReviewOutcome fields from state
     # These are set by reviewer_node via ReviewOutcome schema
     review_outcome = state.get("review_outcome", {})

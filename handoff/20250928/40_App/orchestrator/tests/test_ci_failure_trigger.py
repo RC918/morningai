@@ -457,3 +457,205 @@ class TestCIMonitorFastPathConsumed:
 
         # Normal flow should not set consumed flag
         assert result.get("ci_failure_fast_path_consumed") is None
+
+
+class TestMergedPRFastPath:
+    """Test merged/closed PR fast path routing (Issue #4123 HITL Optimization).
+
+    When a PR is already merged or closed, the router should skip HITL and route
+    directly to finalizer. This aligns with Blueprint Section 9 (Self-Governed) -
+    no human intervention needed for already-completed actions.
+    """
+
+    def test_router_fast_path_for_merged_pr(self):
+        """Test that router_node routes merged PRs to finalizer without HITL."""
+        from unittest.mock import patch, MagicMock
+
+        state = {
+            "trace_id": "test-trace-merged",
+            "pr_context": {"state": "merged"},
+            "messages": [],
+        }
+
+        with patch("langgraph_orchestrator.time") as mock_time:
+            mock_time.monotonic.return_value = 1000.0
+            with patch("langgraph_orchestrator._get_metrics") as mock_metrics:
+                mock_metrics.return_value = MagicMock()
+
+                from langgraph_orchestrator import router_node
+                result = router_node(state)
+
+        assert result["merge_decision"] == "approve"
+        assert result["requires_hitl_approval"] is False
+        assert result["routing_decision"]["next_node"] == "finalizer"
+        assert "merged" in result["routing_decision"]["reasoning"]
+        assert "no HITL needed" in result["routing_decision"]["reasoning"]
+
+    def test_router_fast_path_for_closed_pr(self):
+        """Test that router_node routes closed PRs to finalizer without HITL."""
+        from unittest.mock import patch, MagicMock
+
+        state = {
+            "trace_id": "test-trace-closed",
+            "pr_context": {"state": "closed"},
+            "messages": [],
+        }
+
+        with patch("langgraph_orchestrator.time") as mock_time:
+            mock_time.monotonic.return_value = 1000.0
+            with patch("langgraph_orchestrator._get_metrics") as mock_metrics:
+                mock_metrics.return_value = MagicMock()
+
+                from langgraph_orchestrator import router_node
+                result = router_node(state)
+
+        assert result["merge_decision"] == "request_changes"
+        assert result["requires_hitl_approval"] is False
+        assert result["routing_decision"]["next_node"] == "finalizer"
+        assert "closed" in result["routing_decision"]["reasoning"]
+
+    def test_router_no_fast_path_for_open_pr(self):
+        """Test that router_node does NOT fast-path open PRs."""
+        from unittest.mock import patch, MagicMock
+        from core.flow.schema import DecisionMode, RoutingDecision, RoutingResult
+
+        state = {
+            "trace_id": "test-trace-open",
+            "pr_context": {"state": "open"},
+            "messages": [],
+            "review_outcome": {
+                "verdict": "unknown",
+                "severity": "none",
+                "summary": "Needs review",
+                "blocker_count": 0,
+            },
+        }
+
+        with patch("langgraph_orchestrator.time") as mock_time:
+            mock_time.monotonic.return_value = 1000.0
+            with patch("langgraph_orchestrator._get_metrics") as mock_metrics:
+                mock_metrics.return_value = MagicMock()
+                with patch("core.flow.hybrid_router.get_hybrid_router") as mock_router:
+                    mock_decision = RoutingDecision(
+                        next_node="decision",
+                        reasoning="Unknown verdict requires review",
+                        risk_assessment="high",
+                        requires_hitl_approval=True,
+                    )
+                    mock_result = RoutingResult(
+                        decision=mock_decision,
+                        decision_mode=DecisionMode.FAST_PATH,
+                    )
+                    mock_router.return_value.route_with_meta.return_value = mock_result
+
+                    from langgraph_orchestrator import router_node
+                    result = router_node(state)
+
+        assert mock_router.return_value.route_with_meta.called
+        assert result["requires_hitl_approval"] is True
+
+    def test_router_no_fast_path_without_pr_context(self):
+        """Test that router_node does NOT fast-path when pr_context is missing."""
+        from unittest.mock import patch, MagicMock
+        from core.flow.schema import DecisionMode, RoutingDecision, RoutingResult
+
+        state = {
+            "trace_id": "test-trace-no-context",
+            "messages": [],
+            "review_outcome": {
+                "verdict": "approve",
+                "severity": "none",
+                "summary": "All good",
+                "blocker_count": 0,
+            },
+        }
+
+        with patch("langgraph_orchestrator.time") as mock_time:
+            mock_time.monotonic.return_value = 1000.0
+            with patch("langgraph_orchestrator._get_metrics") as mock_metrics:
+                mock_metrics.return_value = MagicMock()
+                with patch("core.flow.hybrid_router.get_hybrid_router") as mock_router:
+                    mock_decision = RoutingDecision(
+                        next_node="publisher",
+                        reasoning="Approved",
+                        risk_assessment="low",
+                        requires_hitl_approval=False,
+                    )
+                    mock_result = RoutingResult(
+                        decision=mock_decision,
+                        decision_mode=DecisionMode.FAST_PATH,
+                    )
+                    mock_router.return_value.route_with_meta.return_value = mock_result
+
+                    from langgraph_orchestrator import router_node
+                    router_node(state)
+
+        assert mock_router.return_value.route_with_meta.called
+
+    def test_merged_pr_fast_path_decision_mode(self):
+        """Test that merged PR fast path uses MERGED_PR_FAST_PATH decision mode."""
+        from unittest.mock import patch, MagicMock
+        from core.flow.schema import DecisionMode
+
+        state = {
+            "trace_id": "test-trace-decision-mode",
+            "pr_context": {"state": "merged"},
+            "messages": [],
+        }
+
+        recorded_decision_mode = None
+
+        with patch("langgraph_orchestrator.time") as mock_time:
+            mock_time.monotonic.return_value = 1000.0
+            with patch("langgraph_orchestrator._get_metrics") as mock_metrics:
+                mock_metrics.return_value = MagicMock()
+                with patch("langgraph_orchestrator.router_metrics") as mock_router_metrics:
+                    def capture_decision_mode(**kwargs):
+                        nonlocal recorded_decision_mode
+                        recorded_decision_mode = kwargs.get("decision_mode")
+                    mock_router_metrics.record_decision.side_effect = capture_decision_mode
+
+                    from langgraph_orchestrator import router_node
+                    router_node(state)
+
+        assert recorded_decision_mode == DecisionMode.MERGED_PR_FAST_PATH
+
+    def test_open_pr_with_unknown_verdict_still_triggers_hitl(self):
+        """Test that open PRs with unknown verdict still trigger HITL (safety maintained)."""
+        from unittest.mock import patch, MagicMock
+        from core.flow.schema import DecisionMode, RoutingDecision, RoutingResult
+
+        state = {
+            "trace_id": "test-trace-safety",
+            "pr_context": {"state": "open"},
+            "messages": [],
+            "review_outcome": {
+                "verdict": "unknown",
+                "severity": "none",
+                "summary": "",
+                "blocker_count": 0,
+            },
+        }
+
+        with patch("langgraph_orchestrator.time") as mock_time:
+            mock_time.monotonic.return_value = 1000.0
+            with patch("langgraph_orchestrator._get_metrics") as mock_metrics:
+                mock_metrics.return_value = MagicMock()
+                with patch("core.flow.hybrid_router.get_hybrid_router") as mock_router:
+                    mock_decision = RoutingDecision(
+                        next_node="decision",
+                        reasoning="Unknown verdict requires human review",
+                        risk_assessment="high",
+                        requires_hitl_approval=True,
+                    )
+                    mock_result = RoutingResult(
+                        decision=mock_decision,
+                        decision_mode=DecisionMode.FAST_PATH,
+                    )
+                    mock_router.return_value.route_with_meta.return_value = mock_result
+
+                    from langgraph_orchestrator import router_node
+                    result = router_node(state)
+
+        assert result["requires_hitl_approval"] is True
+        assert result["routing_decision"]["next_node"] == "decision"

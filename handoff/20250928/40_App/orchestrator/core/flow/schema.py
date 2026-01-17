@@ -55,6 +55,7 @@ class DecisionMode(StrEnum):
     - SLOW_PATH: LLM made the routing decision
     - LLM_FALLBACK: LLM was attempted but failed, fell back to deterministic
     - CI_FAILURE_FAST_PATH: CI failure triggered immediate fixer routing
+    - MERGED_PR_FAST_PATH: PR already merged/closed, skip HITL (Issue #4123)
     - OUTER_FALLBACK: Router exception, fell back to decision_node logic
     """
 
@@ -62,6 +63,7 @@ class DecisionMode(StrEnum):
     SLOW_PATH = "slow_path"
     LLM_FALLBACK = "llm_fallback"
     CI_FAILURE_FAST_PATH = "ci_failure_fast_path"
+    MERGED_PR_FAST_PATH = "merged_pr_fast_path"
     OUTER_FALLBACK = "outer_fallback"
 
 
