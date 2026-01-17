@@ -69,6 +69,19 @@ class FileLevelComment(BaseModel):
     )
 
 
+class SpecialistFindingSummary(BaseModel):
+    """Summary of a specialist finding for PR summary rendering.
+
+    Issue #4133: Include Multi-Specialist findings in PRSummary output.
+    """
+    specialist: str = Field(description="Specialist type (security/performance/architecture)")
+    severity: str = Field(description="Finding severity (low/medium/high/critical)")
+    category: str = Field(description="Issue category")
+    message: str = Field(description="Finding description")
+    file_path: Optional[str] = Field(default=None, description="File path if applicable")
+    suggestion: Optional[str] = Field(default=None, description="Suggested fix")
+
+
 class PRSummary(BaseModel):
     """Standardized PR Summary artifact (Issue #3221)
 
@@ -106,6 +119,25 @@ class PRSummary(BaseModel):
     file_level_comments: List[FileLevelComment] = Field(
         default_factory=list,
         description="Comments that couldn't be posted inline"
+    )
+
+    # Multi-Specialist Review findings (Issue #4133)
+    # B-9: Security, Performance, Architecture specialist findings
+    specialist_findings: List[SpecialistFindingSummary] = Field(
+        default_factory=list,
+        description="Findings from multi-specialist review (B-9)"
+    )
+
+    # B-11: Test coverage gaps
+    test_coverage_gaps: List[str] = Field(
+        default_factory=list,
+        description="Test coverage gaps identified by B-11 analyzer"
+    )
+
+    # B-12: Dependency issues
+    dependency_issues: List[str] = Field(
+        default_factory=list,
+        description="Dependency issues identified by B-12 analyzer"
     )
 
     # Metadata (optional, for tracing and debugging)
@@ -195,6 +227,80 @@ class PRSummary(BaseModel):
             "**Analysis:**",
             self.analysis,
         ]
+
+        # Add Multi-Specialist Review findings (Issue #4133)
+        if self.specialist_findings:
+            parts.append("")
+            parts.append("---")
+            parts.append("")
+            parts.append("### Multi-Specialist Analysis")
+            parts.append("")
+
+            security_findings = [f for f in self.specialist_findings if f.specialist.lower() == "security"]
+            performance_findings = [f for f in self.specialist_findings if f.specialist.lower() == "performance"]
+            architecture_findings = [f for f in self.specialist_findings if f.specialist.lower() == "architecture"]
+
+            severity_icons = {
+                "critical": ":red_circle:",
+                "high": ":orange_circle:",
+                "medium": ":yellow_circle:",
+                "low": ":white_circle:"
+            }
+
+            if security_findings:
+                parts.append("#### :shield: Security")
+                for finding in security_findings:
+                    icon = severity_icons.get(finding.severity.lower(), ":white_circle:")
+                    parts.append(f"- {icon} **[{finding.category}]** {finding.message}")
+                    if finding.file_path:
+                        parts.append(f"  - File: `{finding.file_path}`")
+                    if finding.suggestion:
+                        parts.append(f"  - Suggestion: {finding.suggestion}")
+                parts.append("")
+
+            if performance_findings:
+                parts.append("#### :zap: Performance")
+                for finding in performance_findings:
+                    icon = severity_icons.get(finding.severity.lower(), ":white_circle:")
+                    parts.append(f"- {icon} **[{finding.category}]** {finding.message}")
+                    if finding.file_path:
+                        parts.append(f"  - File: `{finding.file_path}`")
+                    if finding.suggestion:
+                        parts.append(f"  - Suggestion: {finding.suggestion}")
+                parts.append("")
+
+            if architecture_findings:
+                parts.append("#### :building_construction: Architecture")
+                for finding in architecture_findings:
+                    icon = severity_icons.get(finding.severity.lower(), ":white_circle:")
+                    parts.append(f"- {icon} **[{finding.category}]** {finding.message}")
+                    if finding.file_path:
+                        parts.append(f"  - File: `{finding.file_path}`")
+                    if finding.suggestion:
+                        parts.append(f"  - Suggestion: {finding.suggestion}")
+                parts.append("")
+
+        # Add Test Coverage gaps (B-11)
+        if self.test_coverage_gaps:
+            parts.append("")
+            parts.append("---")
+            parts.append("")
+            parts.append("### :test_tube: Test Coverage Gaps")
+            parts.append("")
+            for gap in self.test_coverage_gaps:
+                parts.append(f"- {gap}")
+            parts.append("")
+
+        # Add Dependency issues (B-12)
+        if self.dependency_issues:
+            parts.append("")
+            parts.append("---")
+            parts.append("")
+            parts.append("### :package: Dependency Issues")
+            parts.append("")
+            for issue in self.dependency_issues:
+                parts.append(f"- {issue}")
+            parts.append("")
 
         # Add file-level comments appendix if present
         if self.file_level_comments:
@@ -298,7 +404,10 @@ def build_pr_summary(
     trace_id: Optional[str] = None,
     pr_number: Optional[int] = None,
     repo: Optional[str] = None,
-    head_sha: Optional[str] = None
+    head_sha: Optional[str] = None,
+    specialist_findings: Optional[List[Dict[str, Any]]] = None,
+    test_coverage_gaps: Optional[List[str]] = None,
+    dependency_issues: Optional[List[str]] = None
 ) -> PRSummary:
     """
     Build PRSummary from reviewer state fields.
@@ -315,6 +424,9 @@ def build_pr_summary(
         pr_number: Optional PR number
         repo: Optional repository in owner/repo format
         head_sha: Optional head commit SHA
+        specialist_findings: Optional list of specialist finding dicts (Issue #4133)
+        test_coverage_gaps: Optional list of test coverage gap descriptions (B-11)
+        dependency_issues: Optional list of dependency issue descriptions (B-12)
 
     Returns:
         PRSummary instance ready for rendering
@@ -326,7 +438,8 @@ def build_pr_summary(
             code_quality_score=state.get("code_quality_score", 0),
             file_level_comments=downgraded_comments,
             trace_id=state.get("trace_id"),
-            pr_number=state.get("pr_number")
+            pr_number=state.get("pr_number"),
+            specialist_findings=state.get("multi_specialist_review_v1", {}).get("findings", [])
         )
         markdown = summary.to_github_markdown()
     """
@@ -348,6 +461,19 @@ def build_pr_summary(
                 reason=c.get("downgrade_reason")
             ))
 
+    # Convert specialist findings to SpecialistFindingSummary objects (Issue #4133)
+    specialist_finding_objs = []
+    if specialist_findings:
+        for f in specialist_findings:
+            specialist_finding_objs.append(SpecialistFindingSummary(
+                specialist=f.get("specialist", "unknown"),
+                severity=f.get("severity", "low"),
+                category=f.get("category", "general"),
+                message=f.get("message", ""),
+                file_path=f.get("file_path"),
+                suggestion=f.get("suggestion")
+            ))
+
     # Normalize head_sha: only accept non-empty strings, convert invalid types to None
     # This ensures graceful degradation when diff_head_sha is missing or invalid
     normalized_head_sha = head_sha if isinstance(head_sha, str) and head_sha.strip() else None
@@ -358,6 +484,9 @@ def build_pr_summary(
         score=max(0, min(100, code_quality_score)),  # Clamp to 0-100
         analysis=llm_summary,
         file_level_comments=file_comments,
+        specialist_findings=specialist_finding_objs,
+        test_coverage_gaps=test_coverage_gaps or [],
+        dependency_issues=dependency_issues or [],
         trace_id=trace_id,
         pr_number=pr_number,
         repo=repo,
