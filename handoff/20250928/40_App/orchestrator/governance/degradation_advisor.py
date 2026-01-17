@@ -195,7 +195,7 @@ class DegradationAdvisor:
     """
     Service layer for degradation advisory
 
-    EPIC I-4 Phase A: Immune Decision Engine (Observe-Only)
+    EPIC I-4 Phase A/B: Immune Decision Engine
 
     This class manages state, cooldown, and floor provider protection.
     It integrates with CanaryMetrics for health data and outputs
@@ -207,7 +207,8 @@ class DegradationAdvisor:
     - hybrid: Dynamic with stickiness and fallback (recommended)
 
     Safety Contract:
-    - Phase A: dry_run=True always, no routing modifications
+    - Phase A: dry_run=True (default), observe-only, no routing modifications
+    - Phase B: dry_run=False, recommendations can be applied via RoutingPolicyEvolver
     - Notification failures are logged but never block
     - All operations are wrapped in try/except
     """
@@ -215,6 +216,7 @@ class DegradationAdvisor:
     def __init__(
         self,
         enabled: bool = False,
+        dry_run: bool = True,
         cooldown_minutes: int = 15,
         min_requests: int = 10,
         floor_provider_count: int = 1,
@@ -232,6 +234,7 @@ class DegradationAdvisor:
 
         Args:
             enabled: Whether advisory is enabled
+            dry_run: Whether to run in observe-only mode (Phase A) or auto-apply mode (Phase B)
             cooldown_minutes: Minimum time between advisories for same provider
             min_requests: Minimum requests in window before advisory
             floor_provider_count: Minimum providers to keep at non-AVOID status
@@ -245,6 +248,7 @@ class DegradationAdvisor:
             floor_min_requests: Minimum requests for floor candidate eligibility
         """
         self.enabled = enabled
+        self.dry_run = dry_run
         self.cooldown_minutes = cooldown_minutes
         self.min_requests = min_requests
         self.floor_provider_count = floor_provider_count
@@ -267,7 +271,7 @@ class DegradationAdvisor:
         self._lock = threading.Lock()
 
         logger.info(
-            f"[DegradationAdvisor] Initialized: enabled={enabled}, "
+            f"[DegradationAdvisor] Initialized: enabled={enabled}, dry_run={dry_run}, "
             f"cooldown={cooldown_minutes}min, min_requests={min_requests}, "
             f"floor_providers={floor_provider_count}, floor_strategy={floor_strategy}"
         )
@@ -338,7 +342,7 @@ class DegradationAdvisor:
                 health_score=health_score,
                 health_score_normalized=health_score / 100.0,
                 reason=reason,
-                dry_run=True,  # Phase A: always dry-run
+                dry_run=self.dry_run,  # Phase A: True (observe), Phase B: False (auto-apply)
                 floor_protected=False,
                 previous_severity=current_severity,
             )
@@ -361,7 +365,7 @@ class DegradationAdvisor:
         """
         Compute advisories for all providers with floor protection
 
-        EPIC I-4 Phase A: Observe-Only
+        EPIC I-4 Phase A/B: Immune Decision Engine
 
         This method checks all providers and applies floor protection to ensure
         at least floor_provider_count providers remain usable.
@@ -431,6 +435,7 @@ class DegradationAdvisor:
                 "providers_checked": list(providers),
                 "advisories": {p: a.to_dict() for p, a in advisories.items()},
                 "advisories_logged": logged_count,
+                "recommendations": list(advisories.values()),  # EPIC I-4 Phase B: raw objects for evolver
             }
 
         except Exception as e:
@@ -647,7 +652,7 @@ class DegradationAdvisor:
                 health_score=original.health_score,
                 health_score_normalized=original.health_score_normalized,
                 reason=original.reason,
-                dry_run=True,
+                dry_run=self.dry_run,  # Phase A/B: inherit from advisor config
                 floor_protected=True,
                 previous_severity=original.previous_severity,
             )
@@ -770,6 +775,9 @@ def get_degradation_advisor() -> Optional[DegradationAdvisor]:
 
             _degradation_advisor = DegradationAdvisor(
                 enabled=True,
+                dry_run=getattr(
+                    settings, "degradation_advisory_dry_run", True
+                ),
                 cooldown_minutes=getattr(
                     settings, "degradation_cooldown_minutes", 15
                 ),
@@ -817,7 +825,7 @@ def reset_degradation_advisor() -> None:
     """
     Reset the global DegradationAdvisor singleton (useful for testing)
 
-    EPIC I-4 Phase A: Immune Decision Engine
+    EPIC I-4 Phase A/B: Immune Decision Engine
     """
     global _degradation_advisor
     with _degradation_advisor_lock:
