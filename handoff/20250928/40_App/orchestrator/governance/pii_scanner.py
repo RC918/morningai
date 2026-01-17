@@ -108,17 +108,23 @@ class PIIAction(str, Enum):
 
 @dataclass
 class PIIFinding:
-    """Represents a single PII finding"""
+    """Represents a single PII finding.
+
+    Issue #4049: Added original_length field to store the actual length of
+    matched PII text before sanitization/truncation. This enables accurate
+    position-based redaction in RuntimePolicyEnforcer._redact_pii_content().
+    """
     category: PIICategory
     risk_level: PIIRiskLevel
     pattern_id: str
     title: str
     description: str
-    matched_text: str  # Sanitized/truncated for security
+    matched_text: str  # Sanitized/truncated for security (max 20 chars)
     position: int
     confidence: float
     recommendation: str
     evidence_hash: str
+    original_length: int = 0  # Issue #4049: Actual length before sanitization
     redacted_text: Optional[str] = None  # Redacted version if applicable
 
     def to_dict(self) -> Dict[str, Any]:
@@ -134,6 +140,7 @@ class PIIFinding:
             "confidence": self.confidence,
             "recommendation": self.recommendation,
             "evidence_hash": self.evidence_hash,
+            "original_length": self.original_length,
             "redacted_text": self.redacted_text,
         }
 
@@ -1053,6 +1060,9 @@ class PIIScanner:
                 if not self._validate_match(matched_text, category):
                     continue
 
+                # Issue #4049: Store original length before sanitization for accurate redaction
+                original_length = len(matched_text)
+
                 findings.append(
                     PIIFinding(
                         category=category,
@@ -1065,6 +1075,7 @@ class PIIScanner:
                         confidence=confidence,
                         recommendation=self._get_recommendation(category),
                         evidence_hash=self._compute_evidence_hash(matched_text),
+                        original_length=original_length,
                         redacted_text=self._redact_text(matched_text, category),
                     )
                 )
