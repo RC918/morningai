@@ -8,6 +8,10 @@ This dashboard tracks coverage metrics over time and provides:
 - Threshold compliance checking
 - Coverage regression alerts
 
+Blueprint Section 5.4: CI Enforcement
+- Thresholds are configurable via settings (COVERAGE_THRESHOLD_*)
+- Falls back to hardcoded defaults if settings unavailable
+
 Usage:
     python coverage_dashboard.py [--days DAYS] [--module MODULE]
 
@@ -21,16 +25,63 @@ import json
 import argparse
 import redis
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Dict, Optional
 
-# Coverage thresholds by module
-COVERAGE_THRESHOLDS = {
-    'api-backend': 74,
-    'orchestrator': 50,
-    'shared-ui': 60,
-    'frontend-dashboard': 80,
-    'owner-console': 70,
-}
+
+def get_coverage_thresholds() -> Dict[str, int]:
+    """
+    Get coverage thresholds from settings or use defaults.
+
+    Blueprint Section 5.4: CI Enforcement
+    Thresholds are configurable via environment variables:
+    - COVERAGE_THRESHOLD_API_BACKEND
+    - COVERAGE_THRESHOLD_ORCHESTRATOR
+    - COVERAGE_THRESHOLD_SHARED_UI
+    - COVERAGE_THRESHOLD_FRONTEND_DASHBOARD
+    - COVERAGE_THRESHOLD_OWNER_CONSOLE
+
+    Returns:
+        Dict mapping module names to coverage threshold percentages
+    """
+    defaults = {
+        'api-backend': 74,
+        'orchestrator': 50,
+        'shared-ui': 60,
+        'frontend-dashboard': 80,
+        'owner-console': 70,
+    }
+
+    try:
+        from common.config.settings import settings
+        if settings:
+            return {
+                'api-backend': getattr(
+                    settings, 'coverage_threshold_api_backend', defaults['api-backend']
+                ),
+                'orchestrator': getattr(
+                    settings, 'coverage_threshold_orchestrator', defaults['orchestrator']
+                ),
+                'shared-ui': getattr(
+                    settings, 'coverage_threshold_shared_ui', defaults['shared-ui']
+                ),
+                'frontend-dashboard': getattr(
+                    settings,
+                    'coverage_threshold_frontend_dashboard',
+                    defaults['frontend-dashboard']
+                ),
+                'owner-console': getattr(
+                    settings, 'coverage_threshold_owner_console', defaults['owner-console']
+                ),
+            }
+    except Exception:
+        # Catch all exceptions including ImportError, ValidationError, etc.
+        # Fall back to defaults if settings are unavailable or invalid
+        pass
+
+    return defaults
+
+
+COVERAGE_THRESHOLDS = get_coverage_thresholds()
 
 # Redis key patterns
 COVERAGE_HISTORY_KEY = 'coverage:history:{module}'
