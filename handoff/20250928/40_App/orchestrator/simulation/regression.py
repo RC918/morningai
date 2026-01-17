@@ -1100,10 +1100,13 @@ REGRESSION_METADATA = {{
         relative_path = os.path.join(output_dir, filename)
 
         # Validate path doesn't escape repo_path (directory traversal protection)
+        # (Cursor Bugbot: add trailing separator to prevent sibling directory bypass)
         abs_repo_path = os.path.abspath(repo_path)
         abs_file_path = os.path.abspath(os.path.join(repo_path, relative_path))
 
-        if not abs_file_path.startswith(abs_repo_path):
+        # Use trailing separator to prevent bypass via sibling directories
+        # e.g., /home/user/myrepo_evil would bypass startswith(/home/user/myrepo)
+        if not abs_file_path.startswith(abs_repo_path + os.sep):
             result["error"] = "Path traversal detected - file path escapes repo"
             logger.error(
                 "[Regression] H-2.4: Path traversal attempt blocked",
@@ -1267,13 +1270,23 @@ class RegressionTestProtector:
     # Marker comment that identifies protected regression tests
     PROTECTION_MARKER = "REGRESSION_METADATA"
 
-    def __init__(self, regression_test_dir: str = "tests/regression"):
+    def __init__(self, regression_test_dir: Optional[str] = None):
         """
         Initialize the RegressionTestProtector.
 
         Args:
-            regression_test_dir: Directory containing regression tests
+            regression_test_dir: Directory containing regression tests.
+                               Uses regression_test_output_dir setting if not specified.
         """
+        # (MorningAI Reviewer: use settings value instead of hardcoded default)
+        if regression_test_dir is None:
+            try:
+                from common.config.settings import settings
+                regression_test_dir = getattr(
+                    settings, 'regression_test_output_dir', 'tests/regression'
+                )
+            except ImportError:
+                regression_test_dir = "tests/regression"
         self.regression_test_dir = regression_test_dir
         self._protected_files: Set[str] = set()
 
@@ -1287,11 +1300,14 @@ class RegressionTestProtector:
         Returns:
             True if file is in regression test directory
         """
-        # Normalize path separators
-        normalized_path = file_path.replace("\\", "/")
-        normalized_dir = self.regression_test_dir.replace("\\", "/")
+        # (gemini-code-assist + Cursor Bugbot: use proper path matching to prevent
+        # false positives from similarly named directories like tests/regression_backup)
+        normalized_path = os.path.normpath(file_path).replace('\\', '/')
+        normalized_dir = os.path.normpath(self.regression_test_dir).replace('\\', '/')
 
-        return normalized_dir in normalized_path
+        # Check if path equals or starts with the directory (with trailing slash)
+        return normalized_path == normalized_dir or \
+            normalized_path.startswith(normalized_dir + '/')
 
     def is_protected_test(self, file_path: str, file_content: str) -> bool:
         """
