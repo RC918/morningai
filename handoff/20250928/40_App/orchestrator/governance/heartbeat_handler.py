@@ -410,6 +410,42 @@ def run_governance_cycle(
                             "advisories_logged": advisories_logged,
                         }
                     )
+
+                # EPIC I-4 Phase B: Pass recommendations to RoutingPolicyEvolver
+                # Only when dry_run=False (Phase B mode)
+                if not advisor.dry_run:
+                    recommendations = advisory_results.get("recommendations", [])
+                    if recommendations:
+                        try:
+                            from governance.routing_policy_evolver import (
+                                get_routing_policy_evolver,
+                            )
+
+                            policy_evolver = get_routing_policy_evolver(redis_client)
+                            if policy_evolver:
+                                rec_dicts = [r.to_dict() for r in recommendations]
+                                evolution_result = policy_evolver.evolve_from_degradation_recommendations(
+                                    rec_dicts
+                                )
+                                logger.info(
+                                    f"[Governance] Routing policy evolution from degradation: "
+                                    f"changes_generated={evolution_result.get('changes_generated', 0)}, "
+                                    f"changes_auto_applied={evolution_result.get('changes_auto_applied', 0)}",
+                                    extra={
+                                        "operation": "governance_routing_evolution",
+                                        "evaluator_node_id": evaluator_node_id,
+                                        "evolution_result": evolution_result,
+                                    }
+                                )
+                        except Exception as e:
+                            logger.warning(
+                                f"[Governance] Routing policy evolution failed: {e}",
+                                extra={
+                                    "operation": "governance_routing_evolution",
+                                    "evaluator_node_id": evaluator_node_id,
+                                    "error": str(e),
+                                }
+                            )
         except Exception as e:
             logger.warning(
                 f"[Governance] Degradation advisory failed: {e}",
