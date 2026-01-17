@@ -7396,6 +7396,8 @@ def reviewer_node(state: AgentState) -> AgentState:
                 # and stored in state, so LLM review can use it directly
                 # Issue #3640: Pass escalation/retry counts for cost optimization hard cap
                 # Issue #3223: Format cross-file reference context for LLM prompt
+                # Issue #4079: Replace dynamic type creation with proper dataclass import
+                # Issue #4080: Schema validation for defense-in-depth
                 reference_context = None
                 ref_context_data = state.get("reference_context_v1")
                 if ref_context_data:
@@ -7404,17 +7406,9 @@ def reviewer_node(state: AgentState) -> AgentState:
                             format_reference_context_for_prompt,
                             ResolverResult
                         )
-                        resolver_result = ResolverResult(
-                            references=[],
-                            contexts=[
-                                type('ReferenceContext', (), ctx)()
-                                for ctx in ref_context_data.get("contexts", [])
-                            ],
-                            total_references_found=ref_context_data.get("total_references_found", 0),
-                            total_contexts_fetched=ref_context_data.get("total_contexts_fetched", 0),
-                            total_bytes=ref_context_data.get("total_bytes", 0),
-                            truncated=ref_context_data.get("truncated", False),
-                        )
+                        # Use ResolverResult.from_dict for proper type-safe reconstruction
+                        # with schema validation (replaces fragile dynamic type creation)
+                        resolver_result = ResolverResult.from_dict(ref_context_data)
                         reference_context = format_reference_context_for_prompt(resolver_result)
                         logger.info(
                             "[Reviewer] Issue #3223: Formatted reference context for LLM",
@@ -7422,6 +7416,17 @@ def reviewer_node(state: AgentState) -> AgentState:
                                 "operation": "reviewer",
                                 "trace_id": trace_id,
                                 "reference_context_chars": len(reference_context) if reference_context else 0,
+                            }
+                        )
+                    except ValueError as validation_error:
+                        # Issue #4080: Log validation failures with detail, fail open with warning
+                        logger.warning(
+                            f"[Reviewer] Issue #4080: Reference context validation failed: {validation_error}",
+                            extra={
+                                "operation": "reviewer",
+                                "trace_id": trace_id,
+                                "error": str(validation_error),
+                                "validation_failed": True,
                             }
                         )
                     except Exception as ref_fmt_error:

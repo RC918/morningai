@@ -74,6 +74,48 @@ class ReferenceContext:
             "error": self.error,
         }
 
+    @classmethod
+    def from_dict(cls, data: dict) -> "ReferenceContext":
+        """
+        Create a ReferenceContext from a dictionary.
+
+        Issue #4079: Replace dynamic type creation with proper dataclass import.
+
+        Args:
+            data: Dictionary with file_path, content, line_count, truncated, error keys
+
+        Returns:
+            ReferenceContext instance
+
+        Raises:
+            ValueError: If required fields are missing or have invalid types
+        """
+        # Issue #4080: Schema validation for defense-in-depth
+        if not isinstance(data, dict):
+            raise ValueError(f"Expected dict, got {type(data).__name__}")
+
+        # Validate required fields
+        required_field_names = ["file_path", "content", "line_count"]
+        for field_name in required_field_names:
+            if field_name not in data:
+                raise ValueError(f"Missing required field: {field_name}")
+
+        # Validate types
+        if not isinstance(data["file_path"], str):
+            raise ValueError(f"file_path must be str, got {type(data['file_path']).__name__}")
+        if not isinstance(data["content"], str):
+            raise ValueError(f"content must be str, got {type(data['content']).__name__}")
+        if not isinstance(data["line_count"], int):
+            raise ValueError(f"line_count must be int, got {type(data['line_count']).__name__}")
+
+        return cls(
+            file_path=data["file_path"],
+            content=data["content"],
+            line_count=data["line_count"],
+            truncated=data.get("truncated", False),
+            error=data.get("error"),
+        )
+
 
 @dataclass
 class ResolverResult:
@@ -97,6 +139,60 @@ class ResolverResult:
             "truncated": self.truncated,
             "error": self.error,
         }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "ResolverResult":
+        """
+        Create a ResolverResult from a dictionary (typically from state).
+
+        Issue #4079: Replace dynamic type creation with proper dataclass import.
+        Issue #4080: Schema validation for defense-in-depth.
+
+        Args:
+            data: Dictionary with contexts, total_references_found, etc.
+
+        Returns:
+            ResolverResult instance
+
+        Raises:
+            ValueError: If data has invalid structure
+        """
+        if not isinstance(data, dict):
+            raise ValueError(f"Expected dict, got {type(data).__name__}")
+
+        # Validate and convert contexts using ReferenceContext.from_dict
+        contexts = []
+        raw_contexts = data.get("contexts", [])
+        if not isinstance(raw_contexts, list):
+            raise ValueError(f"contexts must be list, got {type(raw_contexts).__name__}")
+
+        for i, ctx in enumerate(raw_contexts):
+            try:
+                contexts.append(ReferenceContext.from_dict(ctx))
+            except ValueError as e:
+                raise ValueError(f"Invalid context at index {i}: {e}")
+
+        # Validate numeric fields
+        total_refs = data.get("total_references_found", 0)
+        total_ctx = data.get("total_contexts_fetched", 0)
+        total_bytes = data.get("total_bytes", 0)
+
+        if not isinstance(total_refs, int):
+            raise ValueError(f"total_references_found must be int, got {type(total_refs).__name__}")
+        if not isinstance(total_ctx, int):
+            raise ValueError(f"total_contexts_fetched must be int, got {type(total_ctx).__name__}")
+        if not isinstance(total_bytes, int):
+            raise ValueError(f"total_bytes must be int, got {type(total_bytes).__name__}")
+
+        return cls(
+            references=[],  # References are not serialized in state
+            contexts=contexts,
+            total_references_found=total_refs,
+            total_contexts_fetched=total_ctx,
+            total_bytes=total_bytes,
+            truncated=data.get("truncated", False),
+            error=data.get("error"),
+        )
 
 
 # Default limits for token budget control
