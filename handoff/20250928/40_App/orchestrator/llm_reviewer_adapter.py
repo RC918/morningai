@@ -45,6 +45,9 @@ from review_context import (
     get_feedback_loop,
 )
 
+# Issue #4130 P1: Import reviewer metrics for observability and alerting
+from core.flow.reviewer_metrics import get_reviewer_metrics
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -698,9 +701,38 @@ class LLMReviewerAdapter:
                 diff_files=diff_files,
             )
 
+            # Issue #4130 P1: Record successful review metrics
+            try:
+                reviewer_metrics = get_reviewer_metrics()
+                reviewer_metrics.record_review(
+                    trace_id=self.trace_id,
+                    latency_ms=review_data.get("review_time_ms", 0),
+                    success=True,
+                    provider=self.llm_client.provider_name,
+                    json_parse_success=True,
+                    json_repair_attempted=False,
+                    json_repair_success=False,
+                    cross_provider_fallback=False,
+                )
+            except Exception as metrics_error:
+                logger.warning(f"[LLM Reviewer] Failed to record metrics: {metrics_error}")
+
             return result
 
         except json.JSONDecodeError as e:
+            # Issue #4130 P1: Record JSON parse failure metrics
+            try:
+                reviewer_metrics = get_reviewer_metrics()
+                reviewer_metrics.record_json_parse_failure(
+                    trace_id=self.trace_id,
+                    error_type="json_decode_error",
+                    repair_attempted=False,
+                    repair_success=False,
+                    original_provider=self.llm_client.provider_name if self.llm_client else "unknown",
+                )
+            except Exception as metrics_error:
+                logger.warning(f"[LLM Reviewer] Failed to record JSON parse failure metrics: {metrics_error}")
+
             # Issue #4112: Cross-provider fallback on JSON parse failure (Blueprint 4.3, 4.4)
             cross_provider_enabled = getattr(
                 settings, 'cross_provider_fallback_enabled', True
@@ -724,6 +756,20 @@ class LLMReviewerAdapter:
                     original_provider=self.llm_client.provider_name,
                 )
                 if fallback_result is not None:
+                    # Issue #4130 P1: Record cross-provider fallback success
+                    try:
+                        reviewer_metrics = get_reviewer_metrics()
+                        reviewer_metrics.record_review(
+                            trace_id=self.trace_id,
+                            latency_ms=fallback_result.get("review_time_ms", 0),
+                            success=True,
+                            provider=fallback_result.get("provider", "unknown"),
+                            json_parse_success=True,
+                            cross_provider_fallback=True,
+                            fallback_provider=fallback_result.get("provider"),
+                        )
+                    except Exception as metrics_error:
+                        logger.warning(f"[LLM Reviewer] Failed to record fallback metrics: {metrics_error}")
                     return fallback_result
 
             # Phase 1 Quick Win: Distinguish JSON parse failures from LLM unavailability
@@ -737,6 +783,21 @@ class LLMReviewerAdapter:
                 },
                 exc_info=True
             )
+
+            # Issue #4130 P1: Record failed review metrics (all fallbacks failed)
+            try:
+                reviewer_metrics = get_reviewer_metrics()
+                reviewer_metrics.record_review(
+                    trace_id=self.trace_id,
+                    latency_ms=0,
+                    success=False,
+                    provider=self.llm_client.provider_name if self.llm_client else "unknown",
+                    json_parse_success=False,
+                    error_type="llm_json_parse_failed",
+                )
+            except Exception as metrics_error:
+                logger.warning(f"[LLM Reviewer] Failed to record failure metrics: {metrics_error}")
+
             return self._get_fallback_result(
                 base_quality_score, base_severity,
                 fallback_reason="llm_json_parse_failed",
@@ -770,6 +831,20 @@ class LLMReviewerAdapter:
                     original_provider=self.llm_client.provider_name,
                 )
                 if fallback_result is not None:
+                    # Issue #4130 P1: Record cross-provider fallback success
+                    try:
+                        reviewer_metrics = get_reviewer_metrics()
+                        reviewer_metrics.record_review(
+                            trace_id=self.trace_id,
+                            latency_ms=fallback_result.get("review_time_ms", 0),
+                            success=True,
+                            provider=fallback_result.get("provider", "unknown"),
+                            json_parse_success=True,
+                            cross_provider_fallback=True,
+                            fallback_provider=fallback_result.get("provider"),
+                        )
+                    except Exception as metrics_error:
+                        logger.warning(f"[LLM Reviewer] Failed to record fallback metrics: {metrics_error}")
                     return fallback_result
 
             logger.error(
@@ -782,6 +857,21 @@ class LLMReviewerAdapter:
                 },
                 exc_info=True
             )
+
+            # Issue #4130 P1: Record failed review metrics
+            try:
+                reviewer_metrics = get_reviewer_metrics()
+                reviewer_metrics.record_review(
+                    trace_id=self.trace_id,
+                    latency_ms=0,
+                    success=False,
+                    provider=self.llm_client.provider_name if self.llm_client else "unknown",
+                    json_parse_success=False,  # No JSON was successfully parsed
+                    error_type=fallback_reason,
+                )
+            except Exception as metrics_error:
+                logger.warning(f"[LLM Reviewer] Failed to record failure metrics: {metrics_error}")
+
             return self._get_fallback_result(
                 base_quality_score, base_severity,
                 fallback_reason=fallback_reason,
