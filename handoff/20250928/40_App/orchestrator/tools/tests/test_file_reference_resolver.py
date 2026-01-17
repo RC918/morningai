@@ -609,3 +609,210 @@ class TestPathSanitizationIntegration:
 
         # The safe import should be fetched
         assert result.total_references_found == 1
+
+
+class TestReferenceContextFromDict:
+    """Tests for ReferenceContext.from_dict - Issue #4079, #4080."""
+
+    def test_from_dict_valid(self):
+        """Test creating ReferenceContext from valid dict."""
+        data = {
+            "file_path": "src/utils.py",
+            "content": "def helper(): pass",
+            "line_count": 1,
+            "truncated": False,
+            "error": None,
+        }
+
+        ctx = ReferenceContext.from_dict(data)
+
+        assert ctx.file_path == "src/utils.py"
+        assert ctx.content == "def helper(): pass"
+        assert ctx.line_count == 1
+        assert ctx.truncated is False
+        assert ctx.error is None
+
+    def test_from_dict_with_defaults(self):
+        """Test creating ReferenceContext with optional fields defaulted."""
+        data = {
+            "file_path": "src/utils.py",
+            "content": "content",
+            "line_count": 5,
+        }
+
+        ctx = ReferenceContext.from_dict(data)
+
+        assert ctx.truncated is False  # Default
+        assert ctx.error is None  # Default
+
+    def test_from_dict_missing_required_field(self):
+        """Test that missing required fields raise ValueError."""
+        data = {
+            "file_path": "src/utils.py",
+            # Missing "content" and "line_count"
+        }
+
+        with pytest.raises(ValueError) as exc_info:
+            ReferenceContext.from_dict(data)
+
+        assert "Missing required field" in str(exc_info.value)
+
+    def test_from_dict_invalid_type(self):
+        """Test that invalid types raise ValueError."""
+        data = {
+            "file_path": 123,  # Should be str
+            "content": "content",
+            "line_count": 1,
+        }
+
+        with pytest.raises(ValueError) as exc_info:
+            ReferenceContext.from_dict(data)
+
+        assert "file_path must be str" in str(exc_info.value)
+
+    def test_from_dict_not_a_dict(self):
+        """Test that non-dict input raises ValueError."""
+        with pytest.raises(ValueError) as exc_info:
+            ReferenceContext.from_dict("not a dict")
+
+        assert "Expected dict" in str(exc_info.value)
+
+    def test_roundtrip_to_dict_from_dict(self):
+        """Test that to_dict and from_dict are inverse operations."""
+        original = ReferenceContext(
+            file_path="src/utils.py",
+            content="def helper(): pass",
+            line_count=1,
+            truncated=True,
+            error="Some error",
+        )
+
+        data = original.to_dict()
+        restored = ReferenceContext.from_dict(data)
+
+        assert restored.file_path == original.file_path
+        assert restored.content == original.content
+        assert restored.line_count == original.line_count
+        assert restored.truncated == original.truncated
+        assert restored.error == original.error
+
+
+class TestResolverResultFromDict:
+    """Tests for ResolverResult.from_dict - Issue #4079, #4080."""
+
+    def test_from_dict_valid(self):
+        """Test creating ResolverResult from valid dict."""
+        data = {
+            "contexts": [
+                {
+                    "file_path": "src/utils.py",
+                    "content": "def helper(): pass",
+                    "line_count": 1,
+                    "truncated": False,
+                }
+            ],
+            "total_references_found": 2,
+            "total_contexts_fetched": 1,
+            "total_bytes": 100,
+            "truncated": False,
+        }
+
+        result = ResolverResult.from_dict(data)
+
+        assert len(result.contexts) == 1
+        assert result.contexts[0].file_path == "src/utils.py"
+        assert result.total_references_found == 2
+        assert result.total_contexts_fetched == 1
+        assert result.total_bytes == 100
+        assert result.truncated is False
+
+    def test_from_dict_empty_contexts(self):
+        """Test creating ResolverResult with empty contexts."""
+        data = {
+            "contexts": [],
+            "total_references_found": 0,
+            "total_contexts_fetched": 0,
+            "total_bytes": 0,
+        }
+
+        result = ResolverResult.from_dict(data)
+
+        assert len(result.contexts) == 0
+        assert result.total_references_found == 0
+
+    def test_from_dict_with_defaults(self):
+        """Test creating ResolverResult with optional fields defaulted."""
+        data = {}  # All fields have defaults
+
+        result = ResolverResult.from_dict(data)
+
+        assert len(result.contexts) == 0
+        assert result.total_references_found == 0
+        assert result.truncated is False
+
+    def test_from_dict_invalid_context(self):
+        """Test that invalid context data raises ValueError."""
+        data = {
+            "contexts": [
+                {"file_path": "valid.py", "content": "x", "line_count": 1},
+                {"invalid": "context"},  # Missing required fields
+            ],
+        }
+
+        with pytest.raises(ValueError) as exc_info:
+            ResolverResult.from_dict(data)
+
+        assert "Invalid context at index 1" in str(exc_info.value)
+
+    def test_from_dict_invalid_contexts_type(self):
+        """Test that non-list contexts raises ValueError."""
+        data = {
+            "contexts": "not a list",
+        }
+
+        with pytest.raises(ValueError) as exc_info:
+            ResolverResult.from_dict(data)
+
+        assert "contexts must be list" in str(exc_info.value)
+
+    def test_from_dict_invalid_numeric_type(self):
+        """Test that invalid numeric types raise ValueError."""
+        data = {
+            "contexts": [],
+            "total_references_found": "not an int",
+        }
+
+        with pytest.raises(ValueError) as exc_info:
+            ResolverResult.from_dict(data)
+
+        assert "total_references_found must be int" in str(exc_info.value)
+
+    def test_roundtrip_to_dict_from_dict(self):
+        """Test that to_dict and from_dict are inverse operations."""
+        original = ResolverResult(
+            references=[],  # References are not serialized
+            contexts=[
+                ReferenceContext(
+                    file_path="src/utils.py",
+                    content="content",
+                    line_count=5,
+                    truncated=True,
+                )
+            ],
+            total_references_found=3,
+            total_contexts_fetched=1,
+            total_bytes=500,
+            truncated=True,
+            error="Some error",
+        )
+
+        data = original.to_dict()
+        restored = ResolverResult.from_dict(data)
+
+        assert len(restored.contexts) == len(original.contexts)
+        assert restored.contexts[0].file_path == original.contexts[0].file_path
+        assert restored.total_references_found == original.total_references_found
+        assert restored.total_contexts_fetched == original.total_contexts_fetched
+        assert restored.total_bytes == original.total_bytes
+        assert restored.truncated == original.truncated
+        assert restored.error == original.error
