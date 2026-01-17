@@ -1378,6 +1378,13 @@ def redact_pii_text(text: str, category: PIICategory) -> str:
         - Section 4.2 (Compliance Radar v2): Clean API for PII redaction
         - Section 9.2 (Safe by Design): Stable interfaces for security components
     """
+    def _redact_numeric(prefix: str, fallback: str) -> str:
+        """Helper to redact numeric strings, showing only the last four digits."""
+        digits = re.sub(r'\D', '', text)
+        if len(digits) >= 4:
+            return prefix + digits[-4:]
+        return fallback
+
     if category == PIICategory.EMAIL:
         # user@domain.com -> u***@d***.com
         parts = text.split("@")
@@ -1392,24 +1399,15 @@ def redact_pii_text(text: str, category: PIICategory) -> str:
 
     elif category == PIICategory.PHONE:
         # Show last 4 digits: ***-***-1234
-        digits = re.sub(r'\D', '', text)
-        if len(digits) >= 4:
-            return "***-***-" + digits[-4:]
-        return "[REDACTED_PHONE]"
+        return _redact_numeric("***-***-", "[REDACTED_PHONE]")
 
     elif category == PIICategory.SSN:
         # Show last 4 digits: ***-**-1234
-        digits = re.sub(r'\D', '', text)
-        if len(digits) >= 4:
-            return "***-**-" + digits[-4:]
-        return "[REDACTED_SSN]"
+        return _redact_numeric("***-**-", "[REDACTED_SSN]")
 
     elif category == PIICategory.CREDIT_CARD:
         # Show last 4 digits: ****-****-****-1234
-        digits = re.sub(r'\D', '', text)
-        if len(digits) >= 4:
-            return "****-****-****-" + digits[-4:]
-        return "[REDACTED_CC]"
+        return _redact_numeric("****-****-****-", "[REDACTED_CC]")
 
     elif category == PIICategory.IP_ADDRESS:
         # Partially redact: 192.168.***.***
