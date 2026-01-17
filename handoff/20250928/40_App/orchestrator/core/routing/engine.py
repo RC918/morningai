@@ -96,22 +96,22 @@ class ModelInfo:
 # Gemini is primary provider, with AliCloud (Qwen) as secondary fallback
 DEFAULT_TIER_MODELS: Dict[Tier, List[tuple]] = {
     Tier.TIER_0: [
-        ("gemini", "gemini-2.0-flash"),
+        ("gemini", "gemini-3-pro-preview"),
         ("alicloud", "qwen-max"),
         ("openai", "gpt-4o"),
     ],
     Tier.TIER_1: [
-        ("gemini", "gemini-2.0-flash"),
+        ("gemini", "gemini-3-flash-preview"),
         ("alicloud", "qwen-plus"),
         ("openai", "gpt-4o-mini"),
     ],
     Tier.TIER_2: [
-        ("gemini", "gemini-2.0-flash"),
+        ("gemini", "gemini-2.5-pro"),
         ("alicloud", "qwen-turbo"),
         ("openai", "gpt-4o-mini"),
     ],
     Tier.TIER_3: [
-        ("gemini", "gemini-2.0-flash"),
+        ("gemini", "gemini-2.5-pro"),
         ("alicloud", "qwen-turbo"),
         ("openai", "gpt-4o-mini"),
     ],
