@@ -8774,6 +8774,35 @@ def _build_file_level_appendix(
     return "".join(parts)
 
 
+def _extract_pr_summary_data(
+    state: AgentState
+) -> tuple:
+    """Extract specialist findings, test coverage gaps, and dependency issues from state.
+
+    Issue #4136: DRY refactoring - consolidate extraction logic used by publisher_node.
+
+    This helper extracts data from Multi-Specialist Review (B-9), Test Coverage Analysis (B-11),
+    and Dependency Analysis (B-12) for use in PRSummary rendering.
+
+    Args:
+        state: AgentState containing review analysis results
+
+    Returns:
+        Tuple of (specialist_findings, test_coverage_gaps, dependency_issues)
+        Each is a list of dicts ready for build_pr_summary()
+    """
+    multi_specialist_review = state.get("multi_specialist_review_v1", {})
+    specialist_findings = multi_specialist_review.get("findings", [])
+
+    test_coverage_analysis = state.get("test_coverage_analysis_v1", {})
+    test_coverage_gaps = test_coverage_analysis.get("coverage_gaps", [])
+
+    dependency_analysis = state.get("dependency_analysis_v1", {})
+    dependency_issues = dependency_analysis.get("issues", [])
+
+    return specialist_findings, test_coverage_gaps, dependency_issues
+
+
 def publisher_node(state: AgentState) -> AgentState:
     """
     Publisher node: Posts review comments to GitHub as inline PR review.
@@ -8881,17 +8910,8 @@ def publisher_node(state: AgentState) -> AgentState:
             review_result = state.get("review_result", {})
             code_quality_score = state.get("code_quality_score", 0)
 
-            # Issue #4133: Extract Multi-Specialist findings for PRSummary rendering
-            multi_specialist_review = state.get("multi_specialist_review_v1", {})
-            specialist_findings = multi_specialist_review.get("findings", [])
-
-            # Issue #4133: Extract Test Coverage gaps (B-11)
-            test_coverage_analysis = state.get("test_coverage_analysis_v1", {})
-            test_coverage_gaps = test_coverage_analysis.get("coverage_gaps", [])
-
-            # Issue #4133: Extract Dependency issues (B-12)
-            dependency_analysis = state.get("dependency_analysis_v1", {})
-            dependency_issues = dependency_analysis.get("issues", [])
+            # Issue #4136: Use helper to extract specialist data (DRY refactoring)
+            specialist_findings, test_coverage_gaps, dependency_issues = _extract_pr_summary_data(state)
 
             # Build PRSummary artifact
             pr_summary = build_pr_summary(
@@ -9414,17 +9434,8 @@ def publisher_node(state: AgentState) -> AgentState:
         review_result = state.get("review_result", {})
         code_quality_score = state.get("code_quality_score", 0)
 
-        # Issue #4133: Extract Multi-Specialist findings for PRSummary rendering
-        multi_specialist_review = state.get("multi_specialist_review_v1", {})
-        specialist_findings = multi_specialist_review.get("findings", [])
-
-        # Issue #4133: Extract Test Coverage gaps (B-11)
-        test_coverage_analysis = state.get("test_coverage_analysis_v1", {})
-        test_coverage_gaps = test_coverage_analysis.get("coverage_gaps", [])
-
-        # Issue #4133: Extract Dependency issues (B-12)
-        dependency_analysis = state.get("dependency_analysis_v1", {})
-        dependency_issues = dependency_analysis.get("issues", [])
+        # Issue #4136: Use helper to extract specialist data (DRY refactoring)
+        specialist_findings, test_coverage_gaps, dependency_issues = _extract_pr_summary_data(state)
 
         # Convert file_level_comments to format expected by PRSummary
         file_level_comment_dicts = [
