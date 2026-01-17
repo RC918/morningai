@@ -959,6 +959,21 @@ class Settings(BaseSettings):
         description="Minimum requests required for a provider to be considered as floor candidate (EPIC I-4)"
     )
 
+    # Issue #4112: Cross-Provider Fallback (Blueprint 4.3, 4.4)
+    cross_provider_fallback_enabled: bool = Field(
+        default=True,
+        alias="CROSS_PROVIDER_FALLBACK_ENABLED",
+        description="Enable cross-provider fallback when primary LLM provider fails (Issue #4112). When enabled, system automatically tries alternate providers instead of falling back to CI-only review."
+    )
+
+    cross_provider_fallback_max_attempts: int = Field(
+        default=2,
+        ge=1,
+        le=5,
+        alias="CROSS_PROVIDER_FALLBACK_MAX_ATTEMPTS",
+        description="Maximum number of cross-provider fallback attempts (Issue #4112)"
+    )
+
     slack_webhook_url: Optional[str] = Field(
         None,
         alias="SLACK_WEBHOOK_URL",
