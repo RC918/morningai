@@ -5279,6 +5279,66 @@ def _attempt_diagnostic_analysis(
                     "confidence": result.root_cause.confidence if result.root_cause else 0,
                 }
             )
+
+            # H-2: Regression Pipeline Integration (Blueprint Section 5.4)
+            # Collect diagnostic results as regression candidates with MRE
+            if getattr(settings, 'use_regression_pipeline', False) and result.mre:
+                try:
+                    from simulation.regression import (
+                        collect_regression_candidate,
+                        ErrorSource,
+                    )
+
+                    error_type = (
+                        result.root_cause.category.value
+                        if result.root_cause else "unknown"
+                    )
+                    error_message = (
+                        result.root_cause.description
+                        if result.root_cause else "Unknown error"
+                    )
+
+                    candidate = collect_regression_candidate(
+                        source=ErrorSource.DIAGNOSTIC_AGENT,
+                        error_type=error_type,
+                        error_message=error_message,
+                        stack_trace=error_context.get("traceback"),
+                        reproduction_steps=[
+                            f"MRE Code:\n{result.mre.code}",
+                            f"Setup: {result.mre.setup_instructions or 'None'}",
+                            f"Expected Error: {result.mre.expected_error or 'N/A'}",
+                        ],
+                        severity=result.root_cause.confidence if result.root_cause else 0.5,
+                        blast_radius=(
+                            0.8 if result.blast_radius and
+                            result.blast_radius.level.value in ("service", "system")
+                            else 0.3
+                        ),
+                    )
+
+                    logger.info(
+                        f"[DIAGNOSTIC_AGENT_INTEGRATION] H-2: Collected regression "
+                        f"candidate from diagnostic. candidate_id={candidate.candidate_id}, "
+                        f"priority={candidate.priority.value}, trace_id={trace_id}",
+                        extra={
+                            "operation": "regression_pipeline_collect_diagnostic",
+                            "trace_id": trace_id,
+                            "candidate_id": candidate.candidate_id,
+                            "error_type": error_type,
+                            "priority": candidate.priority.value,
+                            "has_mre": True,
+                        }
+                    )
+
+                except ImportError:
+                    pass
+                except Exception as reg_err:
+                    logger.debug(
+                        f"[DIAGNOSTIC_AGENT_INTEGRATION] H-2: Regression collection "
+                        f"failed (non-blocking): {reg_err}",
+                        extra={"trace_id": trace_id}
+                    )
+
             return result.to_dict()
 
         logger.debug(
@@ -6622,6 +6682,62 @@ def fixer_node(state: AgentState) -> AgentState:
     )
 
     _ensure_comment_body_for_ci_failure(state, trace_id)
+
+    # H-2: Regression Pipeline Integration (Blueprint Section 5.4)
+    # Collect CI failures as regression candidates for automated test generation
+    # This runs BEFORE fix attempts so we capture the original error context
+    if getattr(settings, 'use_regression_pipeline', False) and ci_context:
+        try:
+            from simulation.regression import (
+                collect_regression_candidate,
+                ErrorSource,
+            )
+
+            failed_check_name = ci_context.get("failed_check_name") or "unknown"
+            error_summary = ci_context.get("error_summary") or ""
+            head_sha = ci_context.get("head_sha") or ""
+
+            candidate = collect_regression_candidate(
+                source=ErrorSource.CI_FAILURE,
+                error_type=failed_check_name,
+                error_message=error_summary,
+                stack_trace=ci_context.get("logs_url"),
+                reproduction_steps=[
+                    f"1. Checkout commit {head_sha}",
+                    f"2. Run CI check: {failed_check_name}",
+                    f"3. Observe failure: {error_summary[:100]}...",
+                ],
+            )
+
+            logger.info(
+                f"[Fixer] H-2: Collected regression candidate from CI failure. "
+                f"candidate_id={candidate.candidate_id}, "
+                f"priority={candidate.priority.value}, "
+                f"trace_id={trace_id}",
+                extra={
+                    "operation": "regression_pipeline_collect",
+                    "trace_id": trace_id,
+                    "candidate_id": candidate.candidate_id,
+                    "error_type": failed_check_name,
+                    "priority": candidate.priority.value,
+                    "priority_score": candidate.calculate_priority_score(),
+                }
+            )
+
+            # Store candidate info in state for downstream processing
+            state["regression_candidate_v1"] = candidate.to_dict()
+
+        except ImportError as e:
+            logger.debug(
+                f"[Fixer] H-2: Regression pipeline not available: {e}",
+                extra={"trace_id": trace_id, "error": str(e)}
+            )
+        except Exception as e:
+            # Fail-open: if regression collection fails, continue with fix attempt
+            logger.warning(
+                f"[Fixer] H-2: Regression candidate collection failed (non-blocking): {e}",
+                extra={"trace_id": trace_id, "error": str(e)}
+            )
 
     # Log state after synthesis attempt
     comment_body_after = state.get("comment_body", "")

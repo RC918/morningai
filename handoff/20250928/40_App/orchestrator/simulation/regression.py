@@ -43,6 +43,7 @@ class ErrorSource(Enum):
     - BrowserNode Failures: selector 找不到、DOM 結構變動
     - Sentry / Datadog Alerts: stack trace + breadcrumbs
     - Diagnostic Agent Reports: root cause + 重現步驟
+    - CI Failures: GitHub Actions / CI pipeline failures
     """
     RUNTIME_ERROR = "runtime_error"
     BROWSERNODE_FAILURE = "browsernode_failure"
@@ -50,6 +51,7 @@ class ErrorSource(Enum):
     DATADOG_ALERT = "datadog_alert"
     DIAGNOSTIC_AGENT = "diagnostic_agent"
     SIMULATION_FAILURE = "simulation_failure"
+    CI_FAILURE = "ci_failure"  # Added for H-2 Regression Pipeline integration
 
 
 @dataclass

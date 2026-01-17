@@ -1961,6 +1961,70 @@ class Settings(BaseSettings):
         description="Maximum lines in generated MRE (D-8). Limits output size for readability."
     )
 
+    # EPIC H: Regression Pipeline v1 (Blueprint Section 5.4)
+    # Collects CI failures as regression candidates for automated test generation
+    use_regression_pipeline: bool = Field(
+        default=False,
+        alias="USE_REGRESSION_PIPELINE",
+        description="Enable H-2 Regression Pipeline: collect CI failures as regression candidates for automated test generation. Integrates with D-8 Diagnostic Agent for MRE generation."
+    )
+
+    regression_pipeline_max_candidates: int = Field(
+        default=100,
+        ge=10,
+        le=1000,
+        alias="REGRESSION_PIPELINE_MAX_CANDIDATES",
+        description="Maximum regression candidates to track (H-2). Older candidates are pruned when limit is reached. Valid range: 10-1000."
+    )
+
+    regression_pipeline_auto_generate: bool = Field(
+        default=False,
+        alias="REGRESSION_PIPELINE_AUTO_GENERATE",
+        description="Enable automatic regression test generation for P0/P1 candidates (H-2). When False, candidates are collected but tests are not auto-generated."
+    )
+
+    # Coverage Thresholds (Blueprint Section 5.4: CI Enforcement)
+    # Configurable thresholds for coverage monitoring dashboard
+    coverage_threshold_api_backend: int = Field(
+        default=74,
+        ge=0,
+        le=100,
+        alias="COVERAGE_THRESHOLD_API_BACKEND",
+        description="Test coverage threshold for api-backend module (%). PRs below this threshold are flagged."
+    )
+
+    coverage_threshold_orchestrator: int = Field(
+        default=50,
+        ge=0,
+        le=100,
+        alias="COVERAGE_THRESHOLD_ORCHESTRATOR",
+        description="Test coverage threshold for orchestrator module (%). PRs below this threshold are flagged."
+    )
+
+    coverage_threshold_shared_ui: int = Field(
+        default=60,
+        ge=0,
+        le=100,
+        alias="COVERAGE_THRESHOLD_SHARED_UI",
+        description="Test coverage threshold for shared-ui module (%). PRs below this threshold are flagged."
+    )
+
+    coverage_threshold_frontend_dashboard: int = Field(
+        default=80,
+        ge=0,
+        le=100,
+        alias="COVERAGE_THRESHOLD_FRONTEND_DASHBOARD",
+        description="Test coverage threshold for frontend-dashboard module (%). PRs below this threshold are flagged."
+    )
+
+    coverage_threshold_owner_console: int = Field(
+        default=70,
+        ge=0,
+        le=100,
+        alias="COVERAGE_THRESHOLD_OWNER_CONSOLE",
+        description="Test coverage threshold for owner-console module (%). PRs below this threshold are flagged."
+    )
+
     # EPIC F Stage 3: Debate Engine for Adversarial Collaboration
     # Blueprint Section 7: Left Agent vs Right Agent → Judge Agent decision
     use_debate_engine: bool = Field(
