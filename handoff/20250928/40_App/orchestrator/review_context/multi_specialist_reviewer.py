@@ -459,7 +459,11 @@ class MultiSpecialistReviewer:
         self_critique_stats: Optional[Dict[str, Any]] = None
 
         if settings.enable_self_critique and deduplicated_findings:
-            deduplicated_findings, self_critique_stats = self._self_critique_findings(
+            # Run self-critique in executor to avoid blocking event loop
+            # (same pattern as _review_with_specialist calls above)
+            deduplicated_findings, self_critique_stats = await loop.run_in_executor(
+                self._executor,
+                self._self_critique_findings,
                 deduplicated_findings,
                 diff_content,
                 pr_context,
@@ -771,10 +775,18 @@ Return your findings as a JSON array."""
             system_prompt = SPECIALIST_PROMPTS[ReviewSpecialist.SELF_CRITIQUE]
 
             findings_json = json.dumps([f.to_dict() for f in findings], indent=2)
+
+            # Dynamically adjust diff truncation based on findings size
+            # to prevent the overall prompt from exceeding token limits.
+            # Reserve ~10k chars for prompt template and response buffer.
+            max_total_chars = 40000
+            diff_budget = max(5000, max_total_chars - len(findings_json))
+            diff_snippet = diff_content[:diff_budget]
+
             user_prompt = f"""Verify the following findings from code review specialists.
 
 === ORIGINAL PR DIFF ===
-{diff_content[:30000]}
+{diff_snippet}
 === END DIFF ===
 
 === FINDINGS TO VERIFY ({len(findings)} total) ===
@@ -794,7 +806,8 @@ Output the indices of FALSE POSITIVES that should be removed."""
 
             response_text = response.content or "{}"
 
-            json_match = re.search(r'\{[\s\S]*\}', response_text)
+            # Use non-greedy regex to match first complete JSON object
+            json_match = re.search(r'\{[\s\S]*?\}', response_text)
             if json_match:
                 json_str = json_match.group(0)
             else:
@@ -802,15 +815,29 @@ Output the indices of FALSE POSITIVES that should be removed."""
 
             try:
                 result = json.loads(json_str)
-                false_positive_indices = result.get("false_positive_indices", [])
-                verification_notes = result.get("verification_notes", [])
-            except json.JSONDecodeError:
+                # Validate that result is a dict (LLM could return null, array, etc.)
+                if not isinstance(result, dict):
+                    logger.warning(
+                        "[MultiSpecialistReviewer] B-16: Self-critique response is not a dict",
+                        extra={
+                            "operation": "self_critique",
+                            "trace_id": self.trace_id,
+                            "result_type": type(result).__name__,
+                        }
+                    )
+                    false_positive_indices = []
+                    verification_notes = []
+                else:
+                    false_positive_indices = result.get("false_positive_indices", [])
+                    verification_notes = result.get("verification_notes", [])
+            except json.JSONDecodeError as e:
                 logger.warning(
-                    "[MultiSpecialistReviewer] B-16: Failed to parse self-critique response",
+                    "[MultiSpecialistReviewer] B-16: Failed to parse self-critique JSON",
                     extra={
                         "operation": "self_critique",
                         "trace_id": self.trace_id,
-                        "response": response_text[:500],
+                        "error": str(e),
+                        "response_preview": response_text[:500],
                     }
                 )
                 false_positive_indices = []
@@ -819,8 +846,22 @@ Output the indices of FALSE POSITIVES that should be removed."""
             valid_indices = set(range(len(findings)))
             indices_to_remove = set()
             for idx in false_positive_indices:
+                # Handle string indices (LLM may return "0" instead of 0)
+                if isinstance(idx, str) and idx.isdigit():
+                    idx = int(idx)
+
                 if isinstance(idx, int) and idx in valid_indices:
                     indices_to_remove.add(idx)
+                elif idx is not None:
+                    # Log invalid indices for debugging (sanitize to prevent log injection)
+                    logger.debug(
+                        "[MultiSpecialistReviewer] B-16: Skipping invalid index",
+                        extra={
+                            "operation": "self_critique",
+                            "trace_id": self.trace_id,
+                            "invalid_index": repr(idx)[:50],
+                        }
+                    )
 
             verified_findings = [
                 f for i, f in enumerate(findings) if i not in indices_to_remove
