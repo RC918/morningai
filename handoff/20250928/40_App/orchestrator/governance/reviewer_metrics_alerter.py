@@ -670,8 +670,11 @@ def get_reviewer_metrics_alert_evaluator(
                     _slack_url = slack_webhook_url or getattr(
                         settings, 'slack_webhook_url', None
                     )
+                    # Note: Variable named pagerduty_webhook_url for consistency with
+                    # RouterMetricsAlertEvaluator, but loads from pagerduty_routing_key
+                    # which is the correct PagerDuty Events API v2 integration key
                     _pagerduty_url = pagerduty_webhook_url or getattr(
-                        settings, 'pagerduty_webhook_url', None
+                        settings, 'pagerduty_routing_key', None
                     )
                 except Exception:
                     _enabled = enabled if enabled is not None else False
