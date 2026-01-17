@@ -16,6 +16,9 @@ from pydantic import ValidationError
 from core.routing.pr_summary import (
     PRSummary,
     FileLevelComment,
+    SpecialistFindingSummary,
+    CoverageGapSummary,
+    DependencyIssueSummary,
     build_pr_summary,
     build_unknown_pr_summary,
     SENIOR_ARCHITECT_POLICY_NOTE,
@@ -139,6 +142,99 @@ class TestPRSummaryModel:
         assert summary.generated_at is not None
         # Should be parseable as ISO timestamp
         datetime.fromisoformat(summary.generated_at.replace("Z", "+00:00"))
+
+
+class TestSpecialistFindingSummary:
+    """Tests for SpecialistFindingSummary model (Issue #4133, #4137)"""
+
+    def test_valid_specialist_finding(self):
+        """Valid SpecialistFindingSummary should pass validation"""
+        finding = SpecialistFindingSummary(
+            specialist="security",
+            severity="high",
+            category="vulnerability",
+            message="SQL injection risk detected"
+        )
+        assert finding.specialist == "security"
+        assert finding.severity == "high"
+        assert finding.category == "vulnerability"
+        assert finding.message == "SQL injection risk detected"
+        assert finding.file_path is None
+        assert finding.suggestion is None
+
+    def test_specialist_finding_with_all_fields(self):
+        """SpecialistFindingSummary with all optional fields"""
+        finding = SpecialistFindingSummary(
+            specialist="performance",
+            severity="medium",
+            category="optimization",
+            message="N+1 query detected",
+            file_path="src/api/users.py",
+            suggestion="Use eager loading"
+        )
+        assert finding.file_path == "src/api/users.py"
+        assert finding.suggestion == "Use eager loading"
+
+
+class TestCoverageGapSummary:
+    """Tests for CoverageGapSummary model (Issue #4133, #4137)"""
+
+    def test_valid_coverage_gap(self):
+        """Valid CoverageGapSummary should pass validation"""
+        gap = CoverageGapSummary(
+            function_name="process_payment",
+            file_path="src/payments.py"
+        )
+        assert gap.function_name == "process_payment"
+        assert gap.file_path == "src/payments.py"
+        assert gap.function_type == "function"
+        assert gap.reason == "New code without corresponding test"
+        assert gap.suggested_test_types == ["unit"]
+
+    def test_coverage_gap_class_type(self):
+        """CoverageGapSummary for class should work"""
+        gap = CoverageGapSummary(
+            function_name="PaymentProcessor",
+            file_path="src/payments.py",
+            function_type="class",
+            reason="New class without test coverage",
+            suggested_test_types=["unit", "integration"]
+        )
+        assert gap.function_type == "class"
+        assert gap.reason == "New class without test coverage"
+        assert gap.suggested_test_types == ["unit", "integration"]
+
+
+class TestDependencyIssueSummary:
+    """Tests for DependencyIssueSummary model (Issue #4133, #4137)"""
+
+    def test_valid_dependency_issue(self):
+        """Valid DependencyIssueSummary should pass validation"""
+        issue = DependencyIssueSummary(
+            package_name="requests",
+            issue_type="vulnerability"
+        )
+        assert issue.package_name == "requests"
+        assert issue.issue_type == "vulnerability"
+        assert issue.severity == "low"
+        assert issue.description == ""
+        assert issue.current_version is None
+        assert issue.recommended_action is None
+
+    def test_dependency_issue_with_all_fields(self):
+        """DependencyIssueSummary with all optional fields"""
+        issue = DependencyIssueSummary(
+            package_name="django",
+            issue_type="outdated",
+            severity="high",
+            description="Security vulnerability CVE-2024-1234",
+            current_version="3.2.0",
+            recommended_action="Upgrade to 4.2.0"
+        )
+        assert issue.severity == "high"
+        assert issue.description == "Security vulnerability CVE-2024-1234"
+        assert issue.current_version == "3.2.0"
+        assert issue.recommended_action == "Upgrade to 4.2.0"
 
 
 class TestFileLevelComment:
@@ -358,6 +454,94 @@ class TestBuildPrSummary:
         )
         assert summary.head_sha == "abc123def456"
 
+    def test_build_with_specialist_findings(self):
+        """Build PRSummary with specialist findings (Issue #4133, #4137)"""
+        review_outcome = {"verdict": "request_changes"}
+        review_result = {"llm_summary": "Found issues"}
+        specialist_findings = [
+            {
+                "specialist": "security",
+                "severity": "high",
+                "category": "vulnerability",
+                "message": "SQL injection risk",
+                "file_path": "src/api.py",
+                "suggestion": "Use parameterized queries"
+            },
+            {
+                "specialist": "performance",
+                "severity": "medium",
+                "category": "optimization",
+                "message": "N+1 query detected"
+            }
+        ]
+
+        summary = build_pr_summary(
+            review_outcome=review_outcome,
+            review_result=review_result,
+            code_quality_score=60,
+            specialist_findings=specialist_findings
+        )
+
+        assert len(summary.specialist_findings) == 2
+        assert summary.specialist_findings[0].specialist == "security"
+        assert summary.specialist_findings[0].severity == "high"
+        assert summary.specialist_findings[0].file_path == "src/api.py"
+        assert summary.specialist_findings[1].specialist == "performance"
+        assert summary.specialist_findings[1].file_path is None
+
+    def test_build_with_test_coverage_gaps(self):
+        """Build PRSummary with test coverage gaps (Issue #4133, #4137, B-11)"""
+        review_outcome = {"verdict": "comment"}
+        review_result = {"llm_summary": "Missing tests"}
+        test_coverage_gaps = [
+            {
+                "function_name": "process_payment",
+                "file_path": "src/payments.py",
+                "function_type": "function",
+                "reason": "New function without tests",
+                "suggested_test_types": ["unit", "integration"]
+            }
+        ]
+
+        summary = build_pr_summary(
+            review_outcome=review_outcome,
+            review_result=review_result,
+            code_quality_score=70,
+            test_coverage_gaps=test_coverage_gaps
+        )
+
+        assert len(summary.test_coverage_gaps) == 1
+        assert summary.test_coverage_gaps[0].function_name == "process_payment"
+        assert summary.test_coverage_gaps[0].file_path == "src/payments.py"
+        assert summary.test_coverage_gaps[0].suggested_test_types == ["unit", "integration"]
+
+    def test_build_with_dependency_issues(self):
+        """Build PRSummary with dependency issues (Issue #4133, #4137, B-12)"""
+        review_outcome = {"verdict": "request_changes"}
+        review_result = {"llm_summary": "Dependency issues found"}
+        dependency_issues = [
+            {
+                "package_name": "django",
+                "issue_type": "vulnerability",
+                "severity": "critical",
+                "description": "CVE-2024-1234",
+                "current_version": "3.2.0",
+                "recommended_action": "Upgrade to 4.2.0"
+            }
+        ]
+
+        summary = build_pr_summary(
+            review_outcome=review_outcome,
+            review_result=review_result,
+            code_quality_score=50,
+            dependency_issues=dependency_issues
+        )
+
+        assert len(summary.dependency_issues) == 1
+        assert summary.dependency_issues[0].package_name == "django"
+        assert summary.dependency_issues[0].severity == "critical"
+        assert summary.dependency_issues[0].recommended_action == "Upgrade to 4.2.0"
+
 
 class TestBuildUnknownPrSummary:
     """Tests for build_unknown_pr_summary() helper function"""
@@ -471,6 +655,124 @@ class TestToGithubMarkdown:
         assert "`src/test.py`" in markdown
         assert "Consider refactoring" in markdown
         assert "Line not in diff" in markdown
+
+    def test_markdown_with_specialist_findings(self):
+        """Markdown should include specialist findings section (Issue #4133, #4137)"""
+        summary = PRSummary(
+            verdict="request_changes",
+            display_decision="needs_changes",
+            score=60,
+            analysis="Found issues",
+            specialist_findings=[
+                SpecialistFindingSummary(
+                    specialist="security",
+                    severity="high",
+                    category="vulnerability",
+                    message="SQL injection risk",
+                    file_path="src/api.py",
+                    suggestion="Use parameterized queries"
+                ),
+                SpecialistFindingSummary(
+                    specialist="performance",
+                    severity="medium",
+                    category="optimization",
+                    message="N+1 query detected"
+                )
+            ]
+        )
+        markdown = summary.to_github_markdown()
+
+        assert "### Multi-Specialist Analysis" in markdown
+        assert "#### :shield: Security" in markdown
+        assert ":orange_circle:" in markdown  # high severity icon
+        assert "SQL injection risk" in markdown
+        assert "`src/api.py`" in markdown
+        assert "Use parameterized queries" in markdown
+        assert "#### :zap: Performance" in markdown
+        assert ":yellow_circle:" in markdown  # medium severity icon
+        assert "N+1 query detected" in markdown
+
+    def test_markdown_with_test_coverage_gaps(self):
+        """Markdown should include test coverage gaps section (Issue #4133, #4137, B-11)"""
+        summary = PRSummary(
+            verdict="comment",
+            display_decision="reviewed",
+            score=70,
+            analysis="Missing tests",
+            test_coverage_gaps=[
+                CoverageGapSummary(
+                    function_name="process_payment",
+                    file_path="src/payments.py",
+                    function_type="function",
+                    reason="New function without tests",
+                    suggested_test_types=["unit", "integration"]
+                ),
+                CoverageGapSummary(
+                    function_name="PaymentProcessor",
+                    file_path="src/payments.py",
+                    function_type="class",
+                    reason="New class without coverage"
+                )
+            ]
+        )
+        markdown = summary.to_github_markdown()
+
+        assert "### :test_tube: Test Coverage Gaps" in markdown
+        assert "**process_payment** (function)" in markdown
+        assert "`src/payments.py`" in markdown
+        assert "New function without tests" in markdown
+        assert "unit, integration" in markdown
+        assert "**PaymentProcessor** (class)" in markdown
+
+    def test_markdown_with_dependency_issues(self):
+        """Markdown should include dependency issues section (Issue #4133, #4137, B-12)"""
+        summary = PRSummary(
+            verdict="request_changes",
+            display_decision="needs_changes",
+            score=50,
+            analysis="Dependency issues found",
+            dependency_issues=[
+                DependencyIssueSummary(
+                    package_name="django",
+                    issue_type="vulnerability",
+                    severity="critical",
+                    description="CVE-2024-1234",
+                    current_version="3.2.0",
+                    recommended_action="Upgrade to 4.2.0"
+                ),
+                DependencyIssueSummary(
+                    package_name="requests",
+                    issue_type="outdated",
+                    severity="low"
+                )
+            ]
+        )
+        markdown = summary.to_github_markdown()
+
+        assert "### :package: Dependency Issues" in markdown
+        assert ":red_circle:" in markdown  # critical severity icon
+        assert "**django** [vulnerability]" in markdown
+        assert "CVE-2024-1234" in markdown
+        assert "Current version: `3.2.0`" in markdown
+        assert "Upgrade to 4.2.0" in markdown
+        assert ":white_circle:" in markdown  # low severity icon
+        assert "**requests** [outdated]" in markdown
+
+    def test_markdown_empty_specialist_findings(self):
+        """Empty specialist findings should not render section"""
+        summary = PRSummary(
+            verdict="approve",
+            display_decision="approve",
+            score=90,
+            analysis="All good",
+            specialist_findings=[]
+        )
+        markdown = summary.to_github_markdown()
+
+        assert "### Multi-Specialist Analysis" not in markdown
+        assert "#### :shield: Security" not in markdown
+        assert "#### :zap: Performance" not in markdown
+        assert "#### :building_construction: Architecture" not in markdown
 
 
 class TestToSimpleMarkdown:
