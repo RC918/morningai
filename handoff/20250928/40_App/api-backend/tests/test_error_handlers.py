@@ -325,6 +325,36 @@ class TestErrorHandlerResponseFormat:
             assert response.content_type == 'application/json'
 
 
+class TestErrorHandlerOutsideAppContext:
+    """Test error handler behavior outside Flask application context."""
+    
+    @patch('sentry_sdk.capture_exception')
+    @patch('src.middleware.error_handlers.logger')
+    @patch('src.middleware.error_handlers.jsonify')
+    def test_handle_exception_outside_app_context_sets_sentry_dsn_none(
+        self, mock_jsonify, _mock_logger, mock_capture
+    ):
+        """Verify handle_exception handles RuntimeError when called outside app context.
+        
+        This tests lines 35-37 in error_handlers.py where current_app.extensions.get()
+        raises RuntimeError when working outside of application context.
+        """
+        from src.middleware.error_handlers import handle_exception
+        
+        # Create an exception to handle
+        test_exception = Exception("Test error outside app context")
+        
+        # Since we're outside app context, jsonify will also fail. Mock it.
+        mock_jsonify.return_value = MagicMock()
+        
+        # Call handle_exception; it should catch the internal RuntimeError and not re-raise.
+        # If it does raise, pytest will automatically fail the test.
+        handle_exception(test_exception)
+        
+        # Verify Sentry was NOT called (because sentry_dsn is None after RuntimeError)
+        mock_capture.assert_not_called()
+
+
 class TestErrorHandlerRegistration:
     """Test error handler registration."""
     
