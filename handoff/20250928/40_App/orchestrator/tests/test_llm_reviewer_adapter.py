@@ -1268,20 +1268,23 @@ class TestLLMJsonRepairConfig:
 
     @patch('llm_reviewer_adapter.settings')
     def test_repair_json_with_llm_uses_max_tokens_setting(self, mock_settings):
-        """Verify llm_json_repair_max_tokens is passed to llm_client.chat()"""
+        """Verify llm_json_repair_max_tokens is passed to llm_client.generate()"""
         mock_settings.llm_json_repair_max_tokens = 2000
 
         adapter = LLMReviewerAdapter(trace_id="test-max-tokens")
         mock_client = MagicMock()
-        mock_client.chat.return_value = '{"quality_score": 85}'
+        # Issue #4129: LLMClient uses generate() method, not chat()
+        mock_response = MagicMock()
+        mock_response.content = '{"quality_score": 85}'
+        mock_client.generate.return_value = mock_response
         adapter.llm_client = mock_client
 
         # Call _repair_json_with_llm
         adapter._repair_json_with_llm('{"truncated": true')
 
         # Verify max_tokens was passed correctly
-        mock_client.chat.assert_called_once()
-        call_kwargs = mock_client.chat.call_args[1]
+        mock_client.generate.assert_called_once()
+        call_kwargs = mock_client.generate.call_args[1]
         assert call_kwargs['max_tokens'] == 2000
 
     @patch('llm_reviewer_adapter.settings')
@@ -1291,7 +1294,10 @@ class TestLLMJsonRepairConfig:
 
         adapter = LLMReviewerAdapter(trace_id="test-sanitize")
         mock_client = MagicMock()
-        mock_client.chat.return_value = '{"quality_score": 85}'
+        # Issue #4129: LLMClient uses generate() method, not chat()
+        mock_response = MagicMock()
+        mock_response.content = '{"quality_score": 85}'
+        mock_client.generate.return_value = mock_response
         adapter.llm_client = mock_client
 
         # Input with injection attempt
@@ -1301,12 +1307,12 @@ class TestLLMJsonRepairConfig:
         adapter._repair_json_with_llm(malicious_json)
 
         # Verify the content sent to LLM contains [SANITIZED]
-        mock_client.chat.assert_called_once()
-        call_args = mock_client.chat.call_args[1]
-        messages = call_args['messages']
-        user_message = messages[1]['content']
-        assert '[SANITIZED]' in user_message
-        assert 'ignore previous instructions' not in user_message
+        mock_client.generate.assert_called_once()
+        call_args = mock_client.generate.call_args[1]
+        # generate() uses prompt parameter instead of messages
+        user_prompt = call_args['prompt']
+        assert '[SANITIZED]' in user_prompt
+        assert 'ignore previous instructions' not in user_prompt
 
 
 class TestTruncateDiffForTokenBudget:
