@@ -898,8 +898,10 @@ class RuntimePolicyEnforcer:
             return content
 
         try:
-            from governance.pii_scanner import get_pii_scanner, PIICategory
-            scanner = get_pii_scanner()
+            from governance.pii_scanner import (
+                PIICategory,
+                redact_pii_text,
+            )
 
             # Sort findings by position in reverse order to avoid offset issues
             # when replacing text from end to beginning
@@ -929,7 +931,8 @@ class RuntimePolicyEnforcer:
                 redacted_text = finding.get("redacted_text")
 
                 if not redacted_text:
-                    # Fallback: generate redaction using PIIScanner's _redact_text method
+                    # Fallback: generate redaction using public redact_pii_text function
+                    # Issue #4050: Use public API instead of scanner's private method
                     try:
                         category = PIICategory(category_str)
                         # Issue #4049: Use original_length instead of len(matched_text)
@@ -937,7 +940,7 @@ class RuntimePolicyEnforcer:
                         end_pos = position + original_length
                         if end_pos <= len(redacted_content):
                             actual_text = redacted_content[position:end_pos]
-                            redacted_text = scanner._redact_text(actual_text, category)
+                            redacted_text = redact_pii_text(actual_text, category)
                         else:
                             redacted_text = f"[REDACTED_{category_str.upper()}]"
                     except (ValueError, AttributeError):
