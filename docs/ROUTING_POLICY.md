@@ -20,7 +20,7 @@ Used for complex reasoning, strategic planning, and critical decisions.
 
 | Provider | Model | Context Limit |
 |----------|-------|---------------|
-| Google Gemini (primary) | gemini-2.0-flash | 128,000 tokens |
+| Google Gemini (primary) | gemini-3-pro-preview | 1,048,576 tokens |
 | AliCloud DashScope (fallback) | qwen-max | 128,000 tokens |
 | OpenAI (fallback) | gpt-4o | 128,000 tokens |
 
@@ -30,7 +30,7 @@ Used for code generation, detailed analysis, code review, and routing decisions.
 
 | Provider | Model | Context Limit |
 |----------|-------|---------------|
-| Google Gemini (primary) | gemini-2.0-flash | 128,000 tokens |
+| Google Gemini (primary) | gemini-3-flash-preview | 1,048,576 tokens |
 | AliCloud DashScope (fallback) | qwen-plus | 128,000 tokens |
 | OpenAI (fallback) | gpt-4o-mini | 128,000 tokens |
 
@@ -40,7 +40,7 @@ Used for standard tasks, translation, summarization, and general chat.
 
 | Provider | Model | Context Limit |
 |----------|-------|---------------|
-| Google Gemini (primary) | gemini-2.0-flash | 128,000 tokens |
+| Google Gemini (primary) | gemini-2.5-pro | 1,048,576 tokens |
 | AliCloud DashScope (fallback) | qwen-turbo | 32,000 tokens |
 | OpenAI (fallback) | gpt-4o-mini | 128,000 tokens |
 
@@ -50,7 +50,7 @@ Used for simple tasks and UX copy generation.
 
 | Provider | Model | Context Limit |
 |----------|-------|---------------|
-| Google Gemini (primary) | gemini-2.0-flash | 128,000 tokens |
+| Google Gemini (primary) | gemini-2.5-pro | 1,048,576 tokens |
 | AliCloud DashScope (fallback) | qwen-turbo | 32,000 tokens |
 | OpenAI (fallback) | gpt-4o-mini | 128,000 tokens |
 
@@ -206,6 +206,7 @@ handoff/20250928/40_App/orchestrator/core/routing/routing_policy.json
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.4 | Jan 2026 | Upgraded Gemini models: Tier 0 to gemini-3-pro-preview, Tier 1 to gemini-3-flash-preview, Tier 2-3 to gemini-2.5-pro |
 | 1.3 | Jan 2026 | Changed provider order to Gemini-first, removed SiliconFlow |
 | 1.2 | Dec 2025 | Cross-generation fallback strategy, Qwen3/Qwen2.5 model lineup |
 | 1.1 | Nov 2025 | Added risk level adjustments |

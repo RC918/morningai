@@ -1,6 +1,6 @@
 {
-  "version": "1.3",
-  "description": "Routing Policy for Multi-Model Use in MorningAI (EPIC #2594) - Gemini-First Provider Order",
+  "version": "1.4",
+  "description": "Routing Policy for Multi-Model Use in MorningAI (EPIC #2594) - Gemini 3 Model Upgrade",
   "task_types": {
     "planning": {
       "tier": 0,
@@ -52,36 +52,38 @@
       "0": {
         "description": "Highest capability - Complex reasoning, planning",
         "models": [
-          {"provider": "gemini", "model": "gemini-2.0-flash"},
+          {"provider": "gemini", "model": "gemini-3-pro-preview"},
           {"provider": "alicloud", "model": "qwen-max"},
           {"provider": "openai", "model": "gpt-4o"}
         ],
-        "notes": "Primary: Gemini, Secondary: AliCloud Qwen, Tertiary: OpenAI"
+        "notes": "Primary: Gemini 3 Pro, Secondary: AliCloud Qwen, Tertiary: OpenAI"
       },
       "1": {
         "description": "High capability - Code generation, detailed analysis",
         "models": [
-          {"provider": "gemini", "model": "gemini-2.0-flash"},
+          {"provider": "gemini", "model": "gemini-3-flash-preview"},
           {"provider": "alicloud", "model": "qwen-plus"},
           {"provider": "openai", "model": "gpt-4o-mini"}
         ],
-        "notes": "Primary: Gemini, Secondary: AliCloud Qwen, Tertiary: OpenAI"
+        "notes": "Primary: Gemini 3 Flash, Secondary: AliCloud Qwen, Tertiary: OpenAI"
       },
       "2": {
         "description": "Medium capability - Standard tasks, reviews",
         "models": [
-          {"provider": "gemini", "model": "gemini-2.0-flash"},
+          {"provider": "gemini", "model": "gemini-2.5-pro"},
           {"provider": "alicloud", "model": "qwen-turbo"},
           {"provider": "openai", "model": "gpt-4o-mini"}
-        ]
+        ],
+        "notes": "Primary: Gemini 2.5 Pro, Secondary: AliCloud Qwen, Tertiary: OpenAI"
       },
       "3": {
         "description": "Basic capability - Simple tasks, UX copy",
         "models": [
-          {"provider": "gemini", "model": "gemini-2.0-flash"},
+          {"provider": "gemini", "model": "gemini-2.5-pro"},
           {"provider": "alicloud", "model": "qwen-turbo"},
           {"provider": "openai", "model": "gpt-4o-mini"}
-        ]
+        ],
+        "notes": "Primary: Gemini 2.5 Pro, Secondary: AliCloud Qwen, Tertiary: OpenAI"
       }
     },
   "context_limits": {
