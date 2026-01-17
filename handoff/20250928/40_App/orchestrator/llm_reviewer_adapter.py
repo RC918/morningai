@@ -31,9 +31,12 @@ import time
 from typing import Dict, Any, Optional
 
 from common.config.settings import settings
-from llm.client import get_client_for_task
+from llm.client import get_client_for_task, get_available_providers
 from core.routing import TaskType
 from resource_telemetry import log_prompt_build_bytes, log_llm_response_bytes
+
+# Issue #4112: Import cross-provider fallback configuration from drift_retry (DRY principle)
+from governance.drift_retry import CROSS_PROVIDER_FALLBACK
 
 from review_context import (
     generate_multi_specialist_review,
@@ -698,6 +701,31 @@ class LLMReviewerAdapter:
             return result
 
         except json.JSONDecodeError as e:
+            # Issue #4112: Cross-provider fallback on JSON parse failure (Blueprint 4.3, 4.4)
+            cross_provider_enabled = getattr(
+                settings, 'cross_provider_fallback_enabled', True
+            )
+            if cross_provider_enabled and self.llm_client:
+                fallback_result = self._try_cross_provider_fallback(
+                    pr_number=pr_number,
+                    pr_url=pr_url,
+                    ci_state=ci_state,
+                    goal=goal,
+                    repo=repo,
+                    diff=diff,
+                    diff_truncated=diff_truncated,
+                    diff_files=diff_files,
+                    pr_title=pr_title,
+                    pr_description=pr_description,
+                    reference_context=reference_context,
+                    base_quality_score=base_quality_score,
+                    base_severity=base_severity,
+                    original_error=e,
+                    original_provider=self.llm_client.provider_name,
+                )
+                if fallback_result is not None:
+                    return fallback_result
+
             # Phase 1 Quick Win: Distinguish JSON parse failures from LLM unavailability
             logger.error(
                 f"[LLM Reviewer] LLM JSON parse failed: {e}",
@@ -718,6 +746,31 @@ class LLMReviewerAdapter:
             # P2 Follow-up: Determine fallback reason based on exception type
             # Prefer checking exception types over string matching for robustness
             fallback_reason = self._classify_exception(e)
+
+            # Issue #4112: Cross-provider fallback on LLM errors (Blueprint 4.3, 4.4)
+            cross_provider_enabled = getattr(
+                settings, 'cross_provider_fallback_enabled', True
+            )
+            if cross_provider_enabled and self.llm_client:
+                fallback_result = self._try_cross_provider_fallback(
+                    pr_number=pr_number,
+                    pr_url=pr_url,
+                    ci_state=ci_state,
+                    goal=goal,
+                    repo=repo,
+                    diff=diff,
+                    diff_truncated=diff_truncated,
+                    diff_files=diff_files,
+                    pr_title=pr_title,
+                    pr_description=pr_description,
+                    reference_context=reference_context,
+                    base_quality_score=base_quality_score,
+                    base_severity=base_severity,
+                    original_error=e,
+                    original_provider=self.llm_client.provider_name,
+                )
+                if fallback_result is not None:
+                    return fallback_result
 
             logger.error(
                 f"[LLM Reviewer] Review failed ({fallback_reason}): {e}",
@@ -2100,6 +2153,204 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
                     "repo": repo,
                 }
             )
+
+    def _try_cross_provider_fallback(
+        self,
+        pr_number: Optional[int],
+        pr_url: Optional[str],
+        ci_state: str,
+        goal: str,
+        repo: str,
+        diff: Optional[str],
+        diff_truncated: bool,
+        diff_files: Optional[list],
+        pr_title: Optional[str],
+        pr_description: Optional[str],
+        reference_context: Optional[str],
+        base_quality_score: int,
+        base_severity: str,
+        original_error: Exception,
+        original_provider: str,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Issue #4112: Try cross-provider fallback when primary provider fails.
+
+        Blueprint 4.3, 4.4: When an LLM provider returns invalid responses,
+        automatically switch to another provider instead of falling back to
+        CI-only review.
+
+        Args:
+            pr_number: Pull request number
+            pr_url: Pull request URL
+            ci_state: CI check state
+            goal: User's goal
+            repo: GitHub repository
+            diff: PR diff content
+            diff_truncated: Whether diff was truncated
+            diff_files: List of changed files metadata
+            pr_title: Pull request title
+            pr_description: Pull request description
+            reference_context: Cross-file reference context
+            base_quality_score: Base quality score from CI-only review
+            base_severity: Base severity from CI-only review
+            original_error: The exception that triggered fallback
+            original_provider: The provider that failed
+
+        Returns:
+            Review result dict if fallback succeeds, None if all fallbacks fail
+        """
+        max_attempts = getattr(settings, 'cross_provider_fallback_max_attempts', 2)
+        fallback_providers = CROSS_PROVIDER_FALLBACK.get(original_provider, [])
+
+        if not fallback_providers:
+            logger.warning(
+                f"[CROSS_PROVIDER_FALLBACK] No fallback providers configured for {original_provider}"
+            )
+            return None
+
+        available_providers = get_available_providers()
+
+        for attempt, fallback_provider in enumerate(fallback_providers[:max_attempts]):
+            if fallback_provider not in available_providers:
+                logger.info(
+                    f"[CROSS_PROVIDER_FALLBACK] Skipping {fallback_provider} - not available"
+                )
+                continue
+
+            logger.info(
+                f"[CROSS_PROVIDER_FALLBACK] Attempting fallback from {original_provider} "
+                f"to {fallback_provider} (attempt {attempt + 1}/{max_attempts})",
+                extra={
+                    "operation": "cross_provider_fallback",
+                    "trace_id": self.trace_id,
+                    "original_provider": original_provider,
+                    "fallback_provider": fallback_provider,
+                    "attempt": attempt + 1,
+                    "original_error": str(original_error),
+                }
+            )
+
+            try:
+                # Create new LLM client with fallback provider
+                fallback_client = get_client_for_task(
+                    task_type=TaskType.REVIEW,
+                    risk_level="medium",
+                    preferred_provider=fallback_provider,
+                )
+
+                if not fallback_client or not fallback_client.is_available():
+                    logger.warning(
+                        f"[CROSS_PROVIDER_FALLBACK] {fallback_provider} client not available"
+                    )
+                    continue
+
+                # Temporarily swap the client
+                original_client = self.llm_client
+                self.llm_client = fallback_client
+
+                try:
+                    # Retry the review with the fallback provider
+                    has_diff = bool(diff and diff.strip())
+                    review_data = self._call_llm(
+                        pr_number=pr_number,
+                        pr_url=pr_url,
+                        ci_state=ci_state,
+                        goal=goal,
+                        repo=repo,
+                        diff=diff,
+                        diff_truncated=diff_truncated,
+                        diff_files=diff_files,
+                        pr_title=pr_title,
+                        pr_description=pr_description,
+                        reference_context=reference_context
+                    )
+
+                    # Filter by confidence
+                    review_data = self._filter_by_confidence(review_data, pr_number)
+
+                    llm_score = review_data.get("quality_score", base_quality_score)
+                    llm_severity = review_data.get("severity", "none")
+
+                    final_score = max(0, min(int(llm_score), base_quality_score, 100))
+                    final_severity = combine_severity(base_severity, llm_severity)
+
+                    logger.info(
+                        f"[CROSS_PROVIDER_FALLBACK] Success with {fallback_provider}: "
+                        f"score={final_score}, severity={final_severity}",
+                        extra={
+                            "operation": "cross_provider_fallback",
+                            "trace_id": self.trace_id,
+                            "fallback_provider": fallback_provider,
+                            "final_score": final_score,
+                            "final_severity": final_severity,
+                        }
+                    )
+
+                    result = {
+                        "quality_score": final_score,
+                        "severity": final_severity,
+                        "summary": review_data.get("summary", ""),
+                        "decision": review_data.get("decision", "needs_changes"),
+                        "comments": review_data.get("comments", []),
+                        "llm_used": True,
+                        "provider": fallback_provider,
+                        "review_time_ms": review_data.get("review_time_ms", 0),
+                        "diff_aware": has_diff,
+                        "cross_provider_fallback": True,
+                        "original_provider": original_provider,
+                        "fallback_attempt": attempt + 1,
+                        "multi_specialist_findings": None,
+                        "test_coverage_gaps": None,
+                        "dependency_issues": None,
+                    }
+
+                    # Run enhanced review modules
+                    result = self._run_enhanced_review_modules(
+                        result=result,
+                        diff=diff,
+                        diff_files=diff_files,
+                        pr_number=pr_number,
+                        goal=goal,
+                        repo=repo,
+                    )
+
+                    # Save review feedback
+                    self._save_review_feedback(
+                        pr_number=pr_number,
+                        repo=repo,
+                        result=result,
+                        diff=diff,
+                        diff_files=diff_files,
+                    )
+
+                    return result
+
+                finally:
+                    # Restore original client
+                    self.llm_client = original_client
+
+            except Exception as fallback_error:
+                logger.warning(
+                    f"[CROSS_PROVIDER_FALLBACK] {fallback_provider} also failed: {fallback_error}",
+                    extra={
+                        "operation": "cross_provider_fallback",
+                        "trace_id": self.trace_id,
+                        "fallback_provider": fallback_provider,
+                        "error": str(fallback_error),
+                    }
+                )
+                continue
+
+        logger.error(
+            f"[CROSS_PROVIDER_FALLBACK] All fallback providers failed for {original_provider}",
+            extra={
+                "operation": "cross_provider_fallback",
+                "trace_id": self.trace_id,
+                "original_provider": original_provider,
+                "attempted_providers": fallback_providers[:max_attempts],
+            }
+        )
+        return None
 
     def _get_fallback_result(
         self,

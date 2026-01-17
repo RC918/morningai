@@ -55,6 +55,7 @@ class DriftRetryPolicy:
     Policy configuration for drift-triggered retry.
 
     EPIC I-2b: Configurable via environment variables.
+    Issue #4112: Added cross-provider fallback support (Blueprint 4.3, 4.4).
     """
     enabled: bool = False
     max_retries: int = 1
@@ -69,6 +70,9 @@ class DriftRetryPolicy:
         "code_generation",
         "code_review"
     })
+    # Issue #4112: Cross-provider fallback (Blueprint 4.3, 4.4)
+    enable_cross_provider_fallback: bool = True
+    cross_provider_max_attempts: int = 2
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for logging/serialization"""
@@ -79,6 +83,8 @@ class DriftRetryPolicy:
             "retry_model_tier": self.retry_model_tier.value,
             "cost_cap_multiplier": self.cost_cap_multiplier,
             "eligible_task_types": list(self.eligible_task_types),
+            "enable_cross_provider_fallback": self.enable_cross_provider_fallback,
+            "cross_provider_max_attempts": self.cross_provider_max_attempts,
         }
 
 
@@ -109,32 +115,58 @@ class RetryDecision:
 
 
 MODEL_TIER_ESCALATION = {
+    # AliCloud/Qwen models
     "qwen-14b": "qwen-72b",
     "qwen-turbo": "qwen-plus",
     "qwen-72b": "qwen-max",
     "qwen-plus": "qwen-max",
-    "gpt-3.5-turbo": "gpt-4o",
-    "gemini-1.5-flash": "gemini-1.5-pro",
     "qwen-max": "qwen-max",
+    # OpenAI models
+    "gpt-3.5-turbo": "gpt-4o",
+    "gpt-4o-mini": "gpt-4o",
     "gpt-4o": "gpt-4o",
-    "gemini-1.5-pro": "gemini-1.5-pro",
+    # Gemini models (Issue #4112: Add Gemini 3/2.5 models)
+    "gemini-1.5-flash": "gemini-1.5-pro",
+    "gemini-1.5-pro": "gemini-2.5-pro",
+    "gemini-2.0-flash": "gemini-2.5-pro",
+    "gemini-2.5-flash": "gemini-2.5-pro",
+    "gemini-2.5-pro": "gemini-3-pro-preview",
+    "gemini-3-flash-preview": "gemini-3-pro-preview",
+    "gemini-3-pro-preview": "gemini-3-pro-preview",
 }
 
 HIGHEST_TIER_MODELS = {
     "alicloud": "qwen-max",
     "openai": "gpt-4o",
-    "gemini": "gemini-1.5-pro",
+    "gemini": "gemini-3-pro-preview",  # Issue #4112: Updated to Gemini 3
     "siliconflow": "qwen-max",
+}
+
+# Issue #4112: Cross-provider fallback configuration (Blueprint 4.3, 4.4)
+# When same-provider escalation is exhausted, try these providers in order
+CROSS_PROVIDER_FALLBACK = {
+    "gemini": ["alicloud", "openai"],
+    "alicloud": ["gemini", "openai"],
+    "openai": ["gemini", "alicloud"],
+    "siliconflow": ["alicloud", "gemini", "openai"],
 }
 
 # Issue #3933: Moved from _estimate_retry_cost() to module level for visibility
 # Similar pattern to MODEL_TIER_ESCALATION above
 TIER_COST_MULTIPLIERS = {
+    # AliCloud/Qwen models
     "qwen-max": 1.5,
-    "gpt-4o": 2.0,
-    "gemini-1.5-pro": 1.5,
     "qwen-72b": 1.2,
     "qwen-plus": 1.2,
+    # OpenAI models
+    "gpt-4o": 2.0,
+    "gpt-4o-mini": 1.0,
+    # Gemini models (Issue #4112: Add Gemini 3/2.5 models)
+    "gemini-1.5-pro": 1.5,
+    "gemini-2.5-pro": 1.8,
+    "gemini-2.5-flash": 1.0,
+    "gemini-3-pro-preview": 2.0,
+    "gemini-3-flash-preview": 1.2,
 }
 
 
@@ -261,9 +293,23 @@ class DriftRetryDecision:
     def _select_retry_model(
         self,
         current_model: Optional[str],
-        current_provider: Optional[str]
+        current_provider: Optional[str],
+        cross_provider_attempt: int = 0
     ) -> Tuple[Optional[str], Optional[str]]:
-        """Select model for retry based on tier escalation policy."""
+        """
+        Select model for retry based on tier escalation policy.
+
+        Issue #4112: Added cross-provider fallback support (Blueprint 4.3, 4.4).
+        When same-provider escalation is exhausted, tries fallback providers.
+
+        Args:
+            current_model: Current model that failed
+            current_provider: Current provider that failed
+            cross_provider_attempt: Number of cross-provider attempts already made
+
+        Returns:
+            Tuple of (retry_model, retry_provider)
+        """
         if not current_model:
             return None, current_provider
 
@@ -275,10 +321,65 @@ class DriftRetryDecision:
                 return HIGHEST_TIER_MODELS[current_provider], current_provider
             return current_model, current_provider
 
+        # Try same-provider escalation first
         if current_model in MODEL_TIER_ESCALATION:
-            return MODEL_TIER_ESCALATION[current_model], current_provider
+            escalated_model = MODEL_TIER_ESCALATION[current_model]
+            # If escalation leads to same model, we've hit the ceiling
+            if escalated_model != current_model:
+                return escalated_model, current_provider
+
+        # Issue #4112: Cross-provider fallback (Blueprint 4.3, 4.4)
+        # If same-provider escalation is exhausted, try cross-provider fallback
+        if (
+            self.policy.enable_cross_provider_fallback
+            and current_provider
+            and cross_provider_attempt < self.policy.cross_provider_max_attempts
+        ):
+            fallback_providers = CROSS_PROVIDER_FALLBACK.get(current_provider, [])
+            if cross_provider_attempt < len(fallback_providers):
+                fallback_provider = fallback_providers[cross_provider_attempt]
+                if self._is_provider_available(fallback_provider):
+                    fallback_model = HIGHEST_TIER_MODELS.get(
+                        fallback_provider, current_model
+                    )
+                    logger.info(
+                        f"[CROSS_PROVIDER_FALLBACK] Switching from {current_provider} "
+                        f"to {fallback_provider}/{fallback_model} "
+                        f"(attempt {cross_provider_attempt + 1})"
+                    )
+                    return fallback_model, fallback_provider
 
         return current_model, current_provider
+
+    def _is_provider_available(self, provider: str) -> bool:
+        """
+        Check if a provider is available for fallback.
+
+        Issue #4112: Helper method for cross-provider fallback.
+
+        Args:
+            provider: Provider name to check
+
+        Returns:
+            True if provider is available, False otherwise
+        """
+        try:
+            from llm.client import get_available_providers
+            available = get_available_providers()
+            return provider in available
+        except ImportError:
+            # If we can't import, assume provider is available
+            # and let the actual call fail if it's not
+            logger.warning(
+                f"[CROSS_PROVIDER_FALLBACK] Could not check provider availability, "
+                f"assuming {provider} is available"
+            )
+            return True
+        except Exception as e:
+            logger.warning(
+                f"[CROSS_PROVIDER_FALLBACK] Error checking provider {provider}: {e}"
+            )
+            return False
 
     def _estimate_retry_cost(
         self,
@@ -338,6 +439,13 @@ def get_drift_retry_policy() -> DriftRetryPolicy:
                         retry_model_tier=retry_model_tier,
                         cost_cap_multiplier=getattr(settings, 'drift_retry_cost_cap_multiplier', 2.0),
                         eligible_task_types=eligible_task_types,
+                        # Issue #4112: Cross-provider fallback settings
+                        enable_cross_provider_fallback=getattr(
+                            settings, 'cross_provider_fallback_enabled', True
+                        ),
+                        cross_provider_max_attempts=getattr(
+                            settings, 'cross_provider_fallback_max_attempts', 2
+                        ),
                     )
                 except ImportError:
                     logger.warning(
