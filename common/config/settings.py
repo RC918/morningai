@@ -1999,13 +1999,24 @@ class Settings(BaseSettings):
         description="Maximum regression tests to generate per run (H-2.3). Limits LLM costs. Valid range: 1-20."
     )
 
-    # NOTE: regression_test_output_dir is defined for H-2.4 (Regression Test Execution)
-    # which will write generated tests to disk. Currently unused in H-2.3.
-    # (gemini-code-assist: clarify future-enhancement settings)
+    # H-2.4: Regression Test Execution (Blueprint Section 5.4)
+    # Writes generated tests to disk, CI enforcement, Safety Governor integration
     regression_test_output_dir: str = Field(
         default="tests/regression",
         alias="REGRESSION_TEST_OUTPUT_DIR",
-        description="Directory to write generated regression tests (H-2.4). Relative to repo root. Currently unused - will be used when H-2.4 implements test file writing."
+        description="Directory to write generated regression tests (H-2.4). Relative to repo root."
+    )
+
+    regression_test_write_to_disk: bool = Field(
+        default=False,
+        alias="REGRESSION_TEST_WRITE_TO_DISK",
+        description="Enable writing generated regression tests to disk (H-2.4). When True, tests are written to regression_test_output_dir. Requires USE_REGRESSION_PIPELINE=True."
+    )
+
+    regression_test_protection_enabled: bool = Field(
+        default=True,
+        alias="REGRESSION_TEST_PROTECTION_ENABLED",
+        description="Enable Safety Governor protection for regression tests (H-2.4). When True, deletion of protected tests is blocked and modifications require approval."
     )
 
     # Coverage Thresholds (Blueprint Section 5.4: CI Enforcement)
