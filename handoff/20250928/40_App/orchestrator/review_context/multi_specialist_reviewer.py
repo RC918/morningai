@@ -46,10 +46,12 @@ class ReviewSpecialist(Enum):
     - SECURITY: Vulnerabilities, injection attacks, auth issues
     - PERFORMANCE: Inefficiencies, memory leaks, N+1 queries
     - ARCHITECTURE: Design patterns, SOLID principles, coupling
+    - SELF_CRITIQUE: Verifies findings from other specialists (B-16)
     """
     SECURITY = "security"
     PERFORMANCE = "performance"
     ARCHITECTURE = "architecture"
+    SELF_CRITIQUE = "self_critique"
 
 
 @dataclass
@@ -303,6 +305,43 @@ Output your findings as a JSON array of objects with keys:
 severity, category, message, file_path (if applicable), line_number (if applicable), suggestion
 
 If no architectural issues are found, return an empty array: []""",
+
+    ReviewSpecialist.SELF_CRITIQUE: """You are a self-critique specialist for MorningAI code review.
+Your role is to verify findings from other specialists and identify FALSE POSITIVES.
+
+Issue #4066 B-16: Self-Critique Specialist for Multi-Specialist Review
+
+You will receive:
+1. The original PR diff
+2. A list of findings from security, performance, and architecture specialists
+
+For EACH finding, carefully verify:
+1. Is the claim accurate based on the actual diff content?
+2. Is the file_path correct and exists in the diff?
+3. Is the line_number correct (if provided)?
+4. Does the issue ACTUALLY exist in the code, or is it a false positive?
+
+Common false positive patterns to check:
+- Finding references code that doesn't exist in the diff
+- Line number doesn't match the actual code
+- Issue is about code that was REMOVED, not added
+- Speculative issues without concrete evidence in the diff
+- Style/preference issues disguised as bugs
+
+Output a JSON object with:
+{
+  "false_positive_indices": [0, 2, 5],  // indices of findings that should be REMOVED
+  "verification_notes": [
+    {"index": 0, "reason": "Line 42 doesn't exist in the diff"},
+    {"index": 2, "reason": "The code actually handles this case correctly"},
+    {"index": 5, "reason": "This is a style preference, not a real issue"}
+  ]
+}
+
+If ALL findings are valid, return: {"false_positive_indices": [], "verification_notes": []}
+
+Be CONSERVATIVE: only flag findings as false positives if you are CERTAIN they are incorrect.
+When in doubt, keep the finding (do NOT add it to false_positive_indices).""",
 }
 
 
@@ -321,6 +360,13 @@ class MultiSpecialistReviewer:
         )
     """
 
+    # Default specialists for first-pass review (excludes SELF_CRITIQUE)
+    DEFAULT_SPECIALISTS = [
+        ReviewSpecialist.SECURITY,
+        ReviewSpecialist.PERFORMANCE,
+        ReviewSpecialist.ARCHITECTURE,
+    ]
+
     def __init__(
         self,
         trace_id: str,
@@ -332,11 +378,12 @@ class MultiSpecialistReviewer:
 
         Args:
             trace_id: Trace ID for telemetry
-            specialists: List of specialists to use (default: all)
+            specialists: List of specialists to use (default: SECURITY, PERFORMANCE, ARCHITECTURE)
+                        Note: SELF_CRITIQUE is NOT included by default as it runs in second pass
             max_workers: Maximum parallel workers (default: 3)
         """
         self.trace_id = trace_id
-        self.specialists = specialists or list(ReviewSpecialist)
+        self.specialists = specialists or self.DEFAULT_SPECIALISTS
         self.max_workers = max_workers
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
 
@@ -405,6 +452,23 @@ class MultiSpecialistReviewer:
 
         # Deduplicate and prioritize findings
         deduplicated_findings = self._deduplicate_findings(all_findings)
+
+        # Issue #4066 B-16: Self-Critique second pass (if enabled)
+        # Import settings here to avoid circular dependency
+        from common.config.settings import settings
+        self_critique_stats: Optional[Dict[str, Any]] = None
+
+        if settings.enable_self_critique and deduplicated_findings:
+            deduplicated_findings, self_critique_stats = self._self_critique_findings(
+                deduplicated_findings,
+                diff_content,
+                pr_context,
+            )
+            specialist_summaries["self_critique"] = (
+                f"Verified {self_critique_stats['verified_count']} findings, "
+                f"removed {self_critique_stats['removed_count']} false positives"
+            )
+
         overall_severity = self._calculate_overall_severity(deduplicated_findings)
 
         review_time_ms = (time.time() - start_time) * 1000
@@ -417,15 +481,21 @@ class MultiSpecialistReviewer:
                 "total_findings": len(deduplicated_findings),
                 "overall_severity": overall_severity,
                 "review_time_ms": review_time_ms,
+                "self_critique_enabled": settings.enable_self_critique,
+                "self_critique_stats": self_critique_stats,
             }
         )
+
+        specialists_used = [s.value for s in self.specialists]
+        if self_critique_stats:
+            specialists_used.append("self_critique")
 
         return SpecialistFindings(
             findings=deduplicated_findings,
             specialist_summaries=specialist_summaries,
             overall_severity=overall_severity,
             review_time_ms=review_time_ms,
-            specialists_used=[s.value for s in self.specialists],
+            specialists_used=specialists_used,
         )
 
     def _review_with_specialist(
@@ -651,6 +721,151 @@ Return your findings as a JSON array."""
                 return sev
 
         return "none"
+
+    def _self_critique_findings(
+        self,
+        findings: List[SpecialistFinding],
+        diff_content: str,
+        pr_context: Dict[str, Any],
+    ) -> tuple[List[SpecialistFinding], Dict[str, Any]]:
+        """
+        Run self-critique on findings to filter false positives.
+
+        Issue #4066 B-16: Self-Critique Specialist for Multi-Specialist Review
+
+        This is the second pass of the two-pass review pipeline:
+        1. First pass: Run specialists in parallel (SECURITY, PERFORMANCE, ARCHITECTURE)
+        2. Second pass: Run SELF_CRITIQUE to verify findings and remove false positives
+
+        Args:
+            findings: List of findings from first-pass specialists
+            diff_content: The original PR diff content
+            pr_context: Context about the PR
+
+        Returns:
+            Tuple of (verified_findings, self_critique_stats)
+        """
+        import json
+        import re
+
+        if not findings:
+            return findings, {
+                "original_count": 0,
+                "removed_count": 0,
+                "verified_count": 0,
+                "removal_rate": 0.0,
+            }
+
+        logger.info(
+            "[MultiSpecialistReviewer] B-16: Starting self-critique verification",
+            extra={
+                "operation": "self_critique",
+                "trace_id": self.trace_id,
+                "finding_count": len(findings),
+            }
+        )
+
+        try:
+            client = get_client_for_task(TaskType.REVIEW)
+
+            system_prompt = SPECIALIST_PROMPTS[ReviewSpecialist.SELF_CRITIQUE]
+
+            findings_json = json.dumps([f.to_dict() for f in findings], indent=2)
+            user_prompt = f"""Verify the following findings from code review specialists.
+
+=== ORIGINAL PR DIFF ===
+{diff_content[:30000]}
+=== END DIFF ===
+
+=== FINDINGS TO VERIFY ({len(findings)} total) ===
+{findings_json}
+=== END FINDINGS ===
+
+For each finding (indexed 0 to {len(findings) - 1}), verify if it is accurate.
+Output the indices of FALSE POSITIVES that should be removed."""
+
+            response = client.generate(
+                prompt=user_prompt,
+                system_prompt=system_prompt,
+                temperature=0.1,
+                max_tokens=2000,
+                json_mode=True,
+            )
+
+            response_text = response.content or "{}"
+
+            json_match = re.search(r'\{[\s\S]*\}', response_text)
+            if json_match:
+                json_str = json_match.group(0)
+            else:
+                json_str = response_text
+
+            try:
+                result = json.loads(json_str)
+                false_positive_indices = result.get("false_positive_indices", [])
+                verification_notes = result.get("verification_notes", [])
+            except json.JSONDecodeError:
+                logger.warning(
+                    "[MultiSpecialistReviewer] B-16: Failed to parse self-critique response",
+                    extra={
+                        "operation": "self_critique",
+                        "trace_id": self.trace_id,
+                        "response": response_text[:500],
+                    }
+                )
+                false_positive_indices = []
+                verification_notes = []
+
+            valid_indices = set(range(len(findings)))
+            indices_to_remove = set()
+            for idx in false_positive_indices:
+                if isinstance(idx, int) and idx in valid_indices:
+                    indices_to_remove.add(idx)
+
+            verified_findings = [
+                f for i, f in enumerate(findings) if i not in indices_to_remove
+            ]
+
+            removal_rate = len(indices_to_remove) / len(findings) if findings else 0.0
+
+            stats = {
+                "original_count": len(findings),
+                "removed_count": len(indices_to_remove),
+                "verified_count": len(verified_findings),
+                "removal_rate": removal_rate,
+                "removed_indices": list(indices_to_remove),
+                "verification_notes": verification_notes,
+            }
+
+            logger.info(
+                f"[MultiSpecialistReviewer] B-16: Self-critique completed, "
+                f"removed {len(indices_to_remove)}/{len(findings)} false positives "
+                f"({removal_rate:.1%})",
+                extra={
+                    "operation": "self_critique",
+                    "trace_id": self.trace_id,
+                    **stats,
+                }
+            )
+
+            return verified_findings, stats
+
+        except Exception as e:
+            logger.error(
+                "[MultiSpecialistReviewer] B-16: Self-critique failed, keeping all findings",
+                extra={
+                    "operation": "self_critique",
+                    "trace_id": self.trace_id,
+                    "error": str(e),
+                }
+            )
+            return findings, {
+                "original_count": len(findings),
+                "removed_count": 0,
+                "verified_count": len(findings),
+                "removal_rate": 0.0,
+                "error": str(e),
+            }
 
     def __del__(self):
         """Cleanup executor on deletion."""
