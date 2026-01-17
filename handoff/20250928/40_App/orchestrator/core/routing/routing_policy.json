@@ -73,7 +73,8 @@
           {"provider": "gemini", "model": "gemini-2.5-pro"},
           {"provider": "alicloud", "model": "qwen-turbo"},
           {"provider": "openai", "model": "gpt-4o-mini"}
-        ]
+        ],
+        "notes": "Primary: Gemini 2.5 Pro, Secondary: AliCloud Qwen, Tertiary: OpenAI"
       },
       "3": {
         "description": "Basic capability - Simple tasks, UX copy",
@@ -81,7 +82,8 @@
           {"provider": "gemini", "model": "gemini-2.5-pro"},
           {"provider": "alicloud", "model": "qwen-turbo"},
           {"provider": "openai", "model": "gpt-4o-mini"}
-        ]
+        ],
+        "notes": "Primary: Gemini 2.5 Pro, Secondary: AliCloud Qwen, Tertiary: OpenAI"
       }
     },
   "context_limits": {
