@@ -5330,6 +5330,45 @@ def _attempt_diagnostic_analysis(
                         }
                     )
 
+                    # H-2.3: Test Generation Integration (Blueprint Section 5.4)
+                    # Auto-generate regression test for P0 candidates with MRE
+                    if (
+                        getattr(settings, 'regression_pipeline_auto_generate', False)
+                        and candidate.priority.value == "p0"
+                    ):
+                        try:
+                            from simulation.regression import RegressionTestGenerator
+
+                            enable_llm = getattr(
+                                settings, 'regression_test_enable_llm', True
+                            )
+                            generator = RegressionTestGenerator()
+                            test_result = generator.generate_test_with_llm(
+                                candidate, enable_llm=enable_llm
+                            )
+
+                            if test_result.get("success"):
+                                logger.info(
+                                    f"[DIAGNOSTIC_AGENT_INTEGRATION] H-2.3: Generated "
+                                    f"regression test. test_name={test_result.get('test_name')}, "
+                                    f"llm_used={test_result.get('llm_used')}, "
+                                    f"trace_id={trace_id}",
+                                    extra={
+                                        "operation": "regression_test_generation",
+                                        "trace_id": trace_id,
+                                        "candidate_id": candidate.candidate_id,
+                                        "test_name": test_result.get("test_name"),
+                                        "llm_used": test_result.get("llm_used"),
+                                    }
+                                )
+
+                        except Exception as gen_err:
+                            logger.debug(
+                                f"[DIAGNOSTIC_AGENT_INTEGRATION] H-2.3: Test generation "
+                                f"failed (non-blocking): {gen_err}",
+                                extra={"trace_id": trace_id}
+                            )
+
                 except ImportError:
                     pass
                 except Exception as reg_err:
@@ -6726,6 +6765,45 @@ def fixer_node(state: AgentState) -> AgentState:
 
             # Store candidate info in state for downstream processing
             state["regression_candidate_v1"] = candidate.to_dict()
+
+            # H-2.3: Test Generation Integration (Blueprint Section 5.4)
+            # Auto-generate regression test for P0 CI failure candidates
+            if (
+                getattr(settings, 'regression_pipeline_auto_generate', False)
+                and candidate.priority.value == "p0"
+            ):
+                try:
+                    from simulation.regression import RegressionTestGenerator
+
+                    enable_llm = getattr(
+                        settings, 'regression_test_enable_llm', True
+                    )
+                    generator = RegressionTestGenerator()
+                    test_result = generator.generate_test_with_llm(
+                        candidate, enable_llm=enable_llm
+                    )
+
+                    if test_result.get("success"):
+                        state["regression_test_generated_v1"] = test_result
+                        logger.info(
+                            f"[Fixer] H-2.3: Generated regression test for CI failure. "
+                            f"test_name={test_result.get('test_name')}, "
+                            f"llm_used={test_result.get('llm_used')}, "
+                            f"trace_id={trace_id}",
+                            extra={
+                                "operation": "regression_test_generation",
+                                "trace_id": trace_id,
+                                "candidate_id": candidate.candidate_id,
+                                "test_name": test_result.get("test_name"),
+                                "llm_used": test_result.get("llm_used"),
+                            }
+                        )
+
+                except Exception as gen_err:
+                    logger.debug(
+                        f"[Fixer] H-2.3: Test generation failed (non-blocking): {gen_err}",
+                        extra={"trace_id": trace_id}
+                    )
 
         except ImportError as e:
             logger.debug(

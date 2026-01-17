@@ -1983,6 +1983,28 @@ class Settings(BaseSettings):
         description="Enable automatic regression test generation for P0/P1 candidates (H-2). When False, candidates are collected but tests are not auto-generated."
     )
 
+    # H-2.3: Test Generation Integration (Blueprint Section 5.4)
+    # LLM-powered regression test generation from candidates with MRE
+    regression_test_enable_llm: bool = Field(
+        default=True,
+        alias="REGRESSION_TEST_ENABLE_LLM",
+        description="Enable LLM-powered regression test generation (H-2.3). When False, uses template-based fallback. Requires USE_REGRESSION_PIPELINE=True and REGRESSION_PIPELINE_AUTO_GENERATE=True."
+    )
+
+    regression_test_max_per_run: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        alias="REGRESSION_TEST_MAX_PER_RUN",
+        description="Maximum regression tests to generate per run (H-2.3). Limits LLM costs. Valid range: 1-20."
+    )
+
+    regression_test_output_dir: str = Field(
+        default="tests/regression",
+        alias="REGRESSION_TEST_OUTPUT_DIR",
+        description="Directory to write generated regression tests (H-2.3). Relative to repo root."
+    )
+
     # Coverage Thresholds (Blueprint Section 5.4: CI Enforcement)
     # Configurable thresholds for coverage monitoring dashboard
     coverage_threshold_api_backend: int = Field(

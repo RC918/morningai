@@ -6,10 +6,16 @@ Blueprint Section 5.4: Regression Pipeline v1
 Automated regression test generation from errors:
 - Error capture from multiple sources
 - Priority calculation
-- Regression test generation
+- Regression test generation (H-2.3: LLM-powered)
 - CI enforcement rules
+
+H-2.3 Test Generation Integration:
+- Bridges RegressionTestGenerator with LLM for actual test code generation
+- Uses MRE from Diagnostic Agent to create functional tests
+- Falls back to template generation if LLM fails
 """
 
+import ast
 import hashlib
 import logging
 from dataclasses import dataclass, field
@@ -562,6 +568,386 @@ REGRESSION_METADATA = {{
     def get_generated_tests(self) -> List[Dict[str, Any]]:
         """Get list of all generated tests."""
         return self._generated_tests.copy()
+
+    def generate_test_with_llm(
+        self,
+        candidate: RegressionCandidate,
+        test_name: Optional[str] = None,
+        enable_llm: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        Generate a regression test using LLM for actual test logic.
+
+        H-2.3 Test Generation Integration (Blueprint Section 5.4):
+        - Uses MRE from Diagnostic Agent to create functional tests
+        - Falls back to template generation if LLM fails
+        - Bridges RegressionTestGenerator with Test Agent v2 capabilities
+
+        Args:
+            candidate: RegressionCandidate to generate test for
+            test_name: Optional custom test name
+            enable_llm: Whether to use LLM (False = template only)
+
+        Returns:
+            Dict with:
+                - success: bool
+                - test_code: str (generated test code)
+                - llm_used: bool (whether LLM was used)
+                - candidate_id: str
+                - test_name: str
+                - error: Optional[str] (if failed)
+        """
+        if test_name is None:
+            safe_name = candidate.error_type.replace(":", "_").replace(".", "_")
+            test_name = f"test_regression_{safe_name}_{candidate.candidate_id[:8]}"
+
+        result: Dict[str, Any] = {
+            "success": False,
+            "test_code": "",
+            "llm_used": False,
+            "candidate_id": candidate.candidate_id,
+            "test_name": test_name,
+            "error": None,
+        }
+
+        if enable_llm:
+            try:
+                llm_test_code = self._generate_test_with_llm_internal(
+                    candidate, test_name
+                )
+                if llm_test_code:
+                    result["success"] = True
+                    result["test_code"] = llm_test_code
+                    result["llm_used"] = True
+
+                    self._generated_tests.append({
+                        "candidate_id": candidate.candidate_id,
+                        "test_name": test_name,
+                        "test_code": llm_test_code,
+                        "generated_at": datetime.now(timezone.utc).isoformat(),
+                        "llm_used": True,
+                    })
+
+                    logger.info(
+                        f"[Regression] H-2.3: Generated LLM test: {test_name}",
+                        extra={
+                            "operation": "simulation.regression.llm",
+                            "candidate_id": candidate.candidate_id,
+                            "test_name": test_name,
+                            "llm_used": True,
+                        }
+                    )
+                    return result
+
+            except Exception as e:
+                logger.warning(
+                    f"[Regression] H-2.3: LLM test generation failed, "
+                    f"falling back to template: {e}",
+                    extra={
+                        "operation": "simulation.regression.llm",
+                        "candidate_id": candidate.candidate_id,
+                        "error": str(e),
+                    }
+                )
+
+        template_test_code = self.generate_test(candidate, test_name)
+        result["success"] = True
+        result["test_code"] = template_test_code
+        result["llm_used"] = False
+        return result
+
+    def _generate_test_with_llm_internal(
+        self,
+        candidate: RegressionCandidate,
+        test_name: str,
+    ) -> Optional[str]:
+        """
+        Internal method to generate test using LLM.
+
+        Args:
+            candidate: RegressionCandidate with MRE and reproduction steps
+            test_name: Name for the test function
+
+        Returns:
+            Generated test code string or None if failed
+        """
+        try:
+            from common.config.settings import settings
+        except ImportError:
+            logger.warning(
+                "[Regression] H-2.3: Could not import settings, "
+                "falling back to template"
+            )
+            return None
+
+        model = getattr(settings, 'llm_test_generator_model', 'qwen-max')
+        api_key = None
+        base_url = None
+
+        if 'qwen' in model.lower():
+            api_key = getattr(settings, 'dashscope_api_key', None)
+            base_url = getattr(settings, 'dashscope_base_url', None)
+        else:
+            api_key = getattr(settings, 'openai_api_key', None)
+
+        if not api_key:
+            logger.warning(
+                "[Regression] H-2.3: No API key configured for LLM test generation"
+            )
+            return None
+
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=api_key, base_url=base_url)
+        except ImportError:
+            logger.warning(
+                "[Regression] H-2.3: OpenAI client not available"
+            )
+            return None
+
+        prompt = self._build_regression_test_prompt(candidate, test_name)
+
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are an expert Python test engineer specializing in "
+                            "regression tests. Generate comprehensive pytest tests that "
+                            "verify the error no longer occurs. Focus on reproducing "
+                            "the exact conditions that caused the original error."
+                        )
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                temperature=0.3,
+                max_tokens=1500
+            )
+
+            llm_output = response.choices[0].message.content
+            if not llm_output:
+                return None
+
+            llm_output = llm_output.strip()
+            test_code = self._parse_llm_regression_test_output(
+                llm_output, test_name, candidate
+            )
+            return test_code
+
+        except Exception as e:
+            logger.warning(
+                f"[Regression] H-2.3: LLM API call failed: {e}",
+                extra={
+                    "operation": "simulation.regression.llm",
+                    "candidate_id": candidate.candidate_id,
+                    "error": str(e),
+                }
+            )
+            return None
+
+    def _build_regression_test_prompt(
+        self,
+        candidate: RegressionCandidate,
+        test_name: str,
+    ) -> str:
+        """
+        Build LLM prompt for regression test generation.
+
+        Includes MRE code and reproduction steps from Diagnostic Agent.
+
+        Args:
+            candidate: RegressionCandidate with error context
+            test_name: Name for the test function
+
+        Returns:
+            Prompt string for LLM
+        """
+        mre_code = ""
+        setup_instructions = ""
+        expected_error = ""
+
+        if candidate.reproduction_steps:
+            for step in candidate.reproduction_steps:
+                if step.startswith("MRE Code:"):
+                    mre_code = step.replace("MRE Code:", "").strip()
+                elif step.startswith("Setup:"):
+                    setup_instructions = step.replace("Setup:", "").strip()
+                elif step.startswith("Expected Error:"):
+                    expected_error = step.replace("Expected Error:", "").strip()
+
+        repro_steps_text = ""
+        if candidate.reproduction_steps:
+            repro_steps_text = "\n".join(
+                f"- {step}" for step in candidate.reproduction_steps
+                if not step.startswith(("MRE Code:", "Setup:", "Expected Error:"))
+            )
+
+        safe_error_message = candidate.error_message[:500]
+        safe_error_type = candidate.error_type
+
+        prompt = f"""Generate a regression test to prevent recurrence of this error.
+
+## Error Information
+- **Error Type**: {safe_error_type}
+- **Error Source**: {candidate.source.value}
+- **Priority**: {candidate.priority.value}
+- **Error Message**:
+```
+{safe_error_message}
+```
+
+## Stack Trace (if available)
+```
+{candidate.stack_trace[:1000] if candidate.stack_trace else "Not available"}
+```
+
+## Minimal Reproducible Example (MRE)
+```python
+{mre_code if mre_code else "# No MRE provided - generate based on error context"}
+```
+
+## Setup Instructions
+{setup_instructions if setup_instructions else "No specific setup required"}
+
+## Expected Error
+{expected_error if expected_error else safe_error_type}
+
+## Reproduction Steps
+{repro_steps_text if repro_steps_text else "Follow the MRE code above"}
+
+## Requirements
+1. Use pytest framework
+2. Test function name: `{test_name}`
+3. Include a descriptive docstring explaining what regression this prevents
+4. Test should PASS when the bug is fixed (error no longer occurs)
+5. Test should FAIL if the bug regresses (error occurs again)
+6. Include appropriate assertions to verify correct behavior
+7. Add REGRESSION_METADATA dict at the end with candidate_id and protected=True
+8. Return ONLY the complete test code, no explanations
+
+## Example Structure
+```python
+import pytest
+
+class TestRegression_{candidate.candidate_id[:8]}:
+    \"\"\"
+    Regression test for: {safe_error_type}
+    Blueprint Section 5.4: CI Enforcement
+    \"\"\"
+
+    def {test_name}(self):
+        \"\"\"Verify that [error] no longer occurs.\"\"\"
+        # Setup
+        # Execute the operation that caused the error
+        # Assert the error no longer occurs
+        pass
+
+REGRESSION_METADATA = {{
+    "candidate_id": "{candidate.candidate_id}",
+    "protected": True,
+}}
+```
+
+Generate the complete regression test:"""
+
+        return prompt
+
+    def _parse_llm_regression_test_output(
+        self,
+        llm_output: str,
+        test_name: str,
+        candidate: RegressionCandidate,
+    ) -> Optional[str]:
+        """
+        Parse LLM output to extract valid test code.
+
+        Args:
+            llm_output: Raw LLM output
+            test_name: Expected test function name
+            candidate: RegressionCandidate for metadata
+
+        Returns:
+            Valid test code string or None if parsing fails
+        """
+        code_blocks: List[str] = []
+        in_code_block = False
+        current_block: List[str] = []
+
+        for line in llm_output.split('\n'):
+            if line.strip().startswith('```'):
+                if in_code_block:
+                    code_blocks.append('\n'.join(current_block))
+                    current_block = []
+                in_code_block = not in_code_block
+            elif in_code_block:
+                current_block.append(line)
+
+        if not code_blocks:
+            code_blocks = [llm_output]
+
+        for block in code_blocks:
+            if test_name in block or 'def test_' in block:
+                try:
+                    ast.parse(block)
+
+                    if 'REGRESSION_METADATA' not in block:
+                        metadata = f'''
+
+# Metadata for CI enforcement
+REGRESSION_METADATA = {{
+    "candidate_id": "{candidate.candidate_id}",
+    "error_type": "{candidate.error_type}",
+    "priority": "{candidate.priority.value}",
+    "source": "{candidate.source.value}",
+    "generated_at": "{datetime.now(timezone.utc).isoformat()}",
+    "protected": True,
+    "llm_generated": True,
+}}
+'''
+                        block = block + metadata
+
+                    return block.strip()
+
+                except SyntaxError as e:
+                    logger.warning(
+                        f"[Regression] H-2.3: LLM generated invalid Python: {e}"
+                    )
+                    continue
+
+        return None
+
+    def generate_tests_for_priority_with_llm(
+        self,
+        collector: RegressionCandidateCollector,
+        priority: RegressionPriority,
+        enable_llm: bool = True,
+    ) -> List[Dict[str, Any]]:
+        """
+        Generate tests for all candidates of a given priority using LLM.
+
+        H-2.3 Test Generation Integration (Blueprint Section 5.4).
+
+        Args:
+            collector: RegressionCandidateCollector with candidates
+            priority: Priority level to generate tests for
+            enable_llm: Whether to use LLM (False = template only)
+
+        Returns:
+            List of generation results (see generate_test_with_llm return type)
+        """
+        candidates = collector.get_candidates_by_priority(priority)
+        results = []
+        for candidate in candidates:
+            result = self.generate_test_with_llm(
+                candidate, enable_llm=enable_llm
+            )
+            results.append(result)
+        return results
 
 
 # Global collector instance for convenience
