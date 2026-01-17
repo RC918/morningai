@@ -35,13 +35,8 @@ from llm.client import get_client_for_task, get_available_providers
 from core.routing import TaskType
 from resource_telemetry import log_prompt_build_bytes, log_llm_response_bytes
 
-# Issue #4112: Cross-provider fallback configuration (Blueprint 4.3, 4.4)
-CROSS_PROVIDER_FALLBACK_ORDER = {
-    "gemini": ["alicloud", "openai"],
-    "alicloud": ["gemini", "openai"],
-    "openai": ["gemini", "alicloud"],
-    "siliconflow": ["alicloud", "gemini", "openai"],
-}
+# Issue #4112: Import cross-provider fallback configuration from drift_retry (DRY principle)
+from governance.drift_retry import CROSS_PROVIDER_FALLBACK
 
 from review_context import (
     generate_multi_specialist_review,
@@ -2205,7 +2200,7 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
             Review result dict if fallback succeeds, None if all fallbacks fail
         """
         max_attempts = getattr(settings, 'cross_provider_fallback_max_attempts', 2)
-        fallback_providers = CROSS_PROVIDER_FALLBACK_ORDER.get(original_provider, [])
+        fallback_providers = CROSS_PROVIDER_FALLBACK.get(original_provider, [])
 
         if not fallback_providers:
             logger.warning(

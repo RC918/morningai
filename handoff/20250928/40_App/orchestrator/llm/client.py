@@ -879,7 +879,8 @@ def get_client_for_task(
     context_size: int = 0,
     escalation_count: int = 0,
     retry_count: int = 0,
-    timeout: Optional[int] = None
+    timeout: Optional[int] = None,
+    preferred_provider: Optional[str] = None
 ) -> LLMClient:
     """
     Get an LLMClient configured based on task type using the RoutingEngine.
@@ -891,6 +892,7 @@ def get_client_for_task(
     - Context size (token count)
     - Escalation count (for hard cap enforcement)
     - Retry count (for hard cap enforcement)
+    - Preferred provider (for cross-provider fallback)
 
     Args:
         task_type: Type of task (from core.routing.TaskType)
@@ -899,6 +901,7 @@ def get_client_for_task(
         escalation_count: Number of tier escalations already performed (Issue #3640)
         retry_count: Number of retries already attempted (Issue #3640)
         timeout: Optional timeout in seconds (Issue #3653)
+        preferred_provider: Optional provider to use (Issue #4112: cross-provider fallback)
 
     Returns:
         LLMClient configured with the appropriate provider, model, and timeout
@@ -926,6 +929,13 @@ def get_client_for_task(
             escalation_count=state.get("escalation_count", 0),  # from AgentState
             retry_count=state.get("retry_count", 0)  # from AgentState
         )
+
+        # With preferred provider (Issue #4112: cross-provider fallback)
+        client = get_client_for_task(
+            TaskType.REVIEW,
+            risk_level="medium",
+            preferred_provider="alicloud"  # Force use of AliCloud provider
+        )
     """
     try:
         from core.routing import RoutingEngine
@@ -939,6 +949,27 @@ def get_client_for_task(
                 "Configure OPENAI_API_KEY, GEMINI_API_KEY, DASHSCOPE_API_KEY, "
                 "or SILICONFLOW_API_KEY."
             )
+
+        # Issue #4112: If preferred_provider is specified, use it directly
+        # This supports cross-provider fallback scenarios
+        if preferred_provider:
+            if preferred_provider not in available_providers:
+                logger.warning(
+                    f"[LLMClient] Preferred provider {preferred_provider} not available, "
+                    f"falling back to normal routing"
+                )
+            else:
+                logger.info(
+                    f"[LLMClient] Using preferred provider: {preferred_provider} "
+                    f"(cross-provider fallback)",
+                    extra={
+                        "operation": "get_client_for_task",
+                        "task_type": task_type.value if hasattr(task_type, 'value') else str(task_type),
+                        "preferred_provider": preferred_provider,
+                        "reason": "cross_provider_fallback"
+                    }
+                )
+                return LLMClient(provider=preferred_provider, timeout=timeout)
 
         engine = RoutingEngine(available_providers=available_providers)
         model_info = engine.select_model(
