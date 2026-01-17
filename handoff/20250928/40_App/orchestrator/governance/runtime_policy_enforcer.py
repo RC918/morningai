@@ -917,8 +917,12 @@ class RuntimePolicyEnforcer:
                 position = finding.get("position", -1)
                 matched_text = finding.get("matched_text", "")
                 category_str = finding.get("category", "")
+                # Issue #4049: Use original_length for accurate redaction
+                # matched_text is sanitized/truncated to max 20 chars, but we need
+                # the actual length to correctly identify the PII span in content
+                original_length = finding.get("original_length", len(matched_text))
 
-                if position < 0 or not matched_text:
+                if position < 0 or original_length <= 0:
                     continue
 
                 # Use redacted_text from finding if available (PIIScanner already computed it)
@@ -928,9 +932,9 @@ class RuntimePolicyEnforcer:
                     # Fallback: generate redaction using PIIScanner's _redact_text method
                     try:
                         category = PIICategory(category_str)
-                        # We need to find the actual text in content at position
-                        # since matched_text may be sanitized/truncated
-                        end_pos = position + len(matched_text)
+                        # Issue #4049: Use original_length instead of len(matched_text)
+                        # to correctly identify the full PII text in content
+                        end_pos = position + original_length
                         if end_pos <= len(redacted_content):
                             actual_text = redacted_content[position:end_pos]
                             redacted_text = scanner._redact_text(actual_text, category)
@@ -941,7 +945,8 @@ class RuntimePolicyEnforcer:
 
                 # Replace the PII with redacted version
                 # Note: We use position-based replacement to handle overlapping matches
-                end_pos = position + len(matched_text)
+                # Issue #4049: Use original_length for accurate end position calculation
+                end_pos = position + original_length
                 if position >= 0 and end_pos <= len(redacted_content):
                     redacted_content = (
                         redacted_content[:position] +
