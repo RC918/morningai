@@ -1098,50 +1098,13 @@ class PIIScanner:
         return text[:2] + "*" * 16 + text[-2:]
 
     def _redact_text(self, text: str, category: PIICategory) -> str:
-        """Generate redacted version of PII text."""
-        if category == PIICategory.EMAIL:
-            # user@domain.com -> u***@d***.com
-            parts = text.split("@")
-            if len(parts) == 2:
-                user = parts[0][0] + "***" if parts[0] else "***"
-                domain_parts = parts[1].split(".")
-                if len(domain_parts) >= 2:
-                    domain = domain_parts[0][0] + "***" if domain_parts[0] else "***"
-                    tld = ".".join(domain_parts[1:])
-                    return f"{user}@{domain}.{tld}"
-            return "[REDACTED_EMAIL]"
+        """Generate redacted version of PII text.
 
-        elif category == PIICategory.PHONE:
-            # Show last 4 digits: ***-***-1234
-            digits = re.sub(r'\D', '', text)
-            if len(digits) >= 4:
-                return "***-***-" + digits[-4:]
-            return "[REDACTED_PHONE]"
-
-        elif category == PIICategory.SSN:
-            # Show last 4 digits: ***-**-1234
-            digits = re.sub(r'\D', '', text)
-            if len(digits) >= 4:
-                return "***-**-" + digits[-4:]
-            return "[REDACTED_SSN]"
-
-        elif category == PIICategory.CREDIT_CARD:
-            # Show last 4 digits: ****-****-****-1234
-            digits = re.sub(r'\D', '', text)
-            if len(digits) >= 4:
-                return "****-****-****-" + digits[-4:]
-            return "[REDACTED_CC]"
-
-        elif category == PIICategory.IP_ADDRESS:
-            # Partially redact: 192.168.***.***
-            parts = text.split(".")
-            if len(parts) == 4:
-                return f"{parts[0]}.{parts[1]}.***.***"
-            return "[REDACTED_IP]"
-
-        else:
-            # Generic redaction
-            return f"[REDACTED_{category.value.upper()}]"
+        Issue #4050: Delegates to public redact_pii_text() function.
+        This method is kept for backward compatibility within PIIScanner.
+        External components should use redact_pii_text() directly.
+        """
+        return redact_pii_text(text, category)
 
     def _validate_match(self, text: str, category: PIICategory) -> bool:
         """
@@ -1388,3 +1351,71 @@ def scan_for_pii(
 ) -> PIIScanResult:
     """Convenience function to scan content for PII."""
     return get_pii_scanner().scan(content, context)
+
+
+def redact_pii_text(text: str, category: PIICategory) -> str:
+    """Public utility function to redact PII text based on category.
+
+    Issue #4050: Exposes redaction logic as a public API to avoid external
+    components depending on PIIScanner's private _redact_text method.
+
+    Args:
+        text: The PII text to redact
+        category: The PIICategory of the text
+
+    Returns:
+        Redacted version of the text with category-specific formatting
+
+    Examples:
+        >>> redact_pii_text("user@example.com", PIICategory.EMAIL)
+        'u***@e***.com'
+        >>> redact_pii_text("123-45-6789", PIICategory.SSN)
+        '***-**-6789'
+        >>> redact_pii_text("4111111111111111", PIICategory.CREDIT_CARD)
+        '****-****-****-1111'
+
+    Blueprint Reference:
+        - Section 4.2 (Compliance Radar v2): Clean API for PII redaction
+        - Section 9.2 (Safe by Design): Stable interfaces for security components
+    """
+    def _redact_numeric(prefix: str, fallback: str) -> str:
+        """Helper to redact numeric strings, showing only the last four digits."""
+        digits = re.sub(r'\D', '', text)
+        if len(digits) >= 4:
+            return prefix + digits[-4:]
+        return fallback
+
+    if category == PIICategory.EMAIL:
+        # user@domain.com -> u***@d***.com
+        parts = text.split("@")
+        if len(parts) == 2:
+            user = parts[0][0] + "***" if parts[0] else "***"
+            domain_parts = parts[1].split(".")
+            if len(domain_parts) >= 2:
+                domain = domain_parts[0][0] + "***" if domain_parts[0] else "***"
+                tld = ".".join(domain_parts[1:])
+                return f"{user}@{domain}.{tld}"
+        return "[REDACTED_EMAIL]"
+
+    elif category == PIICategory.PHONE:
+        # Show last 4 digits: ***-***-1234
+        return _redact_numeric("***-***-", "[REDACTED_PHONE]")
+
+    elif category == PIICategory.SSN:
+        # Show last 4 digits: ***-**-1234
+        return _redact_numeric("***-**-", "[REDACTED_SSN]")
+
+    elif category == PIICategory.CREDIT_CARD:
+        # Show last 4 digits: ****-****-****-1234
+        return _redact_numeric("****-****-****-", "[REDACTED_CC]")
+
+    elif category == PIICategory.IP_ADDRESS:
+        # Partially redact: 192.168.***.***
+        parts = text.split(".")
+        if len(parts) == 4:
+            return f"{parts[0]}.{parts[1]}.***.***"
+        return "[REDACTED_IP]"
+
+    else:
+        # Generic redaction
+        return f"[REDACTED_{category.value.upper()}]"
