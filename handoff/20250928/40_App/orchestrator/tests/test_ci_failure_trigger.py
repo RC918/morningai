@@ -609,11 +609,13 @@ class TestMergedPRFastPath:
             mock_time.monotonic.return_value = 1000.0
             with patch("langgraph_orchestrator._get_metrics") as mock_metrics:
                 mock_metrics.return_value = MagicMock()
-                with patch("langgraph_orchestrator.router_metrics") as mock_router_metrics:
+                with patch("core.flow.router_metrics.get_router_metrics") as mock_get_router_metrics:
+                    mock_router_metrics = MagicMock()
                     def capture_decision_mode(**kwargs):
                         nonlocal recorded_decision_mode
                         recorded_decision_mode = kwargs.get("decision_mode")
                     mock_router_metrics.record_decision.side_effect = capture_decision_mode
+                    mock_get_router_metrics.return_value = mock_router_metrics
 
                     from langgraph_orchestrator import router_node
                     router_node(state)
