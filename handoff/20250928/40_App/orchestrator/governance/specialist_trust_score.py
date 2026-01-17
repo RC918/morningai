@@ -23,6 +23,7 @@ from collections import deque
 from copy import copy
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from itertools import islice
 from typing import Any, Deque, Dict, List, Optional
 
 # Issue #4074: Import shared types from common module
@@ -145,13 +146,20 @@ class SpecialistTrustScoreTracker:
     # Issue #4076: Maximum feedback history size for bounded memory usage
     MAX_FEEDBACK_HISTORY = 1000
 
-    def __init__(self):
-        """Initialize the tracker with default scores for core specialists."""
+    def __init__(self, *, max_feedback_history: Optional[int] = None):
+        """
+        Initialize the tracker with default scores for core specialists.
+
+        Args:
+            max_feedback_history: Optional maximum feedback history size.
+                                  Defaults to MAX_FEEDBACK_HISTORY (1000).
+                                  Useful for testing with smaller values.
+                                  (Gemini Code Assist suggestion for testability)
+        """
         self._scores: Dict[SpecialistType, SpecialistTrustScore] = {}
         # Issue #4076: Use deque with maxlen for automatic LRU eviction
-        self._feedback_history: Deque[SpecialistFeedback] = deque(
-            maxlen=self.MAX_FEEDBACK_HISTORY
-        )
+        _maxlen = max_feedback_history if max_feedback_history is not None else self.MAX_FEEDBACK_HISTORY
+        self._feedback_history: Deque[SpecialistFeedback] = deque(maxlen=_maxlen)
         self._lock = threading.Lock()
 
         # Initialize default scores for core specialists only
@@ -201,6 +209,22 @@ class SpecialistTrustScoreTracker:
             )
             self._feedback_history.append(feedback)
 
+            # Lazily initialize score for non-core specialists (e.g., SELF_CRITIQUE)
+            # This prevents KeyError when recording feedback for meta-specialists
+            # (Cursor Bugbot suggestion)
+            if specialist not in self._scores:
+                self._scores[specialist] = SpecialistTrustScore(
+                    specialist=specialist,
+                    trust_score=self.DEFAULT_TRUST_SCORE,
+                )
+                logger.info(
+                    f"[SpecialistTrustScoreTracker] Lazily initialized {specialist.value}",
+                    extra={
+                        "operation": "lazy_init",
+                        "specialist": specialist.value,
+                    }
+                )
+
             # Update score
             score = self._scores[specialist]
             score.total_suggestions += 1
@@ -246,9 +270,13 @@ class SpecialistTrustScoreTracker:
             specialist: The specialist type
 
         Returns:
-            Trust score (0.0 to 1.0)
+            Trust score (0.0 to 1.0). Returns DEFAULT_TRUST_SCORE for
+            uninitialized specialists (e.g., SELF_CRITIQUE).
         """
         with self._lock:
+            # Return default score for uninitialized specialists (Cursor Bugbot fix)
+            if specialist not in self._scores:
+                return self.DEFAULT_TRUST_SCORE
             return self._scores[specialist].trust_score
 
     def get_all_trust_scores(self) -> Dict[str, float]:
@@ -273,8 +301,15 @@ class SpecialistTrustScoreTracker:
 
         Returns:
             A copy of SpecialistTrustScore with all statistics to ensure thread-safety.
+            Returns a default score for uninitialized specialists (e.g., SELF_CRITIQUE).
         """
         with self._lock:
+            # Return default stats for uninitialized specialists (Cursor Bugbot fix)
+            if specialist not in self._scores:
+                return SpecialistTrustScore(
+                    specialist=specialist,
+                    trust_score=self.DEFAULT_TRUST_SCORE,
+                )
             return copy(self._scores[specialist])
 
     def get_feedback_history(
@@ -306,9 +341,11 @@ class SpecialistTrustScoreTracker:
                 # Take last `limit` items and reverse for most-recent-first order
                 result = list(reversed(filtered[-limit:]))
             else:
-                # Deque maintains insertion order, so we can slice directly
-                # Take last `limit` items and reverse for most-recent-first order
-                result = list(reversed(list(self._feedback_history)[-limit:]))
+                # Deque maintains insertion order. To get the most recent items
+                # efficiently, we create a reversed iterator and take the first
+                # `limit` items from it. This avoids creating a full copy of the
+                # history in memory. (Gemini Code Assist suggestion)
+                result = list(islice(reversed(self._feedback_history), limit))
 
             # Return copies to prevent mutation
             return [copy(f) for f in result]
