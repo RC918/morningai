@@ -29,8 +29,32 @@ def _is_valid_uuid(value: str) -> bool:
         return False
 
 
-# Valid agent_types as defined in DB constraint (migration 021_agent_reputation_system.sql)
+# Valid agent_types as defined in DB constraint (migration 044_extend_agent_type_constraint.sql)
+# Blueprint Reference: Section 3.3 - Agent Catalog V2 (13 Agent Types → 18 values)
+# Issue: #4121 (EPIC K: Sync VALID_AGENT_TYPES with AgentType enum)
+#
+# Benchmark Framework (from Issue #4121):
+# - Core Engineering Agents: Benchmark against Devin AI
+# - UX/UI Agents: Benchmark against Figma plugins, Lighthouse, Percy
+# - Governance Agents: Benchmark against Lakera Guard, Portkey, Arize AI
 VALID_AGENT_TYPES = frozenset({
+    # === Core Engineering Agents (Blueprint 3.3) ===
+    'planner',
+    'coding',
+    'reviewer',
+    'test',
+    'debugger',
+    # === UX/UI Agents (Blueprint 3.3) ===
+    'ui_consistency',
+    'ux_heuristic',
+    'visual_regression',
+    'design_token_governance',
+    # === Governance/Reasoning Agents (Blueprint 3.3) ===
+    'judge',
+    'debate_left',
+    'debate_right',
+    'risk_analyzer',
+    # === Legacy Agent Types (backward compatibility) ===
     'dev_agent',
     'ops_agent',
     'pm_agent',
@@ -145,8 +169,12 @@ class ReputationEngine:
         """Get or create agent reputation record.
         
         Args:
-            agent_type: Must be one of VALID_AGENT_TYPES (dev_agent, ops_agent, 
-                       pm_agent, growth_strategist, meta_agent)
+            agent_type: Must be one of VALID_AGENT_TYPES. See Blueprint Section 3.3
+                       for the full list of 18 valid agent types including:
+                       - Core Engineering: planner, coding, reviewer, test, debugger
+                       - UX/UI: ui_consistency, ux_heuristic, visual_regression, design_token_governance
+                       - Governance: judge, debate_left, debate_right, risk_analyzer
+                       - Legacy: dev_agent, ops_agent, pm_agent, growth_strategist, meta_agent
         
         Returns:
             Agent UUID if successful, None otherwise
