@@ -609,6 +609,42 @@
     ]
   ],
   [
+    "/api/governance/safety/decisions",
+    [
+      "GET"
+    ]
+  ],
+  [
+    "/api/governance/safety/metrics",
+    [
+      "GET"
+    ]
+  ],
+  [
+    "/api/governance/safety/overrides",
+    [
+      "GET"
+    ]
+  ],
+  [
+    "/api/governance/safety/overrides",
+    [
+      "POST"
+    ]
+  ],
+  [
+    "/api/governance/safety/overrides/<trace_id>/approve",
+    [
+      "POST"
+    ]
+  ],
+  [
+    "/api/governance/safety/overrides/<trace_id>/reject",
+    [
+      "POST"
+    ]
+  ],
+  [
     "/api/governance/violations",
     [
       "GET"
