@@ -387,3 +387,44 @@ except ImportError as e:
     SafetyOverrideRequest = None
     get_safety_metrics_collector = None
     reset_safety_metrics_collector = None
+
+try:
+    from .evidence_ledger import (
+        EvidenceLedger,
+        DecisionRecord,
+        DecisionType,
+        DecisionOutcome,
+        ReasoningChain,
+        ReasoningStep,
+        ReasoningStepType,
+        AuditQuery,
+        RetentionPolicy,
+        get_evidence_ledger,
+        reset_evidence_ledger,
+    )
+    __all__.extend([
+        'EvidenceLedger',
+        'DecisionRecord',
+        'DecisionType',
+        'DecisionOutcome',
+        'ReasoningChain',
+        'ReasoningStep',
+        'ReasoningStepType',
+        'AuditQuery',
+        'RetentionPolicy',
+        'get_evidence_ledger',
+        'reset_evidence_ledger',
+    ])
+except ImportError as e:
+    logger.warning(f"Failed to import evidence_ledger: {e}")
+    EvidenceLedger = None
+    DecisionRecord = None
+    DecisionType = None
+    DecisionOutcome = None
+    ReasoningChain = None
+    ReasoningStep = None
+    ReasoningStepType = None
+    AuditQuery = None
+    RetentionPolicy = None
+    get_evidence_ledger = None
+    reset_evidence_ledger = None
