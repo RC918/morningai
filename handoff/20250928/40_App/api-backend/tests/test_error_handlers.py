@@ -328,7 +328,12 @@ class TestErrorHandlerResponseFormat:
 class TestErrorHandlerOutsideAppContext:
     """Test error handler behavior outside Flask application context."""
     
-    def test_handle_exception_outside_app_context_sets_sentry_dsn_none(self):
+    @patch('sentry_sdk.capture_exception')
+    @patch('src.middleware.error_handlers.logger')
+    @patch('src.middleware.error_handlers.jsonify')
+    def test_handle_exception_outside_app_context_sets_sentry_dsn_none(
+        self, mock_jsonify, _mock_logger, mock_capture
+    ):
         """Verify handle_exception handles RuntimeError when called outside app context.
         
         This tests lines 35-37 in error_handlers.py where current_app.extensions.get()
@@ -339,25 +344,15 @@ class TestErrorHandlerOutsideAppContext:
         # Create an exception to handle
         test_exception = Exception("Test error outside app context")
         
-        # Call handle_exception outside of any Flask app context
-        # This should trigger the RuntimeError catch block (lines 35-37)
-        # and set sentry_dsn = None, preventing Sentry capture
-        with patch('sentry_sdk.capture_exception') as mock_capture:
-            with patch('src.middleware.error_handlers.logger') as mock_logger:
-                # Since we're outside app context, jsonify will also fail
-                # We need to mock it to avoid that error
-                with patch('src.middleware.error_handlers.jsonify') as mock_jsonify:
-                    mock_jsonify.return_value = MagicMock()
-                    
-                    # This should NOT raise - it should catch the RuntimeError
-                    # and continue gracefully
-                    try:
-                        handle_exception(test_exception)
-                    except RuntimeError:
-                        pytest.fail("handle_exception should catch RuntimeError from current_app access")
-                    
-                    # Verify Sentry was NOT called (because sentry_dsn is None after RuntimeError)
-                    mock_capture.assert_not_called()
+        # Since we're outside app context, jsonify will also fail. Mock it.
+        mock_jsonify.return_value = MagicMock()
+        
+        # Call handle_exception; it should catch the internal RuntimeError and not re-raise.
+        # If it does raise, pytest will automatically fail the test.
+        handle_exception(test_exception)
+        
+        # Verify Sentry was NOT called (because sentry_dsn is None after RuntimeError)
+        mock_capture.assert_not_called()
 
 
 class TestErrorHandlerRegistration:
