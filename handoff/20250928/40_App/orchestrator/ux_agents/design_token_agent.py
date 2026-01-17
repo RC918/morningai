@@ -199,6 +199,8 @@ HARDCODED_RADIUS_PATTERNS: List[Tuple[str, str, int]] = [
     (r"border-radius\s*:\s*\d+px", "DT-R01", 35),
 ]
 
+ALLOWED_HARDCODED_SPACING_VALUES: List[str] = ['0', '1', '2', '100']
+
 DEPRECATED_TOKENS: Dict[str, str] = {
     "colors.gray": "colors.neutral",
     "colors.blue": "colors.primary",
@@ -470,7 +472,7 @@ class DesignTokenGovernanceAgent:
                 value_with_unit = f"{match}px"
                 suggested = TOKEN_SUGGESTIONS.get(value_with_unit, None)
 
-                if match in ['0', '1', '2', '100']:
+                if match in ALLOWED_HARDCODED_SPACING_VALUES:
                     continue
 
                 violations.append(TokenViolation(
@@ -594,7 +596,7 @@ class DesignTokenGovernanceAgent:
         violations: List[TokenViolation],
         compliance_rate: float,
     ) -> int:
-        """Calculate overall score based on violations and compliance."""
+        """Calculate overall score based on violations, compliance, and TYPE_WEIGHTS."""
         if not violations:
             return 100
 
@@ -602,28 +604,27 @@ class DesignTokenGovernanceAgent:
 
         total_deduction = 0
         for violation in violations:
-            if violation.severity == ViolationSeverity.CRITICAL:
-                total_deduction += 15
-            elif violation.severity == ViolationSeverity.HIGH:
-                total_deduction += 10
-            elif violation.severity == ViolationSeverity.MEDIUM:
-                total_deduction += 5
-            elif violation.severity == ViolationSeverity.LOW:
-                total_deduction += 2
-            else:
-                total_deduction += 1
+            weight = TYPE_WEIGHTS.get(violation.violation_type, 0.05)
+            severity_multiplier = {
+                ViolationSeverity.CRITICAL: 15,
+                ViolationSeverity.HIGH: 10,
+                ViolationSeverity.MEDIUM: 5,
+                ViolationSeverity.LOW: 2,
+                ViolationSeverity.INFO: 1,
+            }.get(violation.severity, 1)
+            total_deduction += int(severity_multiplier * (1 + weight))
 
         return max(0, min(base_score, 100 - total_deduction))
 
     def _determine_severity(self, score: int) -> ViolationSeverity:
-        """Determine severity from score."""
-        if score >= 90:
+        """Determine severity from score using SEVERITY_THRESHOLDS."""
+        if score >= SEVERITY_THRESHOLDS[ViolationSeverity.CRITICAL]:
             return ViolationSeverity.INFO
-        elif score >= 70:
+        elif score >= SEVERITY_THRESHOLDS[ViolationSeverity.HIGH]:
             return ViolationSeverity.LOW
-        elif score >= 50:
+        elif score >= SEVERITY_THRESHOLDS[ViolationSeverity.MEDIUM]:
             return ViolationSeverity.MEDIUM
-        elif score >= 30:
+        elif score >= SEVERITY_THRESHOLDS[ViolationSeverity.LOW]:
             return ViolationSeverity.HIGH
         else:
             return ViolationSeverity.CRITICAL
