@@ -301,7 +301,7 @@ class TestModelTierEscalation:
         """Test highest tier model mappings"""
         assert HIGHEST_TIER_MODELS["alicloud"] == "qwen-max"
         assert HIGHEST_TIER_MODELS["openai"] == "gpt-4o"
-        assert HIGHEST_TIER_MODELS["gemini"] == "gemini-1.5-pro"
+        assert HIGHEST_TIER_MODELS["gemini"] == "gemini-3-pro-preview"  # Issue #4112: Updated to Gemini 3
 
 
 class TestGlobalFunctions:
