@@ -1381,6 +1381,13 @@ class Settings(BaseSettings):
         description="Minimum confidence score (0.0-1.0) for review findings. Findings with confidence < this threshold are filtered out before publishing. Default: 0.7"
     )
 
+    # Issue #4066: B-16 Self-Critique Specialist for Multi-Specialist Review (EPIC B)
+    enable_self_critique: bool = Field(
+        default=False,
+        alias="ENABLE_SELF_CRITIQUE",
+        description="Enable B-16 Self-Critique Specialist: adds a second-pass verification step to multi-specialist review that filters false positives. Default: False for safe rollout."
+    )
+
     use_redis_checkpointer: bool = Field(
         default=False,
         alias="USE_REDIS_CHECKPOINTER",
