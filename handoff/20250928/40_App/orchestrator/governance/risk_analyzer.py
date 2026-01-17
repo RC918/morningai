@@ -137,13 +137,33 @@ RISK_THRESHOLDS = {
 }
 
 # Category weights for overall score calculation
+# Note: Weights sum to ~1.1 to accommodate CONTENT_SAFETY without changing existing behavior
 CATEGORY_WEIGHTS = {
     RiskCategory.SECURITY: 0.30,
     RiskCategory.COMPLIANCE: 0.25,
     RiskCategory.TASK_COMPLEXITY: 0.20,
     RiskCategory.SCOPE: 0.15,
     RiskCategory.COST: 0.10,
+    RiskCategory.CONTENT_SAFETY: 0.10,
 }
+
+# Shell/command execution patterns for security analysis
+SHELL_PATTERNS: List[Tuple[str, str, int]] = [
+    (r"(?i)(os\.system|subprocess|shell=True)", "SEC-001", 70),
+    (r"(?i)(eval|exec)\s*\(", "SEC-002", 85),
+    (r"(?i)(rm\s+-rf|chmod\s+777)", "SEC-003", 90),
+]
+
+# PII patterns for compliance analysis
+PII_PATTERNS: List[Tuple[str, str, str, int]] = [
+    (r"(?i)(email|e-mail)\s*(address)?", "COMP-001", "Email handling", 40),
+    (r"(?i)(phone|mobile|cell)\s*(number)?", "COMP-002", "Phone number handling", 45),
+    (r"(?i)(ssn|social\s*security)", "COMP-003", "SSN handling", 90),
+    (r"(?i)(credit\s*card|cc\s*number)", "COMP-004", "Credit card handling", 90),
+    (r"(?i)(passport|driver.?s?\s*license)", "COMP-005", "ID document handling", 80),
+    (r"(?i)(medical|health)\s*(record|data|info)", "COMP-006", "Medical data handling", 85),
+    (r"(?i)(gdpr|ccpa|hipaa)", "COMP-007", "Compliance-regulated data", 75),
+]
 
 # High-risk patterns for task descriptions
 HIGH_RISK_TASK_PATTERNS: List[Tuple[str, str, str, int]] = [
@@ -161,19 +181,22 @@ HIGH_RISK_TASK_PATTERNS: List[Tuple[str, str, str, int]] = [
         75,
     ),
     (
-        r"(?i)(modify|change|update)\s+(credentials?|secrets?|api[_\s]?keys?|tokens?)",
+        # More flexible pattern: matches "Modify the API keys", "change credentials", etc.
+        r"(?i)(modify|change|update)\s+.{0,20}(credentials?|secrets?|api\s*keys?|tokens?)",
         "TR-003",
         "Credential modification",
         90,
     ),
     (
-        r"(?i)(execute|run)\s+(shell|bash|command|script)\s+as\s+(root|admin|sudo)",
+        # More flexible pattern: matches "Execute shell command as root", etc.
+        r"(?i)(execute|run)\s+.{0,20}(shell|bash|command|script).{0,20}\s+as\s+(root|admin|sudo)",
         "TR-004",
         "Privileged command execution",
         95,
     ),
     (
-        r"(?i)(access|read|export)\s+(customer|user|personal)\s+(data|information|pii)",
+        # More flexible pattern: matches "Export customer personal data", etc.
+        r"(?i)(access|read|export)\s+.{0,30}(customer|user|personal).{0,30}(data|information|pii)",
         "TR-005",
         "PII access operation",
         80,
@@ -297,6 +320,14 @@ class RiskAnalyzerAgent:
             (re.compile(pattern, re.IGNORECASE), pid, score)
             for pattern, pid, score in HIGH_RISK_FILE_PATTERNS
         ]
+        self._compiled_shell_patterns = [
+            (re.compile(pattern, re.IGNORECASE), pid, score)
+            for pattern, pid, score in SHELL_PATTERNS
+        ]
+        self._compiled_pii_patterns = [
+            (re.compile(pattern, re.IGNORECASE), pid, title, score)
+            for pattern, pid, title, score in PII_PATTERNS
+        ]
 
     def analyze_task(
         self,
@@ -389,7 +420,26 @@ class RiskAnalyzerAgent:
 
         # Calculate overall score
         overall_score = self._calculate_overall_score(category_scores)
-        overall_level = self._determine_risk_level(overall_score)
+        score_based_level = self._determine_risk_level(overall_score)
+
+        # Determine overall level: use the higher of score-based level or
+        # the highest finding level (ensures CRITICAL findings = CRITICAL level)
+        highest_finding_level = RiskLevel.MINIMAL
+        for finding in findings:
+            if finding.level.value == "critical":
+                highest_finding_level = RiskLevel.CRITICAL
+                break
+            elif finding.level.value == "high" and highest_finding_level != RiskLevel.CRITICAL:
+                highest_finding_level = RiskLevel.HIGH
+            elif finding.level.value == "medium" and highest_finding_level not in [RiskLevel.CRITICAL, RiskLevel.HIGH]:
+                highest_finding_level = RiskLevel.MEDIUM
+            elif finding.level.value == "low" and highest_finding_level == RiskLevel.MINIMAL:
+                highest_finding_level = RiskLevel.LOW
+
+        # Use the more severe level between score-based and finding-based
+        level_order = [RiskLevel.MINIMAL, RiskLevel.LOW, RiskLevel.MEDIUM, RiskLevel.HIGH, RiskLevel.CRITICAL]
+        overall_level = max(score_based_level, highest_finding_level, key=lambda x: level_order.index(x))
+
         action = self._determine_action(overall_level, findings)
 
         # Generate mitigation recommendations
@@ -523,14 +573,8 @@ class RiskAnalyzerAgent:
                     ))
                     score = max(score, pattern_score)
 
-        # Check for shell/command execution in task
-        shell_patterns = [
-            (r"(?i)(os\.system|subprocess|shell=True)", "SEC-001", 70),
-            (r"(?i)(eval|exec)\s*\(", "SEC-002", 85),
-            (r"(?i)(rm\s+-rf|chmod\s+777)", "SEC-003", 90),
-        ]
-        for pattern_str, pid, pattern_score in shell_patterns:
-            pattern = re.compile(pattern_str)
+        # Check for shell/command execution in task (using pre-compiled patterns)
+        for pattern, pid, pattern_score in self._compiled_shell_patterns:
             if pattern.search(task_description):
                 findings.append(RiskFinding(
                     category=RiskCategory.SECURITY,
@@ -617,19 +661,8 @@ class RiskAnalyzerAgent:
         findings: List[RiskFinding] = []
         score = 0
 
-        # PII patterns
-        pii_patterns = [
-            (r"(?i)(email|e-mail)\s*(address)?", "COMP-001", "Email handling", 40),
-            (r"(?i)(phone|mobile|cell)\s*(number)?", "COMP-002", "Phone number handling", 45),
-            (r"(?i)(ssn|social\s*security)", "COMP-003", "SSN handling", 90),
-            (r"(?i)(credit\s*card|cc\s*number)", "COMP-004", "Credit card handling", 90),
-            (r"(?i)(passport|driver.?s?\s*license)", "COMP-005", "ID document handling", 80),
-            (r"(?i)(medical|health)\s*(record|data|info)", "COMP-006", "Medical data handling", 85),
-            (r"(?i)(gdpr|ccpa|hipaa)", "COMP-007", "Compliance-regulated data", 75),
-        ]
-
-        for pattern_str, pid, title, pattern_score in pii_patterns:
-            pattern = re.compile(pattern_str)
+        # Use pre-compiled PII patterns for performance
+        for pattern, pid, title, pattern_score in self._compiled_pii_patterns:
             if pattern.search(task_description):
                 findings.append(RiskFinding(
                     category=RiskCategory.COMPLIANCE,
@@ -697,23 +730,31 @@ class RiskAnalyzerAgent:
 
             if not result.is_safe:
                 for finding in result.findings:
-                    risk_level = RiskLevel.HIGH
-                    if finding.risk_level.value == "critical":
+                    # Map ContentRiskLevel to RiskLevel (handle all levels)
+                    risk_level_value = finding.risk_level.value
+                    if risk_level_value == "critical":
                         risk_level = RiskLevel.CRITICAL
-                    elif finding.risk_level.value == "medium":
+                    elif risk_level_value == "high":
+                        risk_level = RiskLevel.HIGH
+                    elif risk_level_value == "medium":
                         risk_level = RiskLevel.MEDIUM
+                    elif risk_level_value == "low":
+                        risk_level = RiskLevel.LOW
+                    else:
+                        risk_level = RiskLevel.MINIMAL
 
+                    finding_score = int(finding.confidence * 100)
                     findings.append(RiskFinding(
                         category=RiskCategory.CONTENT_SAFETY,
                         level=risk_level,
                         finding_id=f"CS-{finding.pattern_id}",
                         title=finding.title,
                         description=finding.description,
-                        score=finding.confidence * 100,
+                        score=finding_score,
                         evidence=finding.matched_text,
                         recommendation=finding.recommendation,
                     ))
-                    score = max(score, int(finding.confidence * 100))
+                    score = max(score, finding_score)
 
         except Exception as e:
             logger.debug(
@@ -726,7 +767,16 @@ class RiskAnalyzerAgent:
         self,
         category_scores: Dict[RiskCategory, int],
     ) -> int:
-        """Calculate weighted overall risk score."""
+        """Calculate weighted overall risk score.
+
+        Uses a hybrid approach:
+        - 50% weighted average across categories
+        - 50% maximum category score (worst case scenario)
+
+        This ensures that a single high-risk category (e.g., security=90)
+        still results in a high overall score, even when other categories
+        are low or zero.
+        """
         if not category_scores:
             return 0
 
@@ -745,8 +795,9 @@ class RiskAnalyzerAgent:
         max_score = max(category_scores.values()) if category_scores else 0
         weighted_avg = weighted_sum / total_weight
 
-        # Final score is 70% weighted average + 30% max score
-        return int(weighted_avg * 0.7 + max_score * 0.3)
+        # Final score is 50% weighted average + 50% max score
+        # This ensures high-risk findings in any category are properly reflected
+        return int(weighted_avg * 0.5 + max_score * 0.5)
 
     def _determine_risk_level(self, score: int) -> RiskLevel:
         """Determine risk level from score."""
