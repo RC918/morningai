@@ -602,16 +602,17 @@ class DesignTokenGovernanceAgent:
 
         base_score = int(compliance_rate)
 
+        severity_multiplier_map = {
+            ViolationSeverity.CRITICAL: 15,
+            ViolationSeverity.HIGH: 10,
+            ViolationSeverity.MEDIUM: 5,
+            ViolationSeverity.LOW: 2,
+            ViolationSeverity.INFO: 1,
+        }
         total_deduction = 0
         for violation in violations:
             weight = TYPE_WEIGHTS.get(violation.violation_type, 0.05)
-            severity_multiplier = {
-                ViolationSeverity.CRITICAL: 15,
-                ViolationSeverity.HIGH: 10,
-                ViolationSeverity.MEDIUM: 5,
-                ViolationSeverity.LOW: 2,
-                ViolationSeverity.INFO: 1,
-            }.get(violation.severity, 1)
+            severity_multiplier = severity_multiplier_map.get(violation.severity, 1)
             total_deduction += int(severity_multiplier * (1 + weight))
 
         return max(0, min(base_score, 100 - total_deduction))

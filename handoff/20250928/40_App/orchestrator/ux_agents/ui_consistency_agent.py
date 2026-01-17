@@ -460,11 +460,12 @@ class UIConsistencyAgent:
         component_pattern = re.compile(
             r"(?:export\s+)?(?:const|function)\s+([a-zA-Z_][a-zA-Z0-9_]*)"
         )
+        pascal_case_pattern = re.compile(r"^[A-Z][a-zA-Z0-9]*$")
         components = component_pattern.findall(code_content)
 
         for component in components:
-            if not re.match(r"^[A-Z][a-zA-Z0-9]*$", component):
-                if component[0].isupper():
+            if not pascal_case_pattern.match(component):
+                if component[0].isupper() and '_' not in component:
                     score -= 10
                     findings.append(UIConsistencyFinding(
                         category=ConsistencyCategory.COMPONENT_NAMING,
