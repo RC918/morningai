@@ -36,6 +36,22 @@ def _get_health_alert_service():
     except ImportError:
         return None
 
+
+def _get_safety_metrics_collector():
+    """
+    Get SafetyMetricsCollector instance with graceful ImportError handling.
+    
+    Returns None if safety_metrics module is not available.
+    This wrapper enables clean mocking in tests.
+    
+    EPIC E Phase E-5: Safety Observability
+    """
+    try:
+        from governance.safety_metrics import get_safety_metrics_collector
+        return get_safety_metrics_collector()
+    except ImportError:
+        return None
+
 try:
     from governance import (
         get_cost_tracker,
@@ -499,6 +515,378 @@ def get_single_provider_health(provider):
         return jsonify({
             'available': False,
             'provider': provider,
+            'error': 'internal_error',
+            'message': str(e),
+            'timestamp': _utc_now_iso()
+        }), 500
+
+
+@bp.route('/safety/metrics', methods=['GET'])
+@jwt_required
+def get_safety_metrics():
+    """
+    Get safety metrics in Prometheus-compatible format
+
+    EPIC E Phase E-5: Safety Observability Dashboard
+
+    This endpoint provides aggregated safety metrics including:
+    - safety_decisions_total (by action, category)
+    - safety_scan_latency_seconds
+    - safety_override_requests_total
+    - safety_block_rate
+
+    Returns:
+        JSON with all safety metrics
+
+    Requires: JWT authentication
+    """
+    try:
+        metrics_collector = _get_safety_metrics_collector()
+
+        if metrics_collector is None:
+            logger.warning("[SafetyMetrics] metrics module not available")
+            return jsonify({
+                'available': False,
+                'error': 'metrics_unavailable',
+                'message': 'SafetyMetricsCollector not configured',
+                'timestamp': _utc_now_iso()
+            }), 503
+
+        metrics = metrics_collector.get_metrics()
+
+        return jsonify({
+            'available': True,
+            'timestamp': _utc_now_iso(),
+            'metrics': metrics,
+        })
+
+    except Exception as e:
+        logger.error(f"[SafetyMetrics] Error getting metrics: {e}")
+        return jsonify({
+            'available': False,
+            'error': 'internal_error',
+            'message': str(e),
+            'timestamp': _utc_now_iso()
+        }), 500
+
+
+@bp.route('/safety/decisions', methods=['GET'])
+@jwt_required
+def get_safety_decisions():
+    """
+    Get safety decision event stream with filtering
+
+    EPIC E Phase E-5: Safety Observability Dashboard
+
+    This endpoint provides recent safety decision events with optional filtering
+    by action, category, and policy_id.
+
+    Query Parameters:
+        limit: Maximum number of events (default: 100, max: 500)
+        action: Filter by action (allow, block, require_approval, log_only)
+        category: Filter by category (prompt_injection, jailbreak, harmful_content)
+        policy_id: Filter by policy ID
+
+    Returns:
+        JSON with list of safety decision events
+
+    Requires: JWT authentication
+    """
+    try:
+        metrics_collector = _get_safety_metrics_collector()
+
+        if metrics_collector is None:
+            logger.warning("[SafetyMetrics] metrics module not available")
+            return jsonify({
+                'available': False,
+                'error': 'metrics_unavailable',
+                'message': 'SafetyMetricsCollector not configured',
+                'timestamp': _utc_now_iso()
+            }), 503
+
+        limit = min(int(request.args.get('limit', 100)), 500)
+        action = request.args.get('action')
+        category = request.args.get('category')
+        policy_id = request.args.get('policy_id')
+
+        events = metrics_collector.get_decision_events(
+            limit=limit,
+            action=action,
+            category=category,
+            policy_id=policy_id,
+        )
+
+        return jsonify({
+            'available': True,
+            'timestamp': _utc_now_iso(),
+            'events': events,
+            'count': len(events),
+            'filters': {
+                'limit': limit,
+                'action': action,
+                'category': category,
+                'policy_id': policy_id,
+            },
+        })
+
+    except Exception as e:
+        logger.error(f"[SafetyMetrics] Error getting decisions: {e}")
+        return jsonify({
+            'available': False,
+            'error': 'internal_error',
+            'message': str(e),
+            'timestamp': _utc_now_iso()
+        }), 500
+
+
+@bp.route('/safety/overrides', methods=['GET'])
+@jwt_required
+def get_safety_overrides():
+    """
+    Get safety override requests with filtering
+
+    EPIC E Phase E-5: Safety Observability Dashboard
+
+    This endpoint provides override request tracking with optional filtering
+    by status.
+
+    Query Parameters:
+        limit: Maximum number of requests (default: 100, max: 500)
+        status: Filter by status (pending, approved, rejected)
+
+    Returns:
+        JSON with list of override requests
+
+    Requires: JWT authentication
+    """
+    try:
+        metrics_collector = _get_safety_metrics_collector()
+
+        if metrics_collector is None:
+            logger.warning("[SafetyMetrics] metrics module not available")
+            return jsonify({
+                'available': False,
+                'error': 'metrics_unavailable',
+                'message': 'SafetyMetricsCollector not configured',
+                'timestamp': _utc_now_iso()
+            }), 503
+
+        limit = min(int(request.args.get('limit', 100)), 500)
+        status = request.args.get('status')
+
+        requests_list = metrics_collector.get_override_requests(
+            limit=limit,
+            status=status,
+        )
+
+        return jsonify({
+            'available': True,
+            'timestamp': _utc_now_iso(),
+            'requests': requests_list,
+            'count': len(requests_list),
+            'filters': {
+                'limit': limit,
+                'status': status,
+            },
+        })
+
+    except Exception as e:
+        logger.error(f"[SafetyMetrics] Error getting overrides: {e}")
+        return jsonify({
+            'available': False,
+            'error': 'internal_error',
+            'message': str(e),
+            'timestamp': _utc_now_iso()
+        }), 500
+
+
+@bp.route('/safety/overrides', methods=['POST'])
+@jwt_required
+def create_safety_override_request():
+    """
+    Create a new safety override request
+
+    EPIC E Phase E-5: Safety Observability Dashboard
+
+    This endpoint allows creating override requests for safety decisions
+    that require human review.
+
+    Request Body:
+        trace_id: Trace ID of the original decision
+        original_action: Original safety action
+        requested_action: Requested override action
+        reason: Reason for override request
+
+    Returns:
+        JSON with created override request
+
+    Requires: JWT authentication
+    """
+    try:
+        metrics_collector = _get_safety_metrics_collector()
+
+        if metrics_collector is None:
+            logger.warning("[SafetyMetrics] metrics module not available")
+            return jsonify({
+                'available': False,
+                'error': 'metrics_unavailable',
+                'message': 'SafetyMetricsCollector not configured',
+                'timestamp': _utc_now_iso()
+            }), 503
+
+        data = request.get_json() or {}
+
+        trace_id = data.get('trace_id')
+        original_action = data.get('original_action')
+        requested_action = data.get('requested_action')
+        reason = data.get('reason')
+
+        if not all([trace_id, original_action, requested_action, reason]):
+            return jsonify({
+                'error': 'missing_fields',
+                'message': 'Required fields: trace_id, original_action, requested_action, reason',
+            }), 400
+
+        requester_id = request.headers.get('X-User-ID', 'unknown')
+
+        override_request = metrics_collector.record_override_request(
+            trace_id=trace_id,
+            original_action=original_action,
+            requested_action=requested_action,
+            reason=reason,
+            requester_id=requester_id,
+            metadata=data.get('metadata'),
+        )
+
+        return jsonify({
+            'success': True,
+            'timestamp': _utc_now_iso(),
+            'request': override_request.to_dict(),
+        }), 201
+
+    except Exception as e:
+        logger.error(f"[SafetyMetrics] Error creating override request: {e}")
+        return jsonify({
+            'error': 'internal_error',
+            'message': str(e),
+            'timestamp': _utc_now_iso()
+        }), 500
+
+
+@bp.route('/safety/overrides/<trace_id>/approve', methods=['POST'])
+@jwt_required
+@admin_required
+def approve_safety_override(trace_id):
+    """
+    Approve a pending safety override request
+
+    EPIC E Phase E-5: Safety Observability Dashboard
+
+    Path Parameters:
+        trace_id: Trace ID of the override request
+
+    Returns:
+        JSON with approval status
+
+    Requires: Owner role
+    """
+    try:
+        metrics_collector = _get_safety_metrics_collector()
+
+        if metrics_collector is None:
+            logger.warning("[SafetyMetrics] metrics module not available")
+            return jsonify({
+                'available': False,
+                'error': 'metrics_unavailable',
+                'message': 'SafetyMetricsCollector not configured',
+                'timestamp': _utc_now_iso()
+            }), 503
+
+        approver_id = request.headers.get('X-User-ID', 'admin')
+
+        success = metrics_collector.approve_override(
+            trace_id=trace_id,
+            approver_id=approver_id,
+        )
+
+        if not success:
+            return jsonify({
+                'success': False,
+                'error': 'not_found',
+                'message': f'Override request {trace_id} not found or not pending',
+            }), 404
+
+        return jsonify({
+            'success': True,
+            'timestamp': _utc_now_iso(),
+            'trace_id': trace_id,
+            'status': 'approved',
+            'approver_id': approver_id,
+        })
+
+    except Exception as e:
+        logger.error(f"[SafetyMetrics] Error approving override: {e}")
+        return jsonify({
+            'error': 'internal_error',
+            'message': str(e),
+            'timestamp': _utc_now_iso()
+        }), 500
+
+
+@bp.route('/safety/overrides/<trace_id>/reject', methods=['POST'])
+@jwt_required
+@admin_required
+def reject_safety_override(trace_id):
+    """
+    Reject a pending safety override request
+
+    EPIC E Phase E-5: Safety Observability Dashboard
+
+    Path Parameters:
+        trace_id: Trace ID of the override request
+
+    Returns:
+        JSON with rejection status
+
+    Requires: Owner role
+    """
+    try:
+        metrics_collector = _get_safety_metrics_collector()
+
+        if metrics_collector is None:
+            logger.warning("[SafetyMetrics] metrics module not available")
+            return jsonify({
+                'available': False,
+                'error': 'metrics_unavailable',
+                'message': 'SafetyMetricsCollector not configured',
+                'timestamp': _utc_now_iso()
+            }), 503
+
+        approver_id = request.headers.get('X-User-ID', 'admin')
+
+        success = metrics_collector.reject_override(
+            trace_id=trace_id,
+            approver_id=approver_id,
+        )
+
+        if not success:
+            return jsonify({
+                'success': False,
+                'error': 'not_found',
+                'message': f'Override request {trace_id} not found or not pending',
+            }), 404
+
+        return jsonify({
+            'success': True,
+            'timestamp': _utc_now_iso(),
+            'trace_id': trace_id,
+            'status': 'rejected',
+            'approver_id': approver_id,
+        })
+
+    except Exception as e:
+        logger.error(f"[SafetyMetrics] Error rejecting override: {e}")
+        return jsonify({
             'error': 'internal_error',
             'message': str(e),
             'timestamp': _utc_now_iso()
