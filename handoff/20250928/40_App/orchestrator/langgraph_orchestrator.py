@@ -6804,6 +6804,49 @@ def fixer_node(state: AgentState) -> AgentState:
                             }
                         )
 
+                        # H-2.4: Write generated test to disk (Blueprint Section 5.4)
+                        # Only write if feature flag is enabled and we have repo path
+                        # Note: Only use repo_path (filesystem path), not repo (GitHub identifier)
+                        if getattr(settings, 'regression_test_write_to_disk', False):
+                            repo_path = state.get("repo_path")
+                            if repo_path:
+                                try:
+                                    write_result = generator.write_test_to_disk(
+                                        test_code=test_result.get("test_code", ""),
+                                        test_name=test_result.get("test_name", ""),
+                                        candidate_id=candidate.candidate_id,
+                                        repo_path=repo_path,
+                                    )
+                                    if write_result.get("success"):
+                                        state["regression_test_written_v1"] = write_result
+                                        logger.info(
+                                            f"[Fixer] H-2.4: Wrote regression test to disk. "
+                                            f"file_path={write_result.get('relative_path')}, "
+                                            f"trace_id={trace_id}",
+                                            extra={
+                                                "operation": "regression_test_write",
+                                                "trace_id": trace_id,
+                                                "candidate_id": candidate.candidate_id,
+                                                "file_path": write_result.get("file_path"),
+                                                "relative_path": write_result.get("relative_path"),
+                                            }
+                                        )
+                                    else:
+                                        logger.warning(
+                                            f"[Fixer] H-2.4: Failed to write test to disk: "
+                                            f"{write_result.get('error')}, trace_id={trace_id}",
+                                            extra={
+                                                "trace_id": trace_id,
+                                                "error": write_result.get("error"),
+                                            }
+                                        )
+                                except Exception as write_err:
+                                    logger.debug(
+                                        f"[Fixer] H-2.4: Write to disk failed (non-blocking): "
+                                        f"{write_err}",
+                                        extra={"trace_id": trace_id}
+                                    )
+
                 except Exception as gen_err:
                     logger.debug(
                         f"[Fixer] H-2.3: Test generation failed (non-blocking): {gen_err}",
@@ -7317,6 +7360,99 @@ def reviewer_node(state: AgentState) -> AgentState:
                                         "error": str(ref_error)
                                     }
                                 )
+
+                        # H-2.4: Check for protected regression test modifications (Blueprint Section 5.4)
+                        # Safety Governor integration: detect if PR modifies/deletes protected tests
+                        if (
+                            getattr(settings, 'regression_test_protection_enabled', True)
+                            and diff_files
+                        ):
+                            try:
+                                from simulation.regression import RegressionTestProtector
+
+                                protector = RegressionTestProtector()
+                                protection_warnings = []
+
+                                for diff_file in diff_files:
+                                    file_path = diff_file.get("filename", "")
+                                    status = diff_file.get("status", "")
+                                    previous_filename = diff_file.get("previous_filename", "")
+
+                                    # Check if file is in regression test directory
+                                    if protector.is_regression_test_file(file_path):
+                                        # For deleted files, block immediately
+                                        if status == "removed":
+                                            protection_warnings.append({
+                                                "file": file_path,
+                                                "action": "deletion_blocked",
+                                                "severity": "critical",
+                                                "message": (
+                                                    f"Deletion of regression test '{file_path}' blocked by "
+                                                    "Safety Governor. Protected tests cannot be deleted."
+                                                ),
+                                            })
+                                        # For modified files, require approval
+                                        elif status == "modified":
+                                            protection_warnings.append({
+                                                "file": file_path,
+                                                "action": "requires_approval",
+                                                "severity": "high",
+                                                "message": (
+                                                    f"Modification of regression test '{file_path}' requires "
+                                                    "reviewer approval. This test protects against known bugs."
+                                                ),
+                                            })
+
+                                    # Handle renamed files: check if moving OUT of protected directory
+                                    # GitHub returns "renamed" status with previous_filename for moves
+                                    if (
+                                        status == "renamed"
+                                        and previous_filename
+                                        and protector.is_regression_test_file(previous_filename)
+                                        and not protector.is_regression_test_file(file_path)
+                                    ):
+                                        protection_warnings.append({
+                                            "file": previous_filename,
+                                            "action": "move_blocked",
+                                            "severity": "critical",
+                                            "message": (
+                                                f"Moving regression test '{previous_filename}' out of protected "
+                                                f"directory to '{file_path}' blocked by Safety Governor. "
+                                                "Protected tests cannot be moved outside the regression test directory."
+                                            ),
+                                        })
+
+                                if protection_warnings:
+                                    state["regression_protection_warnings_v1"] = protection_warnings
+                                    # Add to review comments (use "ci" source per ReviewComment schema)
+                                    for warning in protection_warnings:
+                                        state["review_comments"].append({
+                                            "severity": warning["severity"],
+                                            "message": f"[RegressionTestProtector] {warning['message']}",
+                                            "file": warning["file"],
+                                            "source": "ci",
+                                        })
+                                    logger.warning(
+                                        f"[Reviewer] H-2.4: Found {len(protection_warnings)} protected "
+                                        f"regression test modifications",
+                                        extra={
+                                            "operation": "reviewer",
+                                            "trace_id": trace_id,
+                                            "protection_warnings": protection_warnings,
+                                        }
+                                    )
+
+                            except ImportError:
+                                logger.debug(
+                                    "[Reviewer] H-2.4: RegressionTestProtector not available",
+                                    extra={"trace_id": trace_id}
+                                )
+                            except Exception as prot_error:
+                                logger.debug(
+                                    f"[Reviewer] H-2.4: Protection check failed (non-blocking): {prot_error}",
+                                    extra={"trace_id": trace_id}
+                                )
+
                     else:
                         metrics.record_diff_fetch(trace_id=trace_id, success=False)
                         logger.warning(
