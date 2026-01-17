@@ -141,6 +141,24 @@ def _get_available_providers(bypass_governance: bool = False) -> list[str]:
     return available
 
 
+def get_available_providers(bypass_governance: bool = False) -> list[str]:
+    """Get list of available provider names based on configuration and governance.
+
+    Issue #4112: Public wrapper for _get_available_providers for cross-provider fallback.
+
+    This function returns the list of providers that are currently available,
+    taking into account API key configuration, governance allowlists, and
+    degradation enforcement (hard gating).
+
+    Args:
+        bypass_governance: If True, skip all governance filtering (emergency/diagnostic only)
+
+    Returns:
+        List of available provider names (e.g., ['gemini', 'alicloud', 'openai'])
+    """
+    return _get_available_providers(bypass_governance=bypass_governance)
+
+
 def _apply_hard_gating(providers: list[str]) -> list[str]:
     """
     Apply Hard Gating logic to filter AVOID providers.
