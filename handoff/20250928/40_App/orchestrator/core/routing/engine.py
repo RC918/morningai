@@ -596,7 +596,9 @@ class RoutingEngine:
             # Use SEVERITY_MULTIPLIERS as single source of truth (EPIC I-4 Phase B-2)
             multiplier = SEVERITY_MULTIPLIERS.get(state, 1.0)
 
-            if state != DegradationSeverity.HEALTHY:
+            # Only log if state is not None and not HEALTHY
+            # (state can be None if provider has never been registered)
+            if state is not None and state != DegradationSeverity.HEALTHY:
                 logger.info(
                     f"[I-4-SOFT-WEIGHTING] Provider {provider} has {state.value} state, "
                     f"applying {multiplier}x score multiplier"
