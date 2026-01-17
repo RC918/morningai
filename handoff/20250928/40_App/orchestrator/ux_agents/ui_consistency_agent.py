@@ -167,6 +167,8 @@ HARDCODED_SPACING_PATTERNS: List[Tuple[str, str, int]] = [
     (r"(?<![\w-])(\d+)em(?![\w-])", "SP-003", 30),
 ]
 
+ALLOWED_HARDCODED_SPACING_VALUES: List[str] = ['0', '1', '2']
+
 ACCESSIBILITY_PATTERNS: List[Tuple[str, str, str, int]] = [
     (r"<img[^>]*(?!alt=)[^>]*>", "A11Y-001", "Image missing alt attribute", 80),
     (r"onClick\s*=\s*{[^}]*}\s*(?!.*role=)", "A11Y-002", "Click handler without role", 60),
@@ -400,7 +402,10 @@ class UIConsistencyAgent:
         for pattern, pid, score in self._compiled_spacing_patterns:
             matches = pattern.findall(code_content)
             if matches:
-                non_standard = [m for m in matches if m not in ['0', '1', '2']]
+                non_standard = [
+                    m for m in matches
+                    if m not in ALLOWED_HARDCODED_SPACING_VALUES
+                ]
                 if non_standard:
                     max_score = max(max_score, score)
                     for match in non_standard[:5]:
@@ -453,23 +458,25 @@ class UIConsistencyAgent:
         score = 100
 
         component_pattern = re.compile(
-            r"(?:export\s+)?(?:const|function)\s+([A-Z][a-zA-Z0-9]*)"
+            r"(?:export\s+)?(?:const|function)\s+([a-zA-Z_][a-zA-Z0-9_]*)"
         )
+        pascal_case_pattern = re.compile(r"^[A-Z][a-zA-Z0-9]*$")
         components = component_pattern.findall(code_content)
 
         for component in components:
-            if not re.match(r"^[A-Z][a-zA-Z0-9]*$", component):
-                score -= 10
-                findings.append(UIConsistencyFinding(
-                    category=ConsistencyCategory.COMPONENT_NAMING,
-                    level=ConsistencyLevel.MEDIUM,
-                    finding_id="CN-001",
-                    title="Non-standard component name",
-                    description=f"Component '{component}' doesn't follow PascalCase",
-                    file_path=file_path,
-                    component_name=component,
-                    recommendation="Use PascalCase for component names",
-                ))
+            if not pascal_case_pattern.match(component):
+                if component[0].isupper() and '_' not in component:
+                    score -= 10
+                    findings.append(UIConsistencyFinding(
+                        category=ConsistencyCategory.COMPONENT_NAMING,
+                        level=ConsistencyLevel.MEDIUM,
+                        finding_id="CN-001",
+                        title="Non-standard component name",
+                        description=f"Component '{component}' doesn't follow PascalCase",
+                        file_path=file_path,
+                        component_name=component,
+                        recommendation="Use PascalCase for component names",
+                    ))
 
         return findings, max(0, score)
 
