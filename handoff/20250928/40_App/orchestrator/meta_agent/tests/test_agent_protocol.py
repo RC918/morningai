@@ -24,7 +24,12 @@ class TestAgentCapability:
     """Tests for AgentCapability enum"""
 
     def test_all_capabilities_exist(self):
-        """Verify all expected capabilities are defined"""
+        """Verify all expected capabilities are defined
+
+        Blueprint Reference: Section 3.3 - Agent Catalog V2
+        These capabilities map to the 14 agent types defined in the Blueprint.
+        Updated in EPIC K to include UI/UX and governance capabilities.
+        """
         expected_capabilities = {
             "CODE_ANALYSIS",
             "CODE_WRITING",
@@ -36,7 +41,7 @@ class TestAgentCapability:
             "MONITORING",
             "INCIDENT_RESPONSE",
             "DATABASE_OPERATIONS",
-            # AIP v2 capabilities (Issue #4098)
+            # Added in EPIC K (PR #4126, #4122)
             "UI_ANALYSIS",
             "UX_EVALUATION",
             "RISK_ASSESSMENT",
