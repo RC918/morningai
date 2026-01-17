@@ -1778,13 +1778,16 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
 
         try:
             start_time = time.time()
-            response = self.llm_client.chat(
-                messages=[
-                    {"role": "system", "content": "You are a JSON repair assistant. Output only valid JSON."},
-                    {"role": "user", "content": _REPAIR_JSON_PROMPT + sanitized_input}
-                ],
+            # Issue #4129: LLMClient uses generate() method, not chat()
+            # Build prompt from system + user messages for generate() API
+            system_prompt = "You are a JSON repair assistant. Output only valid JSON."
+            user_prompt = _REPAIR_JSON_PROMPT + sanitized_input
+            response = self.llm_client.generate(
+                prompt=user_prompt,
+                system_prompt=system_prompt,
                 temperature=0.0,  # Deterministic for repair
-                max_tokens=settings.llm_json_repair_max_tokens
+                max_tokens=settings.llm_json_repair_max_tokens,
+                json_mode=True  # Request JSON-formatted response
             )
             repair_time_ms = (time.time() - start_time) * 1000
 

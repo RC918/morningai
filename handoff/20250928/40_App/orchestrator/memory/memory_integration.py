@@ -1057,9 +1057,10 @@ def search_review_patterns(
     try:
         from .memory_v2 import MemoryLayer
 
+        # Issue #4131: MemoryV2.search() expects 'layers' (plural) parameter, not 'layer'
         entries = memory.search(
             query=query,
-            layer=MemoryLayer.KNOWLEDGE_BASE,
+            layers=[MemoryLayer.KNOWLEDGE_BASE],
             limit=limit * 2,
             trace_id=trace_id,
         )
