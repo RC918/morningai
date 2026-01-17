@@ -50,6 +50,44 @@ DisplayDecisionType = Literal["approve", "needs_changes", "block", "reviewed"]
 # Schema version for backward-compatible evolution
 SCHEMA_VERSION = 1
 
+
+def sanitize_markdown(text: str) -> str:
+    """
+    Sanitize text for safe markdown rendering.
+
+    Defense-in-depth: Escapes markdown/HTML control characters to prevent
+    injection attacks. While data sources are internal MorningAI analyzers,
+    this follows Blueprint Section 4.1 Safety Governor principles.
+
+    Issue #4141: Add markdown sanitization for PRSummary rendering.
+
+    Args:
+        text: Raw text that may contain markdown control characters
+
+    Returns:
+        Sanitized text with control characters escaped
+
+    Example:
+        >>> sanitize_markdown("Check [link](http://evil.com)")
+        'Check \\[link\\]\\(http://evil.com\\)'
+    """
+    if not text:
+        return text
+
+    # Escape backslash first to avoid double-escaping
+    result = text.replace("\\", "\\\\")
+    # Escape markdown link/image syntax characters
+    result = result.replace("[", "\\[")
+    result = result.replace("]", "\\]")
+    result = result.replace("(", "\\(")
+    result = result.replace(")", "\\)")
+    # Escape HTML tag characters
+    result = result.replace("<", "\\<")
+    result = result.replace(">", "\\>")
+
+    return result
+
+
 # Senior Architect policy note (shared constant)
 SENIOR_ARCHITECT_POLICY_NOTE = (
     "This review follows the Senior Architect policy - style, formatting, "
@@ -281,33 +319,42 @@ class PRSummary(BaseModel):
                 parts.append("#### :shield: Security")
                 for finding in security_findings:
                     icon = severity_icons.get(finding.severity.lower(), ":white_circle:")
-                    parts.append(f"- {icon} **[{finding.category}]** {finding.message}")
+                    # Issue #4141: Sanitize message for defense-in-depth
+                    parts.append(f"- {icon} **[{finding.category}]** {sanitize_markdown(finding.message)}")
                     if finding.file_path:
-                        parts.append(f"  - File: `{finding.file_path}`")
+                        # Issue #4141: Sanitize file_path for defense-in-depth
+                        parts.append(f"  - File: `{sanitize_markdown(finding.file_path)}`")
                     if finding.suggestion:
-                        parts.append(f"  - Suggestion: {finding.suggestion}")
+                        # Issue #4141: Sanitize suggestion for defense-in-depth
+                        parts.append(f"  - Suggestion: {sanitize_markdown(finding.suggestion)}")
                 parts.append("")
 
             if performance_findings:
                 parts.append("#### :zap: Performance")
                 for finding in performance_findings:
                     icon = severity_icons.get(finding.severity.lower(), ":white_circle:")
-                    parts.append(f"- {icon} **[{finding.category}]** {finding.message}")
+                    # Issue #4141: Sanitize message for defense-in-depth
+                    parts.append(f"- {icon} **[{finding.category}]** {sanitize_markdown(finding.message)}")
                     if finding.file_path:
-                        parts.append(f"  - File: `{finding.file_path}`")
+                        # Issue #4141: Sanitize file_path for defense-in-depth
+                        parts.append(f"  - File: `{sanitize_markdown(finding.file_path)}`")
                     if finding.suggestion:
-                        parts.append(f"  - Suggestion: {finding.suggestion}")
+                        # Issue #4141: Sanitize suggestion for defense-in-depth
+                        parts.append(f"  - Suggestion: {sanitize_markdown(finding.suggestion)}")
                 parts.append("")
 
             if architecture_findings:
                 parts.append("#### :building_construction: Architecture")
                 for finding in architecture_findings:
                     icon = severity_icons.get(finding.severity.lower(), ":white_circle:")
-                    parts.append(f"- {icon} **[{finding.category}]** {finding.message}")
+                    # Issue #4141: Sanitize message for defense-in-depth
+                    parts.append(f"- {icon} **[{finding.category}]** {sanitize_markdown(finding.message)}")
                     if finding.file_path:
-                        parts.append(f"  - File: `{finding.file_path}`")
+                        # Issue #4141: Sanitize file_path for defense-in-depth
+                        parts.append(f"  - File: `{sanitize_markdown(finding.file_path)}`")
                     if finding.suggestion:
-                        parts.append(f"  - Suggestion: {finding.suggestion}")
+                        # Issue #4141: Sanitize suggestion for defense-in-depth
+                        parts.append(f"  - Suggestion: {sanitize_markdown(finding.suggestion)}")
                 parts.append("")
 
         # Add Test Coverage gaps (B-11)
@@ -320,7 +367,8 @@ class PRSummary(BaseModel):
             for gap in self.test_coverage_gaps:
                 type_label = "class" if gap.function_type == "class" else "function"
                 test_types = ", ".join(gap.suggested_test_types)
-                parts.append(f"- **{gap.function_name}** ({type_label}) in `{gap.file_path}`")
+                # Issue #4141: Sanitize function_name and file_path for defense-in-depth
+                parts.append(f"- **{sanitize_markdown(gap.function_name)}** ({type_label}) in `{sanitize_markdown(gap.file_path)}`")
                 parts.append(f"  - {gap.reason}")
                 parts.append(f"  - Suggested tests: {test_types}")
             parts.append("")
@@ -342,11 +390,13 @@ class PRSummary(BaseModel):
                 icon = severity_icons.get(issue.severity.lower(), ":white_circle:")
                 parts.append(f"- {icon} **{issue.package_name}** [{issue.issue_type}]")
                 if issue.description:
-                    parts.append(f"  - {issue.description}")
+                    # Issue #4141: Sanitize description for defense-in-depth
+                    parts.append(f"  - {sanitize_markdown(issue.description)}")
                 if issue.current_version:
                     parts.append(f"  - Current version: `{issue.current_version}`")
                 if issue.recommended_action:
-                    parts.append(f"  - Recommended: {issue.recommended_action}")
+                    # Issue #4141: Sanitize recommended_action for defense-in-depth
+                    parts.append(f"  - Recommended: {sanitize_markdown(issue.recommended_action)}")
             parts.append("")
 
         # Add file-level comments appendix if present
@@ -359,8 +409,9 @@ class PRSummary(BaseModel):
             parts.append("*The following comments could not be posted inline:*")
             parts.append("")
             for comment in self.file_level_comments:
-                parts.append(f"**`{comment.file}`**")
-                parts.append(f"> {comment.message}")
+                # Issue #4141: Sanitize file path and message for defense-in-depth
+                parts.append(f"**`{sanitize_markdown(comment.file)}`**")
+                parts.append(f"> {sanitize_markdown(comment.message)}")
                 if comment.reason:
                     parts.append(f"> *(Reason: {comment.reason})*")
                 parts.append("")
@@ -393,8 +444,9 @@ class PRSummary(BaseModel):
             parts.append("*The following comments could not be posted inline:*")
             parts.append("")
             for comment in self.file_level_comments:
-                parts.append(f"**`{comment.file}`**")
-                parts.append(f"> {comment.message}")
+                # Issue #4141: Sanitize file path and message for defense-in-depth
+                parts.append(f"**`{sanitize_markdown(comment.file)}`**")
+                parts.append(f"> {sanitize_markdown(comment.message)}")
                 if comment.reason:
                     parts.append(f"> *(Reason: {comment.reason})*")
                 parts.append("")
