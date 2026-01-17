@@ -77,6 +77,7 @@ class TestDecisionRecord:
             "output_summary": "Policy enforced",
             "outcome": "approved",
             "confidence": 0.99,
+            "created_at": "2026-01-17T00:00:00+00:00",
         }
 
         record = DecisionRecord.from_dict(data)
@@ -85,6 +86,7 @@ class TestDecisionRecord:
         assert record.decision_type == DecisionType.GOVERNANCE
         assert record.outcome == DecisionOutcome.APPROVED
         assert record.confidence == 0.99
+        assert record.created_at == "2026-01-17T00:00:00+00:00"
 
 
 class TestReasoningChain:
