@@ -203,16 +203,43 @@ class AgentMessage:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "AgentMessage":
-        """Create message from dictionary."""
+        """Create message from dictionary.
+
+        Validates sender/receiver format and handles malformed timestamps safely.
+
+        Raises:
+            MessageValidationError: If sender or receiver format is invalid.
+        """
+        import re
+        valid_pattern = r"^[a-zA-Z][a-zA-Z0-9_-]*$"
+
+        sender = data["sender"]
+        receiver = data["receiver"]
+
+        if not re.match(valid_pattern, sender):
+            raise MessageValidationError(
+                f"Invalid sender format in from_dict: {sender}", "sender"
+            )
+        if not re.match(valid_pattern, receiver):
+            raise MessageValidationError(
+                f"Invalid receiver format in from_dict: {receiver}", "receiver"
+            )
+
+        timestamp = datetime.now(timezone.utc)
+        if "timestamp" in data:
+            try:
+                timestamp = datetime.fromisoformat(data["timestamp"])
+            except (ValueError, TypeError):
+                pass
+
         return cls(
-            sender=data["sender"],
-            receiver=data["receiver"],
+            sender=sender,
+            receiver=receiver,
             payload=data["payload"],
             trace_id=data.get("trace_id", str(uuid.uuid4())),
             message_type=MessageType(data.get("message_type", "request")),
             priority=MessagePriority(data.get("priority", "normal")),
-            timestamp=datetime.fromisoformat(data["timestamp"])
-            if "timestamp" in data else datetime.now(timezone.utc),
+            timestamp=timestamp,
             correlation_id=data.get("correlation_id"),
             reply_to=data.get("reply_to"),
             ttl_seconds=data.get("ttl_seconds"),
@@ -415,8 +442,22 @@ class AgentError:
     stack_trace: Optional[str] = None
     caused_by: Optional["AgentError"] = None
 
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert error to dictionary."""
+    def to_dict(self, max_depth: int = 10) -> Dict[str, Any]:
+        """Convert error to dictionary with depth limiting.
+
+        Args:
+            max_depth: Maximum recursion depth for caused_by chain (default: 10).
+                       Prevents stack overflow on deeply nested error chains.
+        """
+        caused_by_dict = None
+        if self.caused_by and max_depth > 0:
+            caused_by_dict = self.caused_by.to_dict(max_depth=max_depth - 1)
+        elif self.caused_by and max_depth <= 0:
+            caused_by_dict = {
+                "error_code": self.caused_by.error_code,
+                "message": "[truncated: max depth exceeded]",
+            }
+
         return {
             "error_code": self.error_code,
             "message": self.message,
@@ -428,7 +469,7 @@ class AgentError:
             "retry_after_seconds": self.retry_after_seconds,
             "context": self.context,
             "stack_trace": self.stack_trace,
-            "caused_by": self.caused_by.to_dict() if self.caused_by else None,
+            "caused_by": caused_by_dict,
         }
 
     def to_message(self, receiver: str) -> AgentMessage:
@@ -513,6 +554,21 @@ class ContextFrame:
         if self.expires_at is None:
             return False
         return datetime.now(timezone.utc) > self.expires_at
+
+    def to_message(self, receiver: str) -> AgentMessage:
+        """Convert context frame to AgentMessage for transmission.
+
+        Provides consistency with AgentHandshake and AgentError which also
+        have to_message() methods.
+        """
+        return AgentMessage(
+            sender=self.source_agent,
+            receiver=receiver,
+            payload=self.to_dict(),
+            message_type=MessageType.CONTEXT_PUSH,
+            priority=MessagePriority.NORMAL,
+            metadata=self.metadata,
+        )
 
 
 @dataclass
