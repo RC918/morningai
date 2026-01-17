@@ -650,10 +650,31 @@ REGRESSION_METADATA = {{
                     }
                 )
 
+        # Fallback to template generation
+        # (Cursor Bugbot: track template tests in _generated_tests for consistency)
         template_test_code = self.generate_test(candidate, test_name)
         result["success"] = True
         result["test_code"] = template_test_code
         result["llm_used"] = False
+
+        # Track template-generated tests in _generated_tests list
+        self._generated_tests.append({
+            "candidate_id": candidate.candidate_id,
+            "test_name": test_name,
+            "test_code": template_test_code,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "llm_used": False,
+        })
+
+        logger.info(
+            f"[Regression] H-2.3: Generated template test: {test_name}",
+            extra={
+                "operation": "simulation.regression.template",
+                "candidate_id": candidate.candidate_id,
+                "test_name": test_name,
+                "llm_used": False,
+            }
+        )
         return result
 
     def _generate_test_with_llm_internal(
@@ -896,20 +917,39 @@ Generate the complete regression test:"""
                     ast.parse(block)
 
                     if 'REGRESSION_METADATA' not in block:
+                        # Escape special characters to prevent syntax errors
+                        # (Cursor Bugbot: error_type may contain quotes/backslashes)
+                        import json
+                        safe_candidate_id = json.dumps(candidate.candidate_id)
+                        safe_error_type = json.dumps(candidate.error_type)
+                        safe_priority = json.dumps(candidate.priority.value)
+                        safe_source = json.dumps(candidate.source.value)
+                        safe_generated_at = json.dumps(
+                            datetime.now(timezone.utc).isoformat()
+                        )
                         metadata = f'''
 
 # Metadata for CI enforcement
 REGRESSION_METADATA = {{
-    "candidate_id": "{candidate.candidate_id}",
-    "error_type": "{candidate.error_type}",
-    "priority": "{candidate.priority.value}",
-    "source": "{candidate.source.value}",
-    "generated_at": "{datetime.now(timezone.utc).isoformat()}",
+    "candidate_id": {safe_candidate_id},
+    "error_type": {safe_error_type},
+    "priority": {safe_priority},
+    "source": {safe_source},
+    "generated_at": {safe_generated_at},
     "protected": True,
     "llm_generated": True,
 }}
 '''
                         block = block + metadata
+                        # Re-validate after adding metadata
+                        try:
+                            ast.parse(block)
+                        except SyntaxError:
+                            logger.warning(
+                                "[Regression] H-2.3: Metadata injection "
+                                "caused syntax error, skipping metadata"
+                            )
+                            block = block.replace(metadata, "")
 
                     return block.strip()
 
@@ -926,6 +966,7 @@ REGRESSION_METADATA = {{
         collector: RegressionCandidateCollector,
         priority: RegressionPriority,
         enable_llm: bool = True,
+        max_tests: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """
         Generate tests for all candidates of a given priority using LLM.
@@ -936,11 +977,37 @@ REGRESSION_METADATA = {{
             collector: RegressionCandidateCollector with candidates
             priority: Priority level to generate tests for
             enable_llm: Whether to use LLM (False = template only)
+            max_tests: Maximum number of tests to generate (uses
+                       regression_test_max_per_run setting if not specified)
 
         Returns:
             List of generation results (see generate_test_with_llm return type)
         """
+        # Get max_tests from settings if not specified
+        # (MorningAI Reviewer: limit unbounded LLM calls)
+        if max_tests is None:
+            try:
+                from common.config.settings import settings
+                max_tests = getattr(settings, 'regression_test_max_per_run', 5)
+            except ImportError:
+                max_tests = 5  # Default fallback
+
         candidates = collector.get_candidates_by_priority(priority)
+
+        # Limit candidates to max_tests to prevent unbounded LLM calls
+        if len(candidates) > max_tests:
+            logger.info(
+                f"[Regression] H-2.3: Limiting test generation from "
+                f"{len(candidates)} to {max_tests} candidates",
+                extra={
+                    "operation": "simulation.regression.limit",
+                    "priority": priority.value,
+                    "total_candidates": len(candidates),
+                    "max_tests": max_tests,
+                }
+            )
+            candidates = candidates[:max_tests]
+
         results = []
         for candidate in candidates:
             result = self.generate_test_with_llm(
