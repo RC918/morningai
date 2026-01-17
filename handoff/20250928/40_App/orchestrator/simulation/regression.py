@@ -848,7 +848,7 @@ REGRESSION_METADATA = {{
 4. Test should PASS when the bug is fixed (error no longer occurs)
 5. Test should FAIL if the bug regresses (error occurs again)
 6. Include appropriate assertions to verify correct behavior
-7. Add REGRESSION_METADATA dict at the end with candidate_id and protected=True
+7. Add REGRESSION_METADATA dict at the end with full metadata (see example)
 8. Return ONLY the complete test code, no explanations
 
 ## Example Structure
@@ -868,9 +868,14 @@ class TestRegression_{candidate.candidate_id[:8]}:
         # Assert the error no longer occurs
         pass
 
+# Metadata for CI enforcement (gemini-code-assist: use detailed structure)
 REGRESSION_METADATA = {{
     "candidate_id": "{candidate.candidate_id}",
+    "error_type": "{safe_error_type}",
+    "priority": "{candidate.priority.value}",
+    "source": "{candidate.source.value}",
     "protected": True,
+    "llm_generated": True,
 }}
 ```
 

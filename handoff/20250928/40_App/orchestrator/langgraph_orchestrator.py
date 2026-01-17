@@ -5332,6 +5332,11 @@ def _attempt_diagnostic_analysis(
 
                     # H-2.3: Test Generation Integration (Blueprint Section 5.4)
                     # Auto-generate regression test for P0 candidates with MRE
+                    # NOTE: Unlike fixer_node, we don't store test_result in state here
+                    # because diagnostic agent integration is a side-effect (enrichment),
+                    # not part of the main workflow flow. The generated test is tracked
+                    # internally by RegressionTestGenerator._generated_tests.
+                    # (gemini-code-assist: clarify state storage difference)
                     if (
                         getattr(settings, 'regression_pipeline_auto_generate', False)
                         and candidate.priority.value == "p0"

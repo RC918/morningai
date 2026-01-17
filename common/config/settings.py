@@ -1999,10 +1999,13 @@ class Settings(BaseSettings):
         description="Maximum regression tests to generate per run (H-2.3). Limits LLM costs. Valid range: 1-20."
     )
 
+    # NOTE: regression_test_output_dir is defined for H-2.4 (Regression Test Execution)
+    # which will write generated tests to disk. Currently unused in H-2.3.
+    # (gemini-code-assist: clarify future-enhancement settings)
     regression_test_output_dir: str = Field(
         default="tests/regression",
         alias="REGRESSION_TEST_OUTPUT_DIR",
-        description="Directory to write generated regression tests (H-2.3). Relative to repo root."
+        description="Directory to write generated regression tests (H-2.4). Relative to repo root. Currently unused - will be used when H-2.4 implements test file writing."
     )
 
     # Coverage Thresholds (Blueprint Section 5.4: CI Enforcement)
