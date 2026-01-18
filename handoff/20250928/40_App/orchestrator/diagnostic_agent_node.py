@@ -1145,11 +1145,13 @@ describe('Regression: {file_path}', () => {{
 
         if result.success and result.root_cause:
             ci_check_name = ci_context.get("failed_check_name", "").lower()
-            for keyword, category in self.CI_CHECK_CATEGORY_MAP.items():
-                if keyword in ci_check_name:
-                    if result.root_cause.category == ErrorCategory.CI_FAILURE:
-                        result.root_cause.category = category
-                    break
+            # Find all matching keywords and pick the longest one to be more specific
+            # (gemini-code-assist recommendation to handle ambiguous check names)
+            matches = [kw for kw in self.CI_CHECK_CATEGORY_MAP if kw in ci_check_name]
+            if matches:
+                best_match = max(matches, key=len)
+                if result.root_cause.category == ErrorCategory.CI_FAILURE:
+                    result.root_cause.category = self.CI_CHECK_CATEGORY_MAP[best_match]
 
             if ci_context.get("logs_url"):
                 result.root_cause.evidence.append(
@@ -1167,6 +1169,9 @@ describe('Regression: {file_path}', () => {{
 
         return result
 
+    # Issue #4103: Maximum input length for CI log parsing to prevent ReDoS
+    MAX_CI_LOG_LENGTH = 100000  # 100KB limit for CI log parsing
+
     def _parse_ci_context(self, ci_context: Dict[str, Any]) -> Dict[str, Any]:
         """Parse CI failure context into standard error context.
 
@@ -1177,6 +1182,9 @@ describe('Regression: {file_path}', () => {{
 
         Returns:
             Standardized error context dict
+
+        Note:
+            Input is truncated to MAX_CI_LOG_LENGTH to prevent ReDoS attacks.
         """
         error_context: Dict[str, Any] = {}
 
@@ -1185,6 +1193,14 @@ describe('Regression: {file_path}', () => {{
         log_excerpt = ci_context.get("log_excerpt", "")
 
         combined_output = f"{error_summary}\n{test_output}\n{log_excerpt}"
+
+        # Truncate input to prevent ReDoS (gemini-code-assist security recommendation)
+        if len(combined_output) > self.MAX_CI_LOG_LENGTH:
+            combined_output = combined_output[:self.MAX_CI_LOG_LENGTH]
+            logger.warning(
+                f"[DIAGNOSTIC_AGENT_CI_TRUNCATED] CI log truncated to "
+                f"{self.MAX_CI_LOG_LENGTH} chars to prevent ReDoS"
+            )
 
         error_context["error_message"] = error_summary or "CI check failed"
         error_context["traceback"] = test_output or log_excerpt
