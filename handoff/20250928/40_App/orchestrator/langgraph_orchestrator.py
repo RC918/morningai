@@ -5165,7 +5165,105 @@ def _attempt_self_correction_fix(
                     "attempts": result.attempts,
                 }
             )
-            # Continue to other coders for verification
+
+            # D-4 Self-Healing: Push unverified fixes to PR branch for CI verification
+            # Blueprint alignment: Wish Pool v2 Section 3.3 Self-Healing capability
+            # The "try -> fail -> retry" loop requires pushing fixes to get CI feedback
+            if getattr(settings, 'self_correction_push_unverified', True):
+                try:
+                    from tools.github_api import commit_file, commit_files
+
+                    # Extract patches from corrections_applied (centralized logic)
+                    all_patches = []
+                    for correction in result.corrections_applied:
+                        patches = correction.get("patches", [])
+                        all_patches.extend(patches)
+
+                    # Build files_to_commit list (handles both single and multi-file)
+                    files_to_commit = []
+                    for patch in all_patches:
+                        p_file_path = patch.get("file_path", "")
+                        # Handle both "patch" (SimpleCoder) and "content" keys
+                        p_content = patch.get("patch") or patch.get("content", "")
+                        if p_file_path and p_content:
+                            files_to_commit.append({
+                                "path": p_file_path,
+                                "content": p_content
+                            })
+
+                    if files_to_commit and repo_name and branch:
+                        repo = get_repo()
+                        if repo:
+                            commit_message = (
+                                f"fix: D-4 auto-fix attempt {result.attempts} "
+                                f"(unverified - CI will validate)"
+                            )
+
+                            # Use commit_file for single file, commit_files for multiple
+                            commit_result = None
+                            if len(files_to_commit) == 1:
+                                f = files_to_commit[0]
+                                commit_result = commit_file(
+                                    repo, branch, f["path"], f["content"], commit_message
+                                )
+                            else:
+                                commit_result = commit_files(
+                                    repo, branch, files_to_commit, commit_message
+                                )
+
+                            file_paths = [f["path"] for f in files_to_commit]
+                            if commit_result and commit_result.success:
+                                logger.info(
+                                    f"[SELF_CORRECTION_PUSH_SUCCESS] Pushed unverified fix for "
+                                    f"{len(file_paths)} file(s). files={file_paths}, "
+                                    f"sha={commit_result.sha}, attempts={result.attempts}, "
+                                    f"trace_id={trace_id}",
+                                    extra={
+                                        "operation": "self_correction_push_success",
+                                        "trace_id": trace_id,
+                                        "event_code": "SELF_CORRECTION_PUSH_SUCCESS",
+                                        "file_paths": file_paths,
+                                        "sha": commit_result.sha,
+                                        "attempts": result.attempts,
+                                    }
+                                )
+                                return True, (
+                                    f"D-4 pushed unverified fix for {len(file_paths)} file(s). "
+                                    f"CI will validate."
+                                )
+                            else:
+                                # Structured logging for failure case
+                                status = commit_result.status if commit_result else "N/A"
+                                message = commit_result.message if commit_result else "Commit failed"
+                                logger.warning(
+                                    f"[SELF_CORRECTION_PUSH_FAILED] Failed to push fix. "
+                                    f"status={status}, msg={message}, trace_id={trace_id}",
+                                    extra={
+                                        "operation": "self_correction_push_failed",
+                                        "trace_id": trace_id,
+                                        "event_code": "SELF_CORRECTION_PUSH_FAILED",
+                                        "file_paths": file_paths,
+                                        "status": str(status),
+                                        "message": str(message),
+                                        "attempts": result.attempts,
+                                    }
+                                )
+
+                except Exception as e:
+                    logger.error(
+                        f"[SELF_CORRECTION_PUSH_ERROR] Exception pushing unverified fix: {e}. "
+                        f"trace_id={trace_id}",
+                        exc_info=True,
+                        extra={
+                            "operation": "self_correction_push_error",
+                            "trace_id": trace_id,
+                            "event_code": "SELF_CORRECTION_PUSH_ERROR",
+                            "error": str(e),
+                            "attempts": result.attempts,
+                        }
+                    )
+
+            # Fall back to other coders if push disabled or failed
             return False, f"Self-correction generated unverified fix: {result.feedback}"
 
         logger.debug(
