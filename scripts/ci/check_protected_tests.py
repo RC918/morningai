@@ -25,6 +25,11 @@ PROTECTION_MARKER = "REGRESSION_METADATA"
 REGRESSION_TEST_DIR = "tests/regression"
 
 
+class GitError(Exception):
+    """Raised when a git command fails."""
+    pass
+
+
 def get_changed_files(base_sha: str, head_sha: str) -> List[Tuple[str, str]]:
     """
     Get list of changed files between two commits.
@@ -34,6 +39,9 @@ def get_changed_files(base_sha: str, head_sha: str) -> List[Tuple[str, str]]:
         - 'A' for added
         - 'M' for modified
         - 'D' for deleted
+
+    Raises:
+        GitError: If git command fails (fail-safe design per Blueprint Section 5.4)
     """
     try:
         result = subprocess.run(
@@ -52,8 +60,7 @@ def get_changed_files(base_sha: str, head_sha: str) -> List[Tuple[str, str]]:
                 changes.append((status[0], file_path))
         return changes
     except subprocess.CalledProcessError as e:
-        print(f"Error getting changed files: {e}", file=sys.stderr)
-        return []
+        raise GitError(f"Failed to get changed files: {e}")
 
 
 def get_file_content_at_commit(file_path: str, commit_sha: str) -> Optional[str]:
@@ -101,6 +108,9 @@ def check_protected_test_modifications(
         - 'deleted': List of deleted protected test files
         - 'modified': List of modified protected test files
         - 'errors': List of error messages
+
+    Raises:
+        GitError: If git command fails (propagated from get_changed_files)
     """
     result = {
         "deleted": [],
@@ -119,11 +129,19 @@ def check_protected_test_modifications(
         if not file_path.endswith(".py"):
             continue
 
-        # Get old content to check if it was protected
+        # New files (status == 'A') are always allowed
+        if status == "A":
+            continue
+
+        # For modified or deleted files, we need to check if they were protected
         old_content = get_file_content_at_commit(file_path, base_sha)
 
         if old_content is None:
-            # New file - always allowed
+            # This is an error for modified or deleted files
+            # (fail-safe design per Blueprint Section 5.4)
+            msg = f"Could not retrieve content of {file_path} at base commit {base_sha}"
+            result["errors"].append(msg)
+            print(f"::error::{msg}")
             continue
 
         if not is_protected_test(old_content):
@@ -186,11 +204,35 @@ def main():
     print(f"Regression dir: {args.regression_dir}")
     print()
 
-    result = check_protected_test_modifications(
-        args.base,
-        args.head,
-        args.regression_dir,
-    )
+    try:
+        result = check_protected_test_modifications(
+            args.base,
+            args.head,
+            args.regression_dir,
+        )
+    except GitError as e:
+        print()
+        print("=" * 60)
+        print("ERROR: Git operation failed")
+        print("=" * 60)
+        print(f"  {e}")
+        print()
+        print("This is a fail-safe exit to prevent bypassing protected test checks.")
+        print("(Blueprint Section 5.4: Safety Governor)")
+        sys.exit(1)
+
+    # Check for errors during file content retrieval
+    if result["errors"]:
+        print()
+        print("=" * 60)
+        print("ERROR: Failed to check some files")
+        print("=" * 60)
+        for error_msg in result["errors"]:
+            print(f"  - {error_msg}")
+        print()
+        print("This is a fail-safe exit to prevent bypassing protected test checks.")
+        print("(Blueprint Section 5.4: Safety Governor)")
+        sys.exit(1)
 
     # Report results
     if result["deleted"]:

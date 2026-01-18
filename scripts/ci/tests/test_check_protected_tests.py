@@ -84,13 +84,17 @@ def test_something():
         assert is_protected_test(content) is False
 
     def test_partial_marker_not_detected(self):
-        """Test that partial marker names don't match."""
+        """Test that partial marker names don't match.
+        
+        Uses word boundary matching to avoid false positives with similar markers
+        like REGRESSION_METADATA_EXTRA.
+        """
         content = '''
 # This is not REGRESSION_METADATA_EXTRA
 SOME_OTHER_METADATA = {}
 '''
-        # Should still match because REGRESSION_METADATA is a substring
-        # This is intentional - we want to catch any reference to the marker
+        # Should NOT match because we use word boundary regex
+        # REGRESSION_METADATA_EXTRA is a different marker than REGRESSION_METADATA
         assert is_protected_test(content) is False
 
     def test_marker_in_comment(self):
