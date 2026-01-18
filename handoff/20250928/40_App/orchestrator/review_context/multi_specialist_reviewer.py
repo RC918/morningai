@@ -470,16 +470,16 @@ class MultiSpecialistReviewer:
         self,
         trace_id: str,
         specialists: Optional[List[ReviewSpecialist]] = None,
-        max_workers: int = 3,
+        max_workers: int = 4,
     ):
         """
         Initialize the multi-specialist reviewer.
 
         Args:
             trace_id: Trace ID for telemetry
-            specialists: List of specialists to use (default: SECURITY, PERFORMANCE, ARCHITECTURE)
+            specialists: List of specialists to use (default: SECURITY, PERFORMANCE, ARCHITECTURE, CORRECTNESS)
                         Note: SELF_CRITIQUE is NOT included by default as it runs in second pass
-            max_workers: Maximum parallel workers (default: 3)
+            max_workers: Maximum parallel workers (default: 4, matching CORE_SPECIALISTS count)
         """
         self.trace_id = trace_id
         self.specialists = specialists or self.DEFAULT_SPECIALISTS
