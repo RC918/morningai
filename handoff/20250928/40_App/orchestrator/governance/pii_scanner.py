@@ -857,20 +857,40 @@ class PIIScanner:
         # Issue #4171: Load code context allowlist patterns from config
         # These patterns identify code/technical contexts where PII-like patterns
         # are likely false positives. Patterns from config extend the defaults.
+        # PR #4172: Added ReDoS validation and set-based efficiency (gemini/cursor)
         code_context_allowlist = config.get("code_context_allowlist") or {}
         for category_str, patterns in code_context_allowlist.items():
             if not patterns:
                 continue
             try:
                 category = PIICategory(category_str)
-                # Extend existing patterns (don't replace defaults)
-                if category not in self._code_context_allowlist:
-                    self._code_context_allowlist[category] = list(
-                        self.CODE_CONTEXT_ALLOWLIST.get(category, [])
-                    )
+                # Ensure the category exists, initializing from defaults if new
+                pattern_list = self._code_context_allowlist.setdefault(
+                    category, list(self.CODE_CONTEXT_ALLOWLIST.get(category, []))
+                )
+                # Use set for O(N) uniqueness check instead of O(N*M)
+                existing_patterns = set(pattern_list)
                 for pattern in patterns:
-                    if pattern not in self._code_context_allowlist[category]:
-                        self._code_context_allowlist[category].append(pattern)
+                    if pattern in existing_patterns:
+                        continue
+                    # Validate regex compiles and check for ReDoS vulnerability
+                    try:
+                        re.compile(pattern)
+                    except re.error as regex_err:
+                        logger.warning(
+                            "[PIIScanner] Invalid regex in code context pattern: %s (%s)",
+                            pattern,
+                            regex_err,
+                        )
+                        continue
+                    if self._is_redos_vulnerable(pattern):
+                        logger.warning(
+                            "[PIIScanner] ReDoS-vulnerable code context pattern rejected: %s",
+                            pattern,
+                        )
+                        continue
+                    pattern_list.append(pattern)
+                    existing_patterns.add(pattern)
             except ValueError as e:
                 logger.warning(
                     "[PIIScanner] Invalid code context category: %s (%s)",
@@ -881,10 +901,30 @@ class PIIScanner:
         # Issue #4171: Load code numeric skip patterns from config
         # These patterns identify numbers that are likely PR/issue numbers,
         # commit hashes, or other technical identifiers.
+        # PR #4172: Added ReDoS validation and set-based efficiency (gemini/cursor)
         code_numeric_skip = config.get("code_numeric_skip_patterns") or []
+        existing_numeric = set(self._code_numeric_skip_patterns)
         for pattern in code_numeric_skip:
-            if pattern not in self._code_numeric_skip_patterns:
-                self._code_numeric_skip_patterns.append(pattern)
+            if pattern in existing_numeric:
+                continue
+            # Validate regex compiles and check for ReDoS vulnerability
+            try:
+                re.compile(pattern)
+            except re.error as regex_err:
+                logger.warning(
+                    "[PIIScanner] Invalid regex in code numeric skip pattern: %s (%s)",
+                    pattern,
+                    regex_err,
+                )
+                continue
+            if self._is_redos_vulnerable(pattern):
+                logger.warning(
+                    "[PIIScanner] ReDoS-vulnerable code numeric skip pattern rejected: %s",
+                    pattern,
+                )
+                continue
+            self._code_numeric_skip_patterns.append(pattern)
+            existing_numeric.add(pattern)
 
     def _validate_pattern_config(self, pattern: Dict[str, Any]) -> bool:
         """
@@ -983,6 +1023,12 @@ class PIIScanner:
             self.risk_config = self.DEFAULT_RISK_LEVELS.copy()
             self._custom_patterns = {}
             self._tenant_overrides = {}
+            # Issue #4171: Reset code context patterns to defaults (fix hot-reload)
+            self._code_context_allowlist = {
+                category: list(patterns)
+                for category, patterns in self.CODE_CONTEXT_ALLOWLIST.items()
+            }
+            self._code_numeric_skip_patterns = list(self.CODE_NUMERIC_SKIP_PATTERNS)
 
             # Reload from YAML
             self._load_yaml_config()
