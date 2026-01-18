@@ -1081,8 +1081,8 @@ class TestValidateInlineComments:
         assert "end_line" not in invalid[0]
         # But should keep file path
         assert invalid[0]["file"] == "test.py"
-        # Message should indicate downgrade reason
-        assert "Line info removed" in invalid[0]["message"]
+        # Message should be preserved without implementation detail prefix
+        assert invalid[0]["message"] == "Test comment"
         # Phase B-B Telemetry: line_not_in_diff should be counted
         assert downgrade_reasons["line_not_in_diff"] == 1
 
@@ -1115,7 +1115,8 @@ class TestValidateInlineComments:
 
         assert len(valid) == 0
         assert len(invalid) == 1
-        assert "patch_truncated" in invalid[0]["message"]
+        # Message should be preserved without implementation detail prefix
+        assert invalid[0]["message"] == "Test comment"
         # Phase B-B Telemetry: strict_truncated should be counted
         assert downgrade_reasons["strict_truncated"] == 1
 
@@ -1199,7 +1200,8 @@ class TestValidateInlineComments:
 
         assert len(valid) == 0
         assert len(invalid) == 1
-        assert "file_not_in_diff" in invalid[0]["message"]
+        # Message should be preserved without implementation detail prefix
+        assert invalid[0]["message"] == "Test comment"
         # Phase B-B Telemetry: file_not_in_diff should be counted
         assert downgrade_reasons["file_not_in_diff"] == 1
 
