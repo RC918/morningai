@@ -2,6 +2,7 @@
 Reviewer Metrics Alert Evaluator - Scheduled Alert Service for LLM Reviewer
 
 Issue #4130: P1 - Add JSON parsing failure metrics and alerting
+Issue #4134: P2 - ReviewerMetrics Architecture Improvements
 EPIC B: LLM Reviewer Agent - Metrics and Alerting
 
 This module provides scheduled alerting capabilities for ReviewerMetrics.
@@ -12,7 +13,8 @@ Key Features:
 - Threshold-based alerting (JSON parse failure rate, success rate, latency)
 - Cross-provider fallback rate monitoring
 - Cooldown mechanism (prevents alert storms)
-- Multi-channel notifications (Slack, PagerDuty webhook)
+- Multi-channel notifications via NotificationChannel abstraction (Issue #4134)
+- Retry mechanism with exponential backoff (Issue #4134)
 - Redis-based alert state for cooldown tracking
 
 Alert Conditions:
@@ -25,12 +27,21 @@ Safety Contract:
 - This is an observe-only feature - alerts do not affect review decisions
 - Notification failures are logged but never block the main service
 - All operations are wrapped in try/except
+
+Architecture (Issue #4134):
+- Uses NotificationChannel abstraction for extensibility (DIP)
+- SlackChannel and PagerDutyChannel implementations with retry support
 """
 
 import logging
 import threading
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
+
+from governance.notification_channels import (
+    NotificationChannel,
+    create_notification_channels,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -67,8 +78,10 @@ class ReviewerMetricsAlertEvaluator:
         min_reviews: int = 5,
         window_minutes: int = 15,
         slack_webhook_url: Optional[str] = None,
-        pagerduty_webhook_url: Optional[str] = None,
+        pagerduty_routing_key: Optional[str] = None,
         redis_client: Optional[Any] = None,
+        notification_channels: Optional[List[NotificationChannel]] = None,
+        max_retries: int = 3,
     ):
         """
         Initialize Reviewer Metrics Alert Evaluator.
@@ -83,8 +96,10 @@ class ReviewerMetricsAlertEvaluator:
             min_reviews: Minimum reviews in window before alerting
             window_minutes: Time window for metrics evaluation
             slack_webhook_url: Slack webhook URL for notifications
-            pagerduty_webhook_url: PagerDuty webhook URL for critical alerts
+            pagerduty_routing_key: PagerDuty Events API v2 routing key (Issue #4134: renamed from pagerduty_webhook_url)
             redis_client: Redis client for cooldown state (optional, uses in-memory if None)
+            notification_channels: Pre-configured notification channels (Issue #4134: DIP abstraction)
+            max_retries: Maximum retry attempts for alert delivery (Issue #4134: reliability)
         """
         self.enabled = enabled
         self.json_parse_failure_warning_threshold = json_parse_failure_warning_threshold
@@ -95,8 +110,18 @@ class ReviewerMetricsAlertEvaluator:
         self.min_reviews = min_reviews
         self.window_minutes = window_minutes
         self.slack_webhook_url = slack_webhook_url
-        self.pagerduty_webhook_url = pagerduty_webhook_url
+        self.pagerduty_routing_key = pagerduty_routing_key
         self.redis_client = redis_client
+        self.max_retries = max_retries
+
+        if notification_channels is not None:
+            self._notification_channels = notification_channels
+        else:
+            self._notification_channels = create_notification_channels(
+                slack_webhook_url=slack_webhook_url,
+                pagerduty_routing_key=pagerduty_routing_key,
+                max_retries=max_retries,
+            )
 
         self._last_alert_time: Dict[str, datetime] = {}
         self._lock = threading.Lock()
@@ -105,15 +130,16 @@ class ReviewerMetricsAlertEvaluator:
         self._stop_event = threading.Event()
         self._interval_minutes = 5
 
-        # Public read-only properties for logging/monitoring
-        self.interval_minutes = 5  # Will be updated by start_scheduler()
+        self.interval_minutes = 5
 
+        channel_types = [ch.channel_type for ch in self._notification_channels]
         logger.info(
             f"[ReviewerMetricsAlertEvaluator] Initialized: enabled={enabled}, "
             f"json_parse_failure_warning={json_parse_failure_warning_threshold}, "
             f"json_parse_failure_critical={json_parse_failure_critical_threshold}, "
             f"success_rate_threshold={success_rate_threshold}, "
-            f"cooldown={cooldown_minutes}min"
+            f"cooldown={cooldown_minutes}min, "
+            f"channels={channel_types}, max_retries={max_retries}"
         )
 
     def evaluate_and_alert(self) -> Dict[str, Any]:
@@ -291,34 +317,42 @@ class ReviewerMetricsAlertEvaluator:
 
     def _send_alert(self, alert: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Send alert via configured channels.
+        Send alert via configured notification channels.
+
+        Issue #4134: Refactored to use NotificationChannel abstraction.
+        - Uses DIP (Dependency Inversion Principle) for extensibility
+        - Supports retry mechanism with exponential backoff
+        - PagerDuty only receives critical alerts
 
         Args:
             alert: Alert dict with type, severity, message, etc.
 
         Returns:
-            Dict with send results
+            Dict with send results including per-channel status
         """
         alert_payload = self._build_alert_payload(alert)
 
-        results = {
+        results: Dict[str, Any] = {
             "alert_type": alert["alert_type"],
             "severity": alert["severity"],
             "timestamp": _get_utc_timestamp(),
             "channels": {}
         }
 
-        if self.slack_webhook_url:
-            slack_result = self._send_slack_alert(alert_payload)
-            results["channels"]["slack"] = slack_result
+        for channel in self._notification_channels:
+            if channel.channel_type == "pagerduty" and alert["severity"] != "critical":
+                continue
 
-        if alert["severity"] == "critical" and self.pagerduty_webhook_url:
-            pagerduty_result = self._send_pagerduty_alert(alert_payload)
-            results["channels"]["pagerduty"] = pagerduty_result
+            if not channel.is_configured():
+                continue
+
+            result = channel.send(alert_payload)
+            results["channels"][channel.channel_type] = result.to_dict()
 
         logger.warning(
             f"[ReviewerMetricsAlertEvaluator] ALERT: {alert['alert_type']} - "
-            f"{alert['message']} (severity={alert['severity']})"
+            f"{alert['message']} (severity={alert['severity']}, "
+            f"channels={list(results['channels'].keys())})"
         )
 
         return results
@@ -631,14 +665,17 @@ def get_reviewer_metrics_alert_evaluator(
     min_reviews: Optional[int] = None,
     window_minutes: Optional[int] = None,
     slack_webhook_url: Optional[str] = None,
-    pagerduty_webhook_url: Optional[str] = None,
+    pagerduty_routing_key: Optional[str] = None,
     redis_client: Optional[Any] = None,
+    max_retries: Optional[int] = None,
 ) -> ReviewerMetricsAlertEvaluator:
     """
     Get the global ReviewerMetricsAlertEvaluator instance.
 
     Thread-safe singleton. On first call, creates instance with provided or default config.
     Subsequent calls return existing instance (config params ignored).
+
+    Issue #4134: Updated parameter naming and added retry support.
 
     Args:
         enabled: Whether alerting is enabled (default: from settings or False)
@@ -650,8 +687,9 @@ def get_reviewer_metrics_alert_evaluator(
         min_reviews: Minimum reviews before alerting (default: 5)
         window_minutes: Metrics window (default: 15)
         slack_webhook_url: Slack webhook URL
-        pagerduty_webhook_url: PagerDuty webhook URL
+        pagerduty_routing_key: PagerDuty Events API v2 routing key (renamed from pagerduty_webhook_url)
         redis_client: Redis client for cooldown state
+        max_retries: Maximum retry attempts for alert delivery (default: 3)
 
     Returns:
         The global ReviewerMetricsAlertEvaluator singleton
@@ -661,7 +699,6 @@ def get_reviewer_metrics_alert_evaluator(
     if _global_reviewer_alert_evaluator is None:
         with _global_reviewer_alert_evaluator_lock:
             if _global_reviewer_alert_evaluator is None:
-                # Try to load from settings
                 try:
                     from common.config.settings import settings
                     _enabled = enabled if enabled is not None else getattr(
@@ -670,16 +707,13 @@ def get_reviewer_metrics_alert_evaluator(
                     _slack_url = slack_webhook_url or getattr(
                         settings, 'slack_webhook_url', None
                     )
-                    # Note: Variable named pagerduty_webhook_url for consistency with
-                    # RouterMetricsAlertEvaluator, but loads from pagerduty_routing_key
-                    # which is the correct PagerDuty Events API v2 integration key
-                    _pagerduty_url = pagerduty_webhook_url or getattr(
+                    _pagerduty_key = pagerduty_routing_key or getattr(
                         settings, 'pagerduty_routing_key', None
                     )
                 except Exception:
                     _enabled = enabled if enabled is not None else False
                     _slack_url = slack_webhook_url
-                    _pagerduty_url = pagerduty_webhook_url
+                    _pagerduty_key = pagerduty_routing_key
 
                 _global_reviewer_alert_evaluator = ReviewerMetricsAlertEvaluator(
                     enabled=_enabled,
@@ -695,8 +729,9 @@ def get_reviewer_metrics_alert_evaluator(
                     min_reviews=min_reviews or 5,
                     window_minutes=window_minutes or 15,
                     slack_webhook_url=_slack_url,
-                    pagerduty_webhook_url=_pagerduty_url,
+                    pagerduty_routing_key=_pagerduty_key,
                     redis_client=redis_client,
+                    max_retries=max_retries or 3,
                 )
 
     return _global_reviewer_alert_evaluator
