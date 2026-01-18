@@ -557,21 +557,52 @@ class ErrorAnalyzer:
         file_content: Optional[str],
         analysis: Dict[str, Any]
     ) -> None:
-        """Analyze assertion error."""
+        """Analyze assertion error.
+
+        Issue #4193: Allow assertion errors without standard expected/actual format
+        to be attempted by SimpleCoder/GeneralCoder. Previously, these were rejected
+        with is_simple_fix=False and confidence=0.4, preventing any fix attempts.
+
+        The fix strategy:
+        - With expected/actual values: High confidence (0.8), definitely attempt
+        - Without expected/actual but with error message: Medium confidence (0.6), attempt
+        - No useful information: Low confidence (0.4), still attempt but with caution
+        """
         analysis["fix_strategy"] = "assertion_fix"
 
         # Simple assertion fixes have higher confidence
         if failure.expected_value and failure.actual_value:
+            # Best case: we have expected and actual values
             analysis["is_simple_fix"] = True
-            analysis["confidence"] = 0.7
+            analysis["confidence"] = 0.8
             analysis["suggestions"] = [
                 f"Expected: {failure.expected_value}",
                 f"Actual: {failure.actual_value}",
                 "Check if the implementation logic is correct",
             ]
+        elif failure.error_message:
+            # Issue #4193: Even without expected/actual, we can attempt a fix
+            # if we have an error message that describes the problem.
+            # This enables SimpleCoder to fix assertion errors like:
+            # "AssertionError: Score 1.5 should be invalid"
+            analysis["is_simple_fix"] = True
+            analysis["confidence"] = 0.6
+            suggestions = [
+                "Review the assertion logic",
+                f"Error message: {failure.error_message[:200]}",  # Truncate long messages
+            ]
+            if failure.test_name:
+                suggestions.append(f"Failed test: {failure.test_name}")
+            if failure.file_path:
+                suggestions.append(f"File: {failure.file_path}")
+            if failure.line_number:
+                suggestions.append(f"Line: {failure.line_number}")
+            analysis["suggestions"] = suggestions
         else:
-            analysis["is_simple_fix"] = False
-            analysis["confidence"] = 0.4
+            # Fallback: minimal information available
+            # Still allow attempt but with lower confidence
+            analysis["is_simple_fix"] = True
+            analysis["confidence"] = 0.5
             analysis["suggestions"] = [
                 "Review the assertion logic",
                 "Check input/output values",
