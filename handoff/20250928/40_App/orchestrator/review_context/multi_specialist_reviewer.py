@@ -635,6 +635,42 @@ class MultiSpecialistReviewer:
             )
             raise
 
+    def _extract_files_from_diff(self, diff_content: str) -> List[str]:
+        """
+        Extract file paths from a unified diff.
+
+        Issue #4199: Prevent specialist file path hallucination by providing
+        an explicit list of valid files to the LLM.
+
+        Args:
+            diff_content: The unified diff content
+
+        Returns:
+            List of file paths that appear in the diff
+        """
+        import re
+
+        files: List[str] = []
+        # Match diff headers: "diff --git a/path/to/file b/path/to/file"
+        # or "+++ b/path/to/file" lines
+        diff_header_pattern = re.compile(r'^diff --git a/(.+?) b/\1$', re.MULTILINE)
+        plus_header_pattern = re.compile(r'^\+\+\+ b/(.+)$', re.MULTILINE)
+
+        # Try diff --git headers first (more reliable)
+        for match in diff_header_pattern.finditer(diff_content):
+            file_path = match.group(1)
+            if file_path not in files:
+                files.append(file_path)
+
+        # Fallback to +++ headers if no diff --git headers found
+        if not files:
+            for match in plus_header_pattern.finditer(diff_content):
+                file_path = match.group(1)
+                if file_path not in files and file_path != "/dev/null":
+                    files.append(file_path)
+
+        return files
+
     def _build_user_prompt(
         self,
         diff_content: str,
@@ -646,16 +682,25 @@ class MultiSpecialistReviewer:
         goal = pr_context.get("goal", "")
         repo = pr_context.get("repo", "")
 
+        # Issue #4199: Extract valid files from diff to prevent hallucination
+        # This gives the LLM an explicit list of files it can comment on
+        files_in_diff = self._extract_files_from_diff(diff_content)
+        files_list = "\n".join(f"- {f}" for f in files_in_diff) if files_in_diff else "- (no files detected)"
+
         return f"""Review the following PR diff for {specialist.value} issues.
 
 PR #{pr_number} in {repo}
 Goal: {goal}
+
+VALID FILES IN THIS PR (you MUST ONLY comment on these files):
+{files_list}
 
 === DIFF START ===
 {diff_content[:50000]}
 === DIFF END ===
 
 Analyze this diff and identify any {specialist.value} issues.
+CRITICAL: Only comment on the files listed above. Do NOT comment on imported, referenced, or called files that are not in this PR.
 Return your findings as a JSON array."""
 
     def _parse_specialist_response(
