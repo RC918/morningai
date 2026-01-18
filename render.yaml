@@ -89,18 +89,18 @@ services:
       - key: COOKIE_SECURE
         value: "true"
       # === Production Rate Limiting (P1.2) ===
-      - key: RATE_LIMIT_REQUESTS
-        value: "100"
-      - key: RATE_LIMIT_WINDOW
-        value: "60"
       - key: RATE_LIMIT_BY_USER
         value: "false"
       - key: RATE_LIMIT_FAIL_FAST
         value: "true"
-      - key: RATE_LIMIT_REDIS_RETRY_DELAY
-        value: "1"
       - key: RATE_LIMIT_REDIS_MAX_RETRIES
         value: "3"
+      - key: RATE_LIMIT_REDIS_RETRY_DELAY
+        value: "1"
+      - key: RATE_LIMIT_REQUESTS
+        value: "100"
+      - key: RATE_LIMIT_WINDOW
+        value: "60"
       # === Production Worker Settings (P1.2) ===
       - key: GUNICORN_WORKERS
         value: "2"
@@ -140,6 +140,8 @@ services:
         value: RC918/morningai
       - key: OPENAI_API_KEY
         sync: false
+      - key: GEMINI_API_KEY
+        sync: false
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_ANON_KEY
@@ -165,6 +167,10 @@ services:
       - key: SLACK_WEBHOOK_URL
         sync: false
       # === Production Feature Flags (P1.1) - TRUE flags ===
+      - key: CROSS_PROVIDER_FALLBACK_ENABLED
+        value: "true"
+      - key: DRIFT_RETRY_ENABLED
+        value: "true"
       - key: ENABLE_DYNAMIC_ROUTING
         value: "true"
       - key: ENABLE_GITHUB_REVIEW_POSTING
@@ -173,15 +179,21 @@ services:
         value: "true"
       - key: ENABLE_MEMORY_V2
         value: "true"
+      - key: ENABLE_REVIEW_FEEDBACK_LOOP
+        value: "true"
+      - key: ENABLE_REVIEW_PATTERN_RETRIEVAL
+        value: "true"
       - key: ENABLE_SELF_CRITIQUE
+        value: "true"
+      - key: ENABLE_SIMPLE_CODER
         value: "true"
       - key: REFACTOR_AGENT_AUTO_PR
         value: "true"
       - key: REGRESSION_PIPELINE_AUTO_GENERATE
         value: "true"
-      - key: REGRESSION_TEST_WRITE_TO_DISK
-        value: "true"
       - key: REGRESSION_TEST_ENABLE_LLM
+        value: "true"
+      - key: REGRESSION_TEST_WRITE_TO_DISK
         value: "true"
       - key: USE_DEBATE_ENGINE
         value: "true"
@@ -197,16 +209,6 @@ services:
         value: "true"
       - key: USE_TEST_COVERAGE_FLAGGING
         value: "true"
-      - key: ENABLE_SIMPLE_CODER
-        value: "true"
-      - key: ENABLE_REVIEW_FEEDBACK_LOOP
-        value: "true"
-      - key: ENABLE_REVIEW_PATTERN_RETRIEVAL
-        value: "true"
-      - key: DRIFT_RETRY_ENABLED
-        value: "true"
-      - key: CROSS_PROVIDER_FALLBACK_ENABLED
-        value: "true"
       # === Production Feature Flags (P1.1) - FALSE flags ===
       - key: ENABLE_FAILURE_LEARNING_CONTEXT
         value: "false"
@@ -217,16 +219,16 @@ services:
       - key: ROUTING_FORCE_TIER_FLOOR
         value: "false"
       # === Production Numeric Settings (P1.2) ===
+      - key: DEGRADED_CHECKPOINT_MAX_PER_THREAD
+        value: "5"
+      - key: DEGRADED_CHECKPOINT_MEMORY_HARD_LIMIT_MB
+        value: "512"
       - key: LLM_PROVIDER
         value: "gemini"
       - key: ROUTING_ALLOWED_PROVIDERS
         value: "gemini,alicloud,openai"
       - key: ROUTING_MAX_ESCALATIONS
         value: "1"
-      - key: DEGRADED_CHECKPOINT_MAX_PER_THREAD
-        value: "5"
-      - key: DEGRADED_CHECKPOINT_MEMORY_HARD_LIMIT_MB
-        value: "512"
 
   - type: web
     name: braintrust-processor
