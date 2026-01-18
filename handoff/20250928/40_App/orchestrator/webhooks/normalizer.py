@@ -340,6 +340,18 @@ SKIP_TITLE_PREFIXES = (
     "build(",
 )
 
+# Title prefixes that should ALWAYS be reviewed, even if files are non-code
+# Blueprint alignment (Jan 2026): docs: and chore: PRs can contain bugs or security issues
+# - docs: PRs can have incorrect line references, outdated API docs, wrong examples
+# - chore: PRs can have security-sensitive configuration changes
+# These prefixes bypass the file path filter to ensure they are always reviewed
+ALWAYS_REVIEW_TITLE_PREFIXES = (
+    "docs:",
+    "docs(",
+    "chore:",
+    "chore(",
+)
+
 # File path patterns that indicate non-code changes
 # If a PR ONLY modifies these patterns, skip docs generation
 SKIP_FILE_PATTERNS = {
@@ -414,6 +426,31 @@ def _title_is_non_actionable(title: str) -> bool:
 
     title_lower = title.lower().strip()
     return title_lower.startswith(SKIP_TITLE_PREFIXES)
+
+
+def _title_should_always_review(title: str) -> bool:
+    """
+    Check if a PR title indicates it should ALWAYS be reviewed.
+
+    Blueprint Alignment (Jan 2026):
+    docs: and chore: PRs should always be reviewed, even if they only
+    contain non-code files (e.g., .md files, config files).
+
+    Rationale:
+    - docs: PRs can contain bugs (incorrect line references, outdated API docs)
+    - chore: PRs can contain security-sensitive configuration changes
+
+    Args:
+        title: The PR title string
+
+    Returns:
+        True if the title indicates the PR should always be reviewed
+    """
+    if not title:
+        return False
+
+    title_lower = title.lower().strip()
+    return title_lower.startswith(ALWAYS_REVIEW_TITLE_PREFIXES)
 
 
 def _path_is_non_code(path: str) -> bool:
@@ -613,6 +650,24 @@ def should_skip_pr_by_smart_filters(event: "WebhookEvent") -> tuple:
         should_skip, reason, sample_paths = _should_skip_by_paths(file_paths)
 
         if should_skip:
+            # Blueprint alignment (Jan 2026): docs: and chore: PRs should always be reviewed
+            # even if they only contain non-code files (e.g., .md files, config files)
+            if _title_should_always_review(title):
+                logger.info(
+                    "[SmartFilter] Bypassing file path filter for docs/chore PR",
+                    extra={
+                        "operation": "pr_event_bypass_file_filter_docs_chore",
+                        "event_id": event.event_id,
+                        "repo": repo,
+                        "pr_number": pr_number_int,
+                        "title": title[:100],
+                        "file_count": len(file_paths),
+                        "sample_paths": sample_paths,
+                        "reason": "docs_chore_always_review",
+                    }
+                )
+                return False, "docs_chore_bypass", {"title_prefix": title.split(":")[0] if ":" in title else title[:20]}
+
             logger.info(
                 "[SmartFilter] Skipping PR by file path filter",
                 extra={
