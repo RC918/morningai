@@ -332,8 +332,9 @@ class DiagnosticAgentNode:
 
     # Issue #4103: CI-specific patterns for extracting file paths and line numbers
     CI_FILE_PATTERNS = [
-        # pytest: path/to/file.py:123: error message
-        re.compile(r'([^\s:]+\.py):(\d+):\s*(?:error|warning|E\d+|W\d+)'),
+        # flake8/pylint/mypy: path/to/file.py:123:45: E501 (with column number)
+        # Cursor Bugbot: Python pattern must support optional column numbers
+        re.compile(r'([^\s:]+\.py):(\d+)(?::\d+)?:\s*(?:error|warning|E\d+|W\d+)'),
         # jest/mocha: at path/to/file.js:123:45
         re.compile(r'at\s+([^\s:]+\.[jt]sx?):(\d+):\d+'),
         # eslint: path/to/file.js:123:45 error
