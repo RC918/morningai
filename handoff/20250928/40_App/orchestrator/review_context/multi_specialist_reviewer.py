@@ -26,7 +26,9 @@ Usage:
 
 import asyncio
 import logging
+import re
 import time
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
@@ -36,6 +38,12 @@ from core.routing import TaskType
 
 # Issue #4074: Import shared types from common module
 from governance.types import SpecialistType, CORE_SPECIALISTS
+
+# Pre-compiled regex patterns for diff parsing (Comment #18: avoid recompilation on each call)
+# Pattern to match hunk headers: @@ -old_start,old_count +new_start,new_count @@
+HUNK_HEADER_PATTERN = re.compile(r'^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@')
+# Pattern to match diff --git headers: diff --git a/path b/path
+DIFF_GIT_HEADER_PATTERN = re.compile(r'^diff --git a/(.+?) b/\1$')
 
 logger = logging.getLogger(__name__)
 
@@ -720,6 +728,75 @@ class MultiSpecialistReviewer:
 
         return files
 
+    def _extract_addition_lines_from_diff(
+        self, diff_content: str
+    ) -> Dict[str, List[int]]:
+        """
+        Extract valid addition line numbers from a unified diff.
+
+        P0 Enhancement: Provide explicit list of valid addition lines to LLM
+        to solve the problem of LLM not reliably following "addition-lines-only"
+        constraint. This gives the LLM a concrete list of line numbers it can
+        use for inline comments.
+
+        Args:
+            diff_content: The unified diff content
+
+        Returns:
+            Dict mapping file_path -> list of valid line numbers (addition lines only)
+        """
+        # Comment #7: Use defaultdict to simplify code (no manual key existence checks)
+        addition_lines: Dict[str, List[int]] = defaultdict(list)
+        current_file: Optional[str] = None
+        current_line_num: int = 0
+
+        for line in diff_content.split('\n'):
+            # Check for new file header
+            if line.startswith('diff --git a/'):
+                # Extract file path using pre-compiled pattern (Comment #18)
+                match = DIFF_GIT_HEADER_PATTERN.match(line)
+                if match:
+                    current_file = match.group(1)
+                continue
+
+            # Check for +++ header (fallback for file path)
+            # Comment #15: Use exact match '+++' to avoid excluding C++ pre-increment lines
+            if line == '+++ /dev/null':
+                # Deleted file, skip
+                continue
+            if line.startswith('+++ b/'):
+                file_path = line[6:]  # Remove "+++ b/" prefix
+                current_file = file_path
+                continue
+
+            # Check for hunk header using pre-compiled pattern (Comment #18)
+            hunk_match = HUNK_HEADER_PATTERN.match(line)
+            if hunk_match:
+                # new_start is the starting line number in the new file
+                current_line_num = int(hunk_match.group(1))
+                continue
+
+            # Skip if we don't have a current file
+            if current_file is None:
+                continue
+
+            # Process diff lines within a hunk
+            # Comment #15: Check for exact '+' prefix, not just startswith('+')
+            # This correctly handles C++ pre-increment lines like '+++counter;'
+            if line.startswith('+') and line != '+++' and not line.startswith('+++ '):
+                # Addition line - this is a valid line for inline comments
+                addition_lines[current_file].append(current_line_num)
+                current_line_num += 1
+            elif line.startswith('-') and line != '---' and not line.startswith('--- '):
+                # Deletion line - does NOT increment new file line counter
+                pass
+            elif line.startswith(' ') or line == '':
+                # Context line or empty line - increments new file line counter
+                current_line_num += 1
+
+        # Remove files with no addition lines
+        return {f: lines for f, lines in addition_lines.items() if lines}
+
     def _build_user_prompt(
         self,
         diff_content: str,
@@ -736,6 +813,18 @@ class MultiSpecialistReviewer:
         files_in_diff = self._extract_files_from_diff(diff_content)
         files_list = "\n".join(f"- {f}" for f in files_in_diff) if files_in_diff else "- (no files detected)"
 
+        # P0 Enhancement: Extract valid addition lines to solve LLM not reliably
+        # following "addition-lines-only" constraint. This gives the LLM a concrete
+        # list of line numbers it can use for inline comments.
+        addition_lines = self._extract_addition_lines_from_diff(diff_content)
+        addition_lines_list = []
+        for file_path, lines in addition_lines.items():
+            if lines:
+                # Format line numbers compactly (e.g., "12, 13, 45-47")
+                line_ranges = self._format_line_ranges(lines)
+                addition_lines_list.append(f"- {file_path}: lines {line_ranges}")
+        addition_lines_str = "\n".join(addition_lines_list) if addition_lines_list else "- (no addition lines detected)"
+
         return f"""Review the following PR diff for {specialist.value} issues.
 
 PR #{pr_number} in {repo}
@@ -744,13 +833,52 @@ Goal: {goal}
 VALID FILES IN THIS PR (you MUST ONLY comment on these files):
 {files_list}
 
+VALID ADDITION LINES (you MUST ONLY use these line numbers for inline comments):
+{addition_lines_str}
+
 === DIFF START ===
 {diff_content[:50000]}
 === DIFF END ===
 
 Analyze this diff and identify any {specialist.value} issues.
-CRITICAL: Only comment on the files listed above. Do NOT comment on imported, referenced, or called files that are not in this PR.
+CRITICAL CONSTRAINTS:
+1. Only comment on the files listed above. Do NOT comment on imported, referenced, or called files that are not in this PR.
+2. When providing line_number, you MUST use a line number from the VALID ADDITION LINES list above. GitHub can only post inline comments on addition lines.
+3. If you find an issue on a context line (not in the valid addition lines list), either omit line_number or use the nearest valid addition line.
 Return your findings as a JSON array."""
+
+    def _format_line_ranges(self, lines: List[int]) -> str:
+        """
+        Format a list of line numbers into compact ranges.
+
+        Example: [1, 2, 3, 5, 7, 8, 9] -> "1-3, 5, 7-9"
+        """
+        if not lines:
+            return ""
+
+        lines = sorted(set(lines))
+        ranges = []
+        start = lines[0]
+        end = lines[0]
+
+        for line in lines[1:]:
+            if line == end + 1:
+                end = line
+            else:
+                if start == end:
+                    ranges.append(str(start))
+                else:
+                    ranges.append(f"{start}-{end}")
+                start = line
+                end = line
+
+        # Add the last range
+        if start == end:
+            ranges.append(str(start))
+        else:
+            ranges.append(f"{start}-{end}")
+
+        return ", ".join(ranges)
 
     def _parse_specialist_response(
         self,
