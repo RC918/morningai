@@ -88,6 +88,13 @@ class PIICategory(str, Enum):
     DRIVER_LICENSE = "driver_license"
 
 
+# Issue #4051: Export PII category values as a constant for dynamic filtering
+# This provides a single source of truth for PII categories, avoiding hardcoded
+# lists in other modules like RuntimePolicyEnforcer.
+# Blueprint Reference: Section 4.2 (Compliance Radar v2), Section 9.2 (Safe by Design)
+PII_CATEGORIES: tuple[str, ...] = tuple(c.value for c in PIICategory)
+
+
 class PIIRiskLevel(str, Enum):
     """Risk levels for PII findings"""
     CRITICAL = "critical"  # SSN, Credit Card - immediate action required
