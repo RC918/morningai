@@ -7765,8 +7765,16 @@ def reviewer_node(state: AgentState) -> AgentState:
                             "severity": finding.severity,
                             "message": f"[{finding.specialist.value.upper()}] {finding.message}",
                             "source": f"multi_specialist_{finding.specialist.value}",
-                            "category": finding.category
+                            "category": finding.category,
                         }
+                        # Issue #4169: Pass file_path and line_number for inline comments
+                        # Without these fields, all specialist comments become file-level
+                        # comments instead of inline comments on specific code lines
+                        if finding.file_path:
+                            specialist_comment["file"] = finding.file_path
+                        if finding.line_number:
+                            specialist_comment["start_line"] = finding.line_number
+                            specialist_comment["end_line"] = finding.line_number
                         state["review_comments"] = state.get("review_comments", []) + [specialist_comment]
 
                         if finding.severity in ("high", "critical"):
