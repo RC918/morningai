@@ -600,6 +600,7 @@ class TestStagingObservationLogging:
 
 from ..normalizer import (  # noqa: E402
     _title_is_non_actionable,
+    _title_should_always_review,
     _path_is_non_code,
     _should_skip_by_paths,
     should_skip_pr_by_smart_filters,
@@ -675,6 +676,50 @@ class TestTitleIsNonActionable:
         """Test that empty title is actionable (fail open)"""
         assert _title_is_non_actionable("") is False
         assert _title_is_non_actionable(None) is False
+
+
+class TestTitleShouldAlwaysReview:
+    """Tests for _title_should_always_review() - Blueprint alignment Jan 2026
+    
+    docs: and chore: PRs should ALWAYS be reviewed, even if they only contain
+    non-code files (e.g., .md files, config files).
+    
+    Rationale:
+    - docs: PRs can contain bugs (incorrect line references, outdated API docs)
+    - chore: PRs can contain security-sensitive configuration changes
+    """
+
+    def test_docs_prefix_should_always_review(self):
+        """Test that docs: prefix triggers always-review"""
+        assert _title_should_always_review("docs: update README") is True
+        assert _title_should_always_review("docs(api): add examples") is True
+        assert _title_should_always_review("Docs: Update something") is True
+
+    def test_chore_prefix_should_always_review(self):
+        """Test that chore: prefix triggers always-review"""
+        assert _title_should_always_review("chore: update dependencies") is True
+        assert _title_should_always_review("chore(deps): bump version") is True
+        assert _title_should_always_review("Chore: Update something") is True
+
+    def test_ci_prefix_should_not_always_review(self):
+        """Test that ci: prefix does NOT trigger always-review"""
+        assert _title_should_always_review("ci: fix workflow") is False
+        assert _title_should_always_review("ci(github): update actions") is False
+
+    def test_test_prefix_should_not_always_review(self):
+        """Test that test: prefix does NOT trigger always-review"""
+        assert _title_should_always_review("test: add unit tests") is False
+        assert _title_should_always_review("tests: improve coverage") is False
+
+    def test_feat_prefix_should_not_always_review(self):
+        """Test that feat: prefix does NOT trigger always-review (uses normal flow)"""
+        assert _title_should_always_review("feat: add new feature") is False
+        assert _title_should_always_review("fix: resolve bug") is False
+
+    def test_empty_title_should_not_always_review(self):
+        """Test that empty title does NOT trigger always-review"""
+        assert _title_should_always_review("") is False
+        assert _title_should_always_review(None) is False
 
 
 class TestPathIsNonCode:
