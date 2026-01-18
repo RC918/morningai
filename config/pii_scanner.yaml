@@ -72,3 +72,68 @@ custom_patterns:
 #     actions:
 #       email: block
 #       phone: block
+
+# Issue #4171: Code context patterns for false positive reduction
+# These patterns identify code/technical contexts where PII-like patterns
+# are likely false positives (e.g., "passport" in passport.js library)
+# Blueprint Reference: Section 9.2 (Safe by Design) - security measures
+# should not impede legitimate functionality
+#
+# SECURITY NOTE: The content_type parameter is caller-controlled (orchestrator code),
+# NOT user-controlled. The default is USER_CONTENT (strict scanning), and relaxed
+# modes (CODE_CONTENT, REVIEW_FEEDBACK) are opt-in by trusted orchestrator code only.
+# This is by design per Blueprint Section 9.2 (Safe by Design).
+code_context_allowlist:
+  # Skip "passport" when part of code constructs
+  passport:
+    - 'passport\.js'
+    - 'passport-'
+    - 'passportjs'
+    - 'passport\.validate'
+    - 'passport\.authenticate'
+    - 'passport_validator'
+    - 'passport_number'
+    - 'passport_field'
+    - 'passport\.initialize'
+    - 'passport\.session'
+    - 'require\([''"]passport'
+    - 'import.*passport'
+    - 'passport\s*='
+  # Skip "address" when part of variable/field names
+  address:
+    - 'email_address'
+    - 'ip_address'
+    - 'address_field'
+    - 'address_line'
+    - 'address_type'
+    - 'memory_address'
+    - 'return_address'
+    - 'callback_address'
+    - 'mac_address'
+    - 'wallet_address'
+    - 'contract_address'
+    - 'address\s*='
+    - '\.address\b'
+    - 'address\('
+    - 'getAddress'
+    - 'setAddress'
+
+# Issue #4171: Patterns to skip numeric matches in code context
+# These patterns identify numbers that are likely PR/issue numbers,
+# commit hashes, or other technical identifiers
+#
+# TRADE-OFF NOTE: These patterns are searched against a 100-character context
+# window around the match. This could potentially skip real PII if unrelated
+# technical patterns appear nearby. This is an intentional trade-off for
+# reducing false positives in technical content (code, diffs, review feedback).
+code_numeric_skip_patterns:
+  - '#\d{8,9}\b'           # Issue/PR numbers: #12345678
+  - 'PR\s*#?\d{8,9}\b'     # PR references: PR #12345678
+  - 'pr\s*#?\d{8,9}\b'     # PR references (lowercase)
+  - 'Issue\s*#?\d{8,9}\b'  # Issue references
+  - 'issue\s*#?\d{8,9}\b'  # Issue references (lowercase)
+  - '[0-9a-f]{40}'         # Git commit SHA (40 hex chars)
+  - '[0-9a-f]{7,8}\b'      # Short commit SHA (7-8 hex chars)
+  - '0x[0-9a-fA-F]+'       # Hex numbers
+  - '\d{8,9}T\d+'          # Timestamps: 20240115T123456
+  - 'v\d+\.\d+\.\d+'       # Version numbers

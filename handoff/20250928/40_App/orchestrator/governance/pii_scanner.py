@@ -550,6 +550,16 @@ class PIIScanner:
         ] = {}
         self._tenant_overrides: Dict[str, Dict[PIICategory, PIIAction]] = {}
 
+        # Issue #4171: Initialize code context patterns from class defaults
+        # These can be extended via YAML config (externalized configuration)
+        self._code_context_allowlist: Dict[PIICategory, List[str]] = {
+            category: list(patterns)
+            for category, patterns in self.CODE_CONTEXT_ALLOWLIST.items()
+        }
+        self._code_numeric_skip_patterns: List[str] = list(
+            self.CODE_NUMERIC_SKIP_PATTERNS
+        )
+
         # Store constructor parameters (highest priority for backward compatibility)
         self._init_enabled = enabled
         self._init_strict_mode = strict_mode
@@ -843,6 +853,38 @@ class PIIScanner:
                             action_str,
                             e,
                         )
+
+        # Issue #4171: Load code context allowlist patterns from config
+        # These patterns identify code/technical contexts where PII-like patterns
+        # are likely false positives. Patterns from config extend the defaults.
+        code_context_allowlist = config.get("code_context_allowlist") or {}
+        for category_str, patterns in code_context_allowlist.items():
+            if not patterns:
+                continue
+            try:
+                category = PIICategory(category_str)
+                # Extend existing patterns (don't replace defaults)
+                if category not in self._code_context_allowlist:
+                    self._code_context_allowlist[category] = list(
+                        self.CODE_CONTEXT_ALLOWLIST.get(category, [])
+                    )
+                for pattern in patterns:
+                    if pattern not in self._code_context_allowlist[category]:
+                        self._code_context_allowlist[category].append(pattern)
+            except ValueError as e:
+                logger.warning(
+                    "[PIIScanner] Invalid code context category: %s (%s)",
+                    category_str,
+                    e,
+                )
+
+        # Issue #4171: Load code numeric skip patterns from config
+        # These patterns identify numbers that are likely PR/issue numbers,
+        # commit hashes, or other technical identifiers.
+        code_numeric_skip = config.get("code_numeric_skip_patterns") or []
+        for pattern in code_numeric_skip:
+            if pattern not in self._code_numeric_skip_patterns:
+                self._code_numeric_skip_patterns.append(pattern)
 
     def _validate_pattern_config(self, pattern: Dict[str, Any]) -> bool:
         """
@@ -1220,6 +1262,10 @@ class PIIScanner:
         Issue #4039: Reduces false positives for technical content by checking
         if the match appears in a code-like context.
 
+        Issue #4171: Refactored to use instance variables (_code_context_allowlist,
+        _code_numeric_skip_patterns) instead of class attributes, enabling
+        externalized configuration via pii_scanner.yaml.
+
         Args:
             content: Full content being scanned
             match: The regex match object
@@ -1227,6 +1273,18 @@ class PIIScanner:
 
         Returns:
             True if the match should be skipped (code context), False otherwise
+
+        Security Design Decisions:
+        - The content_type parameter (in scan()) is caller-controlled by orchestrator
+          code, NOT user-controlled. Default is USER_CONTENT (strict scanning).
+        - Relaxed modes (CODE_CONTENT, REVIEW_FEEDBACK) are opt-in by trusted code.
+        - This is by design per Blueprint Section 9.2 (Safe by Design).
+
+        Trade-off Note:
+        - CODE_NUMERIC_SKIP_PATTERNS are searched against a 100-character context
+          window. This could potentially skip real PII if unrelated technical
+          patterns appear nearby. This is an intentional trade-off for reducing
+          false positives in technical content (code, diffs, review feedback).
 
         Blueprint Reference: Section 9.2 (Safe by Design) - security measures
         should not impede legitimate functionality.
@@ -1236,9 +1294,9 @@ class PIIScanner:
         end = min(len(content), match.end() + 50)
         context_text = content[start:end].lower()
 
-        # Check category-specific allowlist patterns
-        if category in self.CODE_CONTEXT_ALLOWLIST:
-            for pattern in self.CODE_CONTEXT_ALLOWLIST[category]:
+        # Check category-specific allowlist patterns (Issue #4171: use instance var)
+        if category in self._code_context_allowlist:
+            for pattern in self._code_context_allowlist[category]:
                 if re.search(pattern, context_text, re.IGNORECASE):
                     return True
 
@@ -1247,7 +1305,8 @@ class PIIScanner:
             matched_text = match.group(0)
             # Only apply numeric skip patterns to pure digit matches
             if matched_text.isdigit() and len(matched_text) in (8, 9):
-                for pattern in self.CODE_NUMERIC_SKIP_PATTERNS:
+                # Issue #4171: use instance var for externalized configuration
+                for pattern in self._code_numeric_skip_patterns:
                     if re.search(pattern, context_text, re.IGNORECASE):
                         return True
 
