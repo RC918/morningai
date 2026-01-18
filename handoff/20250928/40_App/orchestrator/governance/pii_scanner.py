@@ -484,6 +484,7 @@ class PIIScanner:
             r"passport\.session",
             r"require\(['\"]passport",
             r"import.*passport",
+            r"passport\s*=",  # Variable assignment (gemini-code-assist suggestion)
         ],
         # Skip "address" when part of variable/field names
         PIICategory.ADDRESS: [
