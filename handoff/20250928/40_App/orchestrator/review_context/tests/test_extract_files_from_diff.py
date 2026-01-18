@@ -107,6 +107,29 @@ index 1234567..abcdefg 100644
         files = self.reviewer._extract_files_from_diff(diff_content)
         assert files == ["handoff/20250928/40_App/orchestrator/debugger_agent/debugger_agent_v2.py"]
 
+    def test_extract_files_handles_renamed_files(self):
+        """Test that renamed files are correctly extracted via fallback.
+
+        When a file is renamed, the diff --git header has different paths
+        (a/old.py b/new.py), so the primary regex won't match. The function
+        should fall back to +++ b/ parsing and extract the new file path.
+        """
+        diff_content = """diff --git a/src/old.py b/src/new.py
+similarity index 90%
+rename from src/old.py
+rename to src/new.py
+index 1234567..abcdefg 100644
+--- a/src/old.py
++++ b/src/new.py
+@@ -1,3 +1,3 @@
+-def old_function():
++def new_function():
+     pass
+"""
+        files = self.reviewer._extract_files_from_diff(diff_content)
+        # Should extract the new file path via +++ fallback
+        assert files == ["src/new.py"]
+
 
 class TestBuildUserPromptWithFileList:
     """Tests for _build_user_prompt with file list inclusion."""
