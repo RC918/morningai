@@ -155,9 +155,9 @@ class SlackChannel(NotificationChannel):
                 last_error = None
                 last_status = None
 
-                for attempt in range(1, self._max_retries + 1):
-                    try:
-                        async with aiohttp.ClientSession() as session:
+                async with aiohttp.ClientSession() as session:
+                    for attempt in range(1, self._max_retries + 1):
+                        try:
                             async with session.post(
                                 self._webhook_url,
                                 json={"text": message},
@@ -167,14 +167,14 @@ class SlackChannel(NotificationChannel):
                                 if response.status == 200:
                                     return True, attempt, None, response.status
                                 last_error = f"HTTP {response.status}"
-                    except asyncio.TimeoutError:
-                        last_error = "Request timeout"
-                    except Exception as e:
-                        last_error = str(e)
+                        except asyncio.TimeoutError:
+                            last_error = "Request timeout"
+                        except Exception as e:
+                            last_error = str(e)
 
-                    if attempt < self._max_retries:
-                        delay = self._base_delay * (2 ** (attempt - 1))
-                        await asyncio.sleep(delay)
+                        if attempt < self._max_retries:
+                            delay = self._base_delay * (2 ** (attempt - 1))
+                            await asyncio.sleep(delay)
 
                 return False, self._max_retries, last_error, last_status
 
@@ -321,9 +321,9 @@ class PagerDutyChannel(NotificationChannel):
                 last_error = None
                 last_status = None
 
-                for attempt in range(1, self._max_retries + 1):
-                    try:
-                        async with aiohttp.ClientSession() as session:
+                async with aiohttp.ClientSession() as session:
+                    for attempt in range(1, self._max_retries + 1):
+                        try:
                             async with session.post(
                                 self.EVENTS_API_URL,
                                 json=pagerduty_payload,
@@ -334,14 +334,14 @@ class PagerDutyChannel(NotificationChannel):
                                 if response.status < 300:
                                     return True, attempt, None, response.status
                                 last_error = f"HTTP {response.status}"
-                    except asyncio.TimeoutError:
-                        last_error = "Request timeout"
-                    except Exception as e:
-                        last_error = str(e)
+                        except asyncio.TimeoutError:
+                            last_error = "Request timeout"
+                        except Exception as e:
+                            last_error = str(e)
 
-                    if attempt < self._max_retries:
-                        delay = self._base_delay * (2 ** (attempt - 1))
-                        await asyncio.sleep(delay)
+                        if attempt < self._max_retries:
+                            delay = self._base_delay * (2 ** (attempt - 1))
+                            await asyncio.sleep(delay)
 
                 return False, self._max_retries, last_error, last_status
 
