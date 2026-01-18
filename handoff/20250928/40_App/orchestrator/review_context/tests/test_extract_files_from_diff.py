@@ -162,7 +162,9 @@ index 1234567..abcdefg 100644
         # Check that the prompt contains the file list section
         assert "VALID FILES IN THIS PR" in prompt
         assert "- src/main.py" in prompt
-        assert "CRITICAL: Only comment on the files listed above" in prompt
+        # PR #4212: Updated to CRITICAL CONSTRAINTS format with numbered list
+        assert "CRITICAL CONSTRAINTS:" in prompt
+        assert "1. Only comment on the files listed above" in prompt
 
     def test_prompt_handles_empty_file_list(self):
         """Test that the prompt handles empty file list gracefully."""
