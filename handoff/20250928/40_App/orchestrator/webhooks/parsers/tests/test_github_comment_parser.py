@@ -1,32 +1,45 @@
 """
-Tests for ReviewCommentParser - D-5 Phase 1
+Tests for GitHubCommentParser - D-5 Phase 1
 
 EPIC D Stage 3: D-5 Review Feedback Handler (General Fixes)
-Issue: D-5 Phase 1 - Review Comment Parser
+Issue: D-5 Phase 1 - GitHub Comment Parser
+
+Blueprint Alignment:
+- This parser belongs to the Infrastructure Layer (webhooks/parsers/)
+- It converts external "dirty" GitHub payloads into clean internal formats
 """
 
+import sys
+import os
 import unittest
-from review_context.review_comment_parser import (
-    ReviewCommentParser,
+
+# Add the parsers directory to the path for direct import
+# This avoids triggering the full webhooks module import chain
+_parsers_dir = os.path.dirname(os.path.dirname(__file__))
+if _parsers_dir not in sys.path:
+    sys.path.insert(0, _parsers_dir)
+
+from github_comment_parser import (  # noqa: E402
+    GitHubCommentParser,
     ParsedReviewComment,
     FixTask,
     CommentType,
     CommentSeverity,
     parse_review_comments,
-    get_review_comment_parser,
+    get_github_comment_parser,
 )
 
 
-class TestReviewCommentParser(unittest.TestCase):
-    """Tests for ReviewCommentParser class."""
+class TestGitHubCommentParser(unittest.TestCase):
+    """Tests for GitHubCommentParser class."""
 
     def setUp(self):
         """Set up test fixtures."""
-        self.parser = ReviewCommentParser(trace_id="test-trace-123")
+        self.parser = GitHubCommentParser(trace_id="test-trace-123")
 
     def test_init(self):
         """Test parser initialization."""
-        parser = ReviewCommentParser(trace_id="abc123")
+        parser = GitHubCommentParser(trace_id="abc123")
         self.assertEqual(parser.trace_id, "abc123")
         self.assertEqual(parser.stats.total_comments, 0)
 
@@ -491,11 +504,11 @@ class TestConvenienceFunctions(unittest.TestCase):
 
         self.assertEqual(len(results), 1)
 
-    def test_get_review_comment_parser(self):
-        """Test get_review_comment_parser factory function."""
-        parser = get_review_comment_parser(trace_id="test-123")
+    def test_get_github_comment_parser(self):
+        """Test get_github_comment_parser factory function."""
+        parser = get_github_comment_parser(trace_id="test-123")
 
-        self.assertIsInstance(parser, ReviewCommentParser)
+        self.assertIsInstance(parser, GitHubCommentParser)
         self.assertEqual(parser.trace_id, "test-123")
 
 

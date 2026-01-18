@@ -1,25 +1,30 @@
 """
-Review Comment Parser - D-5 Phase 1 Implementation
+GitHub Comment Parser - D-5 Phase 1 Implementation
 
 EPIC D Stage 3: D-5 Review Feedback Handler (General Fixes)
-Issue: D-5 Phase 1 - Review Comment Parser
+Issue: D-5 Phase 1 - GitHub Comment Parser
 
 This module provides:
-1. ReviewCommentParser class for parsing GitHub review comments
+1. GitHubCommentParser class for parsing GitHub review comments
 2. Extraction of file_path, line_number, and comment_body from inline comments
 3. Conversion of review comments to fix tasks for GeneralCoder
+
+Blueprint Alignment:
+- This parser belongs to the Infrastructure Layer (webhooks/parsers/)
+- It converts external "dirty" GitHub payloads into clean internal formats
+- Coder/Reviewer Agents receive already-parsed data structures
 
 Blueprint Reference: EPIC D-5 (Review Feedback Handler)
 Dependency: EPIC B (Reviewer Agent), EPIC D-1b (GeneralCoder)
 
 Usage:
-    from review_context.review_comment_parser import (
-        ReviewCommentParser,
+    from webhooks.parsers import (
+        GitHubCommentParser,
         ParsedReviewComment,
         parse_review_comments,
     )
 
-    parser = ReviewCommentParser(trace_id="abc123")
+    parser = GitHubCommentParser(trace_id="abc123")
 
     # Parse GitHub review comments
     parsed = parser.parse_github_review(review_data)
@@ -169,12 +174,12 @@ class ParserStats:
     fix_tasks_created: int = 0
 
 
-class ReviewCommentParser:
+class GitHubCommentParser:
     """
     Parses GitHub review comments and converts them to fix tasks.
 
-    EPIC D-5 Phase 1: Review Comment Parser
-    Blueprint: Extract review feedback for Coder consumption.
+    EPIC D-5 Phase 1: GitHub Comment Parser
+    Blueprint: Infrastructure Layer adapter for GitHub payloads.
 
     This class provides:
     1. parse_github_review(): Parse raw GitHub review data
@@ -219,7 +224,7 @@ class ReviewCommentParser:
 
     def __init__(self, trace_id: Optional[str] = None):
         """
-        Initialize the ReviewCommentParser.
+        Initialize the GitHubCommentParser.
 
         Args:
             trace_id: Optional workflow trace ID for correlation
@@ -243,12 +248,12 @@ class ReviewCommentParser:
             List of ParsedReviewComment objects
 
         Event Codes (greppable):
-            [REVIEW_COMMENT_PARSE_START] - Starting to parse review
-            [REVIEW_COMMENT_PARSE_SUCCESS] - Successfully parsed comments
-            [REVIEW_COMMENT_PARSE_FAIL] - Failed to parse review
+            [GITHUB_COMMENT_PARSE_START] - Starting to parse review
+            [GITHUB_COMMENT_PARSE_SUCCESS] - Successfully parsed comments
+            [GITHUB_COMMENT_PARSE_FAIL] - Failed to parse review
         """
         logger.info(
-            "[REVIEW_COMMENT_PARSE_START] Parsing GitHub review",
+            "[GITHUB_COMMENT_PARSE_START] Parsing GitHub review",
             extra={
                 "trace_id": self.trace_id,
                 "operation": "parse_github_review",
@@ -286,7 +291,7 @@ class ReviewCommentParser:
                         self.stats.suggestions_extracted += 1
 
             logger.info(
-                "[REVIEW_COMMENT_PARSE_SUCCESS] Parsed %d comments (%d actionable)",
+                "[GITHUB_COMMENT_PARSE_SUCCESS] Parsed %d comments (%d actionable)",
                 len(parsed_comments),
                 self.stats.actionable_comments,
                 extra={
@@ -301,7 +306,7 @@ class ReviewCommentParser:
 
         except Exception as e:
             logger.error(
-                "[REVIEW_COMMENT_PARSE_FAIL] Failed to parse review: %s",
+                "[GITHUB_COMMENT_PARSE_FAIL] Failed to parse review: %s",
                 str(e),
                 extra={
                     "trace_id": self.trace_id,
@@ -361,7 +366,7 @@ class ReviewCommentParser:
             return review_data["data"]
 
         logger.warning(
-            "[REVIEW_COMMENT_PARSE] Unknown review data format",
+            "[GITHUB_COMMENT_PARSE] Unknown review data format",
             extra={"trace_id": self.trace_id, "keys": list(review_data.keys())}
         )
         return []
@@ -436,7 +441,7 @@ class ReviewCommentParser:
 
         except Exception as e:
             logger.warning(
-                "[REVIEW_COMMENT_PARSE] Failed to parse comment: %s",
+                "[GITHUB_COMMENT_PARSE] Failed to parse comment: %s",
                 str(e),
                 extra={"trace_id": self.trace_id}
             )
@@ -678,18 +683,23 @@ def parse_review_comments(
     Returns:
         List of ParsedReviewComment objects
     """
-    parser = ReviewCommentParser(trace_id=trace_id)
+    parser = GitHubCommentParser(trace_id=trace_id)
     return parser.parse_github_review(review_data, include_resolved=include_resolved)
 
 
-def get_review_comment_parser(trace_id: Optional[str] = None) -> ReviewCommentParser:
+def get_github_comment_parser(trace_id: Optional[str] = None) -> GitHubCommentParser:
     """
-    Factory function to get a ReviewCommentParser instance.
+    Factory function to get a GitHubCommentParser instance.
 
     Args:
         trace_id: Optional workflow trace ID
 
     Returns:
-        ReviewCommentParser instance
+        GitHubCommentParser instance
     """
-    return ReviewCommentParser(trace_id=trace_id)
+    return GitHubCommentParser(trace_id=trace_id)
+
+
+# Backward compatibility aliases (deprecated, use GitHubCommentParser)
+ReviewCommentParser = GitHubCommentParser
+get_review_comment_parser = get_github_comment_parser
