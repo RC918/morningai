@@ -61,6 +61,7 @@ class ErrorCategory(Enum):
     """High-level error categories for diagnosis.
 
     Blueprint Section 3.5: Diagnostic Agent categorizes errors for targeted analysis.
+    Issue #4103: Added CI_FAILURE category for CI-specific error handling.
     """
     SYNTAX = "syntax"
     TYPE_MISMATCH = "type_mismatch"
@@ -73,6 +74,7 @@ class ErrorCategory(Enum):
     CONFIGURATION = "configuration"
     DEPENDENCY = "dependency"
     LOGIC = "logic"
+    CI_FAILURE = "ci_failure"
     UNKNOWN = "unknown"
 
 
@@ -300,6 +302,59 @@ class DiagnosticAgentNode:
             r"incompatible",
             r"requires.*version",
         ],
+        # Issue #4103: CI-specific error patterns for GitHub Actions, pytest, jest, etc.
+        ErrorCategory.CI_FAILURE: [
+            r"FAILED",
+            r"failed.*tests?",
+            r"tests?.*failed",
+            r"exit code [1-9]",
+            r"Process completed with exit code [1-9]",
+            r"Error: Process completed with exit code",
+            r"##\[error\]",
+            r"::error::",
+            r"npm ERR!",
+            r"yarn error",
+            r"pip.*error",
+            r"poetry.*error",
+            r"cargo.*error",
+            r"go:.*error",
+            r"build failed",
+            r"compilation failed",
+            r"lint.*error",
+            r"eslint.*error",
+            r"flake8.*error",
+            r"mypy.*error",
+            r"tsc.*error",
+            r"coverage.*below",
+            r"coverage threshold",
+        ],
+    }
+
+    # Issue #4103: CI-specific patterns for extracting file paths and line numbers
+    CI_FILE_PATTERNS = [
+        # flake8/pylint/mypy: path/to/file.py:123:45: E501 (with column number)
+        # Cursor Bugbot: Python pattern must support optional column numbers
+        re.compile(r'([^\s:]+\.py):(\d+)(?::\d+)?:\s*(?:error|warning|E\d+|W\d+)'),
+        # jest/mocha: at path/to/file.js:123:45
+        re.compile(r'at\s+([^\s:]+\.[jt]sx?):(\d+):\d+'),
+        # eslint: path/to/file.js:123:45 error
+        re.compile(r'([^\s:]+\.[jt]sx?):(\d+):\d+\s+(?:error|warning)'),
+        # go: path/to/file.go:123:45: error
+        re.compile(r'([^\s:]+\.go):(\d+):\d+:\s*'),
+        # rust: --> path/to/file.rs:123:45
+        re.compile(r'-->\s*([^\s:]+\.rs):(\d+):\d+'),
+        # GitHub Actions annotation: ::error file=path,line=123::message
+        re.compile(r'::error\s+file=([^,]+),line=(\d+)'),
+    ]
+
+    # Issue #4103: CI check name to error category mapping
+    CI_CHECK_CATEGORY_MAP = {
+        "test": ErrorCategory.ASSERTION_FAILURE,
+        "lint": ErrorCategory.SYNTAX,
+        "type": ErrorCategory.TYPE_MISMATCH,
+        "build": ErrorCategory.CONFIGURATION,
+        "coverage": ErrorCategory.LOGIC,
+        "security": ErrorCategory.PERMISSION_DENIED,
     }
 
     def __init__(
@@ -527,6 +582,11 @@ class DiagnosticAgentNode:
                 f"Logic error{location}. The code logic produces incorrect results. "
                 f"Review the algorithm and edge cases."
             ),
+            # Issue #4103: CI-specific description
+            ErrorCategory.CI_FAILURE: (
+                f"CI pipeline failure{location}. A CI check failed during the build "
+                f"or test phase. Review the CI logs for detailed error information."
+            ),
             ErrorCategory.UNKNOWN: (
                 f"Unknown error{location}: {error_type}. {error_message}"
             ),
@@ -607,6 +667,14 @@ class DiagnosticAgentNode:
                 "2. Write unit tests for edge cases\n"
                 "3. Review the algorithm step by step\n"
                 "4. Check boundary conditions"
+            ),
+            # Issue #4103: CI-specific fix strategy
+            ErrorCategory.CI_FAILURE: (
+                "1. Review the CI logs for the specific error message\n"
+                "2. Run the failing check locally (e.g., pytest, npm test)\n"
+                "3. Check if the failure is environment-specific\n"
+                "4. Verify all dependencies are correctly specified\n"
+                "5. Check for flaky tests or race conditions"
             ),
             ErrorCategory.UNKNOWN: (
                 "1. Review the full error traceback\n"
@@ -1031,6 +1099,138 @@ describe('Regression: {file_path}', () => {{
             f"{blast_radius.description}\n\n"
             f"Suggested Fix:\n{root_cause.suggested_fix}"
         )
+
+    def diagnose_ci_failure(
+        self,
+        ci_context: Dict[str, Any],
+        source_contents: Optional[Dict[str, str]] = None,
+    ) -> DiagnosticResult:
+        """Diagnose a CI failure with enhanced context parsing.
+
+        Issue #4103: Enhanced CI failure context integration.
+
+        This method provides specialized diagnosis for CI failures by:
+        1. Extracting file paths and line numbers from CI logs
+        2. Mapping CI check names to error categories
+        3. Parsing GitHub Actions annotations
+        4. Generating CI-specific MRE and fix suggestions
+
+        Args:
+            ci_context: CI failure context dict with:
+                - error_summary: Summary of the error
+                - test_output: Raw test/CI output
+                - log_excerpt: Excerpt from CI logs
+                - failed_check_name: Name of the failed CI check
+                - check_run_id: GitHub check run ID
+                - logs_url: URL to full CI logs
+                - head_sha: Commit SHA that triggered CI
+                - head_branch: Branch name
+            source_contents: Dict mapping file paths to their contents
+
+        Returns:
+            DiagnosticResult with CI-specific diagnosis
+
+        Event Codes:
+            [DIAGNOSTIC_AGENT_CI_START] - Started CI diagnosis
+            [DIAGNOSTIC_AGENT_CI_COMPLETE] - Completed CI diagnosis
+            [DIAGNOSTIC_AGENT_CI_FILE_EXTRACTED] - Extracted file from CI logs
+        """
+        logger.info(
+            f"[DIAGNOSTIC_AGENT_CI_START] Diagnosing CI failure: "
+            f"check={ci_context.get('failed_check_name', 'unknown')}"
+        )
+
+        error_context = self._parse_ci_context(ci_context)
+
+        result = self.diagnose(error_context, source_contents)
+
+        if result.success and result.root_cause:
+            ci_check_name = ci_context.get("failed_check_name", "").lower()
+            # Find all matching keywords and pick the longest one to be more specific
+            # (gemini-code-assist recommendation to handle ambiguous check names)
+            matches = [kw for kw in self.CI_CHECK_CATEGORY_MAP if kw in ci_check_name]
+            if matches:
+                best_match = max(matches, key=len)
+                if result.root_cause.category == ErrorCategory.CI_FAILURE:
+                    result.root_cause.category = self.CI_CHECK_CATEGORY_MAP[best_match]
+
+            if ci_context.get("logs_url"):
+                result.root_cause.evidence.append(
+                    f"CI Logs: {ci_context['logs_url']}"
+                )
+            if ci_context.get("check_run_id"):
+                result.root_cause.evidence.append(
+                    f"Check Run ID: {ci_context['check_run_id']}"
+                )
+
+        logger.info(
+            f"[DIAGNOSTIC_AGENT_CI_COMPLETE] CI diagnosis complete: "
+            f"category={result.root_cause.category.value if result.root_cause else 'unknown'}"
+        )
+
+        return result
+
+    # Issue #4103: Maximum input length for CI log parsing to prevent ReDoS
+    MAX_CI_LOG_LENGTH = 100000  # 100KB limit for CI log parsing
+
+    def _parse_ci_context(self, ci_context: Dict[str, Any]) -> Dict[str, Any]:
+        """Parse CI failure context into standard error context.
+
+        Issue #4103: Extract structured information from CI logs.
+
+        Args:
+            ci_context: Raw CI failure context
+
+        Returns:
+            Standardized error context dict
+
+        Note:
+            Input is truncated to MAX_CI_LOG_LENGTH to prevent ReDoS attacks.
+        """
+        error_context: Dict[str, Any] = {}
+
+        error_summary = ci_context.get("error_summary", "")
+        test_output = ci_context.get("test_output", "")
+        log_excerpt = ci_context.get("log_excerpt", "")
+
+        combined_output = f"{error_summary}\n{test_output}\n{log_excerpt}"
+
+        # Truncate input to prevent ReDoS (gemini-code-assist security recommendation)
+        if len(combined_output) > self.MAX_CI_LOG_LENGTH:
+            combined_output = combined_output[:self.MAX_CI_LOG_LENGTH]
+            logger.warning(
+                f"[DIAGNOSTIC_AGENT_CI_TRUNCATED] CI log truncated to "
+                f"{self.MAX_CI_LOG_LENGTH} chars to prevent ReDoS"
+            )
+
+        error_context["error_message"] = error_summary or "CI check failed"
+        error_context["traceback"] = test_output or log_excerpt
+
+        for pattern in self.CI_FILE_PATTERNS:
+            match = pattern.search(combined_output)
+            if match:
+                file_path = match.group(1)
+                line_number = int(match.group(2))
+                error_context["file_path"] = file_path
+                error_context["line_number"] = line_number
+                logger.debug(
+                    f"[DIAGNOSTIC_AGENT_CI_FILE_EXTRACTED] "
+                    f"file={file_path}, line={line_number}"
+                )
+                break
+
+        failed_check = ci_context.get("failed_check_name", "")
+        if failed_check:
+            error_context["error_type"] = f"CI:{failed_check}"
+
+        error_context["ci_metadata"] = {
+            "check_run_id": ci_context.get("check_run_id"),
+            "logs_url": ci_context.get("logs_url"),
+            "head_sha": ci_context.get("head_sha"),
+            "head_branch": ci_context.get("head_branch"),
+        }
+
+        return error_context
 
 
 def diagnose_error(

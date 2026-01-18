@@ -29,7 +29,8 @@ class TestErrorCategory:
         expected = {
             "syntax", "type_mismatch", "null_reference", "import_failure",
             "assertion_failure", "resource_not_found", "permission_denied",
-            "timeout", "configuration", "dependency", "logic", "unknown"
+            "timeout", "configuration", "dependency", "logic", "unknown",
+            "ci_failure",  # Issue #4103: CI failure context integration
         }
         actual = {cat.value for cat in ErrorCategory}
         assert actual == expected
@@ -502,3 +503,144 @@ class TestBlastRadiusAssessmentLogic:
         )
 
         assert "src/utils.py" in result.blast_radius.affected_files
+
+
+class TestCIFailureContext:
+    """Test CI failure context integration (Issue #4103)."""
+
+    def test_ci_failure_category_exists(self):
+        """Test that CI_FAILURE category is defined."""
+        assert ErrorCategory.CI_FAILURE.value == "ci_failure"
+
+    def test_diagnose_ci_failure_basic(self):
+        """Test basic CI failure diagnosis."""
+        node = DiagnosticAgentNode(enable_llm=False)
+        ci_context = {
+            "error_summary": "Tests failed: 2 failed, 10 passed",
+            "test_output": "FAILED test_example.py::test_foo - AssertionError",
+            "failed_check_name": "pytest",
+            "check_run_id": "12345",
+            "logs_url": "https://github.com/org/repo/actions/runs/12345",
+        }
+
+        result = node.diagnose_ci_failure(ci_context)
+
+        assert result.success
+        assert result.root_cause is not None
+        assert "CI Logs:" in str(result.root_cause.evidence)
+        assert "Check Run ID:" in str(result.root_cause.evidence)
+
+    def test_diagnose_ci_failure_extracts_file_path(self):
+        """Test that file paths are extracted from CI logs."""
+        node = DiagnosticAgentNode(enable_llm=False)
+        ci_context = {
+            "error_summary": "Lint check failed",
+            "test_output": "src/main.py:42: error: Missing type annotation",
+            "failed_check_name": "mypy",
+        }
+
+        result = node.diagnose_ci_failure(ci_context)
+
+        assert result.success
+        assert result.root_cause is not None
+
+    def test_diagnose_ci_failure_maps_check_name_to_category(self):
+        """Test that CI check names are mapped to appropriate categories."""
+        node = DiagnosticAgentNode(enable_llm=False)
+
+        # Test check -> ASSERTION_FAILURE
+        ci_context = {
+            "error_summary": "Test failed",
+            "test_output": "FAILED",
+            "failed_check_name": "unit-test",
+        }
+        result = node.diagnose_ci_failure(ci_context)
+        assert result.success
+
+        # Lint check -> SYNTAX
+        ci_context = {
+            "error_summary": "Lint failed",
+            "test_output": "eslint error",
+            "failed_check_name": "lint-check",
+        }
+        result = node.diagnose_ci_failure(ci_context)
+        assert result.success
+
+    def test_parse_ci_context_github_actions_annotation(self):
+        """Test parsing GitHub Actions error annotations."""
+        node = DiagnosticAgentNode(enable_llm=False)
+        ci_context = {
+            "error_summary": "Build failed",
+            "log_excerpt": "::error file=src/app.ts,line=123::Type error",
+            "failed_check_name": "build",
+        }
+
+        result = node.diagnose_ci_failure(ci_context)
+
+        assert result.success
+
+    def test_parse_ci_context_pytest_output(self):
+        """Test parsing pytest error output."""
+        node = DiagnosticAgentNode(enable_llm=False)
+        ci_context = {
+            "error_summary": "pytest failed",
+            "test_output": """
+                tests/test_main.py:45: error: AssertionError
+                E       assert 1 == 2
+            """,
+            "failed_check_name": "pytest",
+        }
+
+        result = node.diagnose_ci_failure(ci_context)
+
+        assert result.success
+
+    def test_ci_failure_with_source_contents(self):
+        """Test CI failure diagnosis with source contents."""
+        node = DiagnosticAgentNode(enable_llm=False)
+        ci_context = {
+            "error_summary": "Type error in main.py",
+            "test_output": "src/main.py:10: error: Incompatible types",
+            "failed_check_name": "mypy",
+        }
+        source_contents = {
+            "src/main.py": "def foo(x: int) -> str:\n    return x  # type error",
+        }
+
+        result = node.diagnose_ci_failure(ci_context, source_contents)
+
+        assert result.success
+
+    def test_ci_failure_empty_context(self):
+        """Test CI failure diagnosis with empty context."""
+        node = DiagnosticAgentNode(enable_llm=False)
+        ci_context = {}
+
+        result = node.diagnose_ci_failure(ci_context)
+
+        assert result.success
+        assert result.root_cause is not None
+
+    def test_ci_file_patterns_pytest(self):
+        """Test CI file pattern matching for pytest output."""
+        node = DiagnosticAgentNode(enable_llm=False)
+        ci_context = {
+            "test_output": "tests/unit/test_api.py:123: E501 line too long",
+        }
+
+        error_context = node._parse_ci_context(ci_context)
+
+        assert error_context.get("file_path") == "tests/unit/test_api.py"
+        assert error_context.get("line_number") == 123
+
+    def test_ci_file_patterns_javascript(self):
+        """Test CI file pattern matching for JavaScript output."""
+        node = DiagnosticAgentNode(enable_llm=False)
+        ci_context = {
+            "test_output": "src/components/App.tsx:45:12 error",
+        }
+
+        error_context = node._parse_ci_context(ci_context)
+
+        assert error_context.get("file_path") == "src/components/App.tsx"
+        assert error_context.get("line_number") == 45
