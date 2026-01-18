@@ -25,7 +25,7 @@ Section 4.3 Model Governance Framework v2 - Single Source of Truth
 
 ## Problem
 
-30 feature flags have different values between IaC defaults (render.yaml) and Dashboard actual settings. The IaC should reflect the actual production configuration.
+29 feature flags have different values between IaC defaults (render.yaml) and Dashboard actual settings. The IaC should reflect the actual production configuration.
 
 ## Tasks
 
@@ -219,14 +219,22 @@ There's a naming inconsistency between prod.md (`JWT_EXPIRATION_MINUTES`) and se
 
 ## Tasks
 
-- [ ] Add `JWT_EXPIRATION_MINUTES` as an alias to the existing field
-- [ ] Document both names in env.schema.yaml
-- [ ] Update documentation to prefer one canonical name
+- [ ] Use Pydantic v2 `validation_alias=AliasChoices` to support both names:
+  ```python
+  from pydantic import AliasChoices
+  access_token_expiry_minutes: int = Field(
+      default=15,
+      validation_alias=AliasChoices('ACCESS_TOKEN_EXPIRY_MINUTES', 'JWT_EXPIRATION_MINUTES'),
+      description="JWT access token expiry time in minutes"
+  )
+  ```
+- [ ] Document both names in env.schema.yaml with note that ACCESS_TOKEN_EXPIRY_MINUTES is canonical
+- [ ] Update documentation to prefer ACCESS_TOKEN_EXPIRY_MINUTES as the canonical name
 
 ## Acceptance Criteria
 
 - [ ] Both names work as environment variables
-- [ ] Documentation clarifies the canonical name
+- [ ] Documentation clarifies ACCESS_TOKEN_EXPIRY_MINUTES as the canonical name
 ```
 
 ---
@@ -311,7 +319,7 @@ Section 4.3 Model Governance Framework v2 - Drift Monitoring
 ```markdown
 ## Background
 
-17 configuration values in prod.md are not defined in env.schema.yaml.
+16 configuration values in prod.md are not defined in env.schema.yaml.
 
 ## Missing Definitions
 
@@ -323,13 +331,14 @@ Section 4.3 Model Governance Framework v2 - Drift Monitoring
 6. REFERRAL_MAX_USAGE
 7. REFERRAL_DEFAULT_POINTS
 8. CLOUD_ENV
-9. AUTH_ENFORCE_OWNER_2FA
-10. DB_POOL_SIZE (after P1.3)
-11. DB_POOL_MAX_OVERFLOW (after P1.3)
-12. DB_POOL_RECYCLE (after P1.3)
-13. DB_POOL_PRE_PING (after P1.3)
-14. DB_POOL_TIMEOUT (after P1.3)
-15. JWT_ALGORITHM (after P1.4)
+9. DB_POOL_SIZE (after P1.3)
+10. DB_POOL_MAX_OVERFLOW (after P1.3)
+11. DB_POOL_RECYCLE (after P1.3)
+12. DB_POOL_PRE_PING (after P1.3)
+13. DB_POOL_TIMEOUT (after P1.3)
+14. JWT_ALGORITHM (after P1.4)
+
+Note: AUTH_ENFORCE_OWNER_2FA is excluded from this list as 2FA-related configurations are deferred per user request (currently in development/testing phase).
 
 ## Tasks
 
@@ -399,12 +408,14 @@ SMTP settings are referenced in documentation but not implemented in settings.py
 
 ## Tasks
 
-- [ ] Add Field definitions to settings.py:
+- [ ] Add Field definitions to settings.py following the dual-field secret pattern (per docs/config/settings.md):
   - `smtp_host: str = Field(default="", alias="SMTP_HOST")`
   - `smtp_port: int = Field(default=587, alias="SMTP_PORT")`
-  - `smtp_user: SecretStr = Field(default=None, alias="SMTP_USER")`
-  - `smtp_password: SecretStr = Field(default=None, alias="SMTP_PASSWORD")`
+  - `_smtp_user_secret: Optional[SecretStr] = Field(default=None, alias="SMTP_USER", repr=False)`
+  - `_smtp_password_secret: Optional[SecretStr] = Field(default=None, alias="SMTP_PASSWORD", repr=False)`
   - `email_from: str = Field(default="", alias="EMAIL_FROM")`
+  
+- [ ] Add corresponding `@property` methods for smtp_user and smtp_password to unwrap SecretStr values
 
 - [ ] Add to env.schema.yaml with security_level: sensitive
 
@@ -413,7 +424,7 @@ SMTP settings are referenced in documentation but not implemented in settings.py
 ## Acceptance Criteria
 
 - [ ] SMTP settings configurable via environment
-- [ ] Sensitive values use SecretStr
+- [ ] Sensitive values use dual-field SecretStr pattern (not exposed in logs)
 - [ ] Email functionality works with new settings
 ```
 
@@ -433,8 +444,15 @@ CLOUD_ENV is used in production but not defined in settings.py.
 
 ## Tasks
 
-- [ ] Add Field definition:
-  - `cloud_env: str = Field(default="development", alias="CLOUD_ENV")`
+- [ ] Add Field definition with Literal type for type safety (similar to `environment` field):
+  ```python
+  from typing import Literal
+  cloud_env: Literal["development", "staging", "production"] = Field(
+      default="development",
+      alias="CLOUD_ENV",
+      description="Cloud environment identifier"
+  )
+  ```
 
 - [ ] Add to env.schema.yaml
 
@@ -443,7 +461,7 @@ CLOUD_ENV is used in production but not defined in settings.py.
 ## Acceptance Criteria
 
 - [ ] CLOUD_ENV configurable via environment
-- [ ] Valid values: development, staging, production
+- [ ] Type validation enforces valid values: development, staging, production
 ```
 
 ---
