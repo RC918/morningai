@@ -424,6 +424,7 @@ class GitHubCommentParser:
                 comment_data.get("state") == "resolved"
             )
 
+            reply_to_id = comment_data.get("in_reply_to_id")
             return ParsedReviewComment(
                 comment_id=comment_id,
                 comment_type=comment_type,
@@ -434,7 +435,7 @@ class GitHubCommentParser:
                 line_range=line_range,
                 author=author,
                 created_at=comment_data.get("created_at") or comment_data.get("submitted_at"),
-                in_reply_to=str(comment_data.get("in_reply_to_id", "")) or None,
+                in_reply_to=str(reply_to_id) if reply_to_id is not None else None,
                 suggestion_code=suggestion_code,
                 is_resolved=is_resolved,
             )
