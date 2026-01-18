@@ -672,7 +672,7 @@ class DebuggerAgentV2:
                 file_content=file_content,
                 file_path=target_file,
                 review_comment=review_comment,
-                severity="low",
+                severity=error.severity.value,
             )
 
             if hasattr(result, "status") and result.status.value == "patch":
