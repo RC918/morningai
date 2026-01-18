@@ -1108,9 +1108,13 @@ class PIIScanner:
 
         scan_duration = (time.time() - start_time) * 1000
 
-        # Issue #4039: Add content_type to context for audit trail
-        result_context = context.copy() if context else {}
-        result_context["content_type"] = content_type.value
+        # Issue #4039: Log content_type for audit trail (don't modify user's context)
+        if is_technical_content:
+            logger.debug(
+                "[PIIScanner] Scanned technical content (type=%s), findings=%d",
+                content_type.value,
+                len(findings),
+            )
 
         return PIIScanResult(
             has_pii=len(findings) > 0,
@@ -1119,7 +1123,7 @@ class PIIScanner:
             findings=findings,
             summary=summary,
             scan_duration_ms=scan_duration,
-            context=result_context,
+            context=context or {},
         )
 
     def _check_category(
