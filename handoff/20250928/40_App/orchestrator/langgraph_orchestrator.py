@@ -7775,6 +7775,11 @@ def reviewer_node(state: AgentState) -> AgentState:
                         if finding.line_number:
                             specialist_comment["start_line"] = finding.line_number
                             specialist_comment["end_line"] = finding.line_number
+                        # EPIC D-5: Pass code suggestion for Coder Agent integration
+                        # The suggestion field contains concrete, copy-pasteable code fixes
+                        # that can be directly applied by automated agents
+                        if finding.suggestion:
+                            specialist_comment["suggestion"] = finding.suggestion
                         state["review_comments"] = state.get("review_comments", []) + [specialist_comment]
 
                         if finding.severity in ("high", "critical"):
