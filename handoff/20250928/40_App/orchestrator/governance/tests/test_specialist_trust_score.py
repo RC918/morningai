@@ -135,10 +135,11 @@ class TestSpecialistTrustScoreTracker:
         tracker = SpecialistTrustScoreTracker()
         scores = tracker.get_all_trust_scores()
 
-        assert len(scores) == 3
+        assert len(scores) == 4
         assert scores["security"] == 0.7
         assert scores["performance"] == 0.7
         assert scores["architecture"] == 0.7
+        assert scores["correctness"] == 0.7
 
     def test_record_accepted_feedback(self):
         """Test recording accepted feedback."""
