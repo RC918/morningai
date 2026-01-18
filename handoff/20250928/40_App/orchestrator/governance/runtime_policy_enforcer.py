@@ -766,11 +766,10 @@ class RuntimePolicyEnforcer:
                 return self._create_allowed_result(reason, telemetry_event)
             elif action == EnforcementAction.REDACT:
                 # Issue #3951: Handle REDACT action - redact PII and allow content to proceed
-                # Filter PII findings from all findings for redaction
-                pii_findings = [f for f in findings if f.get("category") in (
-                    "email", "phone", "ssn", "credit_card", "name", "address",
-                    "ip_address", "date_of_birth", "passport", "driver_license"
-                )]
+                # Issue #4051: Use PII_CATEGORIES constant for dynamic filtering
+                # This ensures new PII categories are automatically included
+                from governance.pii_scanner import PII_CATEGORIES
+                pii_findings = [f for f in findings if f.get("category") in PII_CATEGORIES]
                 redacted_content = self._redact_pii_content(content, pii_findings)
 
                 # Update telemetry for redaction event
