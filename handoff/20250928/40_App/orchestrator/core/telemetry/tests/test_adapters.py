@@ -5,6 +5,7 @@ Tests cover backward compatibility adapters:
 1. from_agent_telemetry_event: Convert BaseAgent TelemetryEvent
 2. from_resource_telemetry_event: Convert resource_telemetry events
 3. from_policy_telemetry_event: Convert RuntimePolicyEnforcer events
+4. from_routing_decision: Convert routing decisions (EPIC I Issue #4085)
 """
 
 from dataclasses import dataclass, field
@@ -15,6 +16,7 @@ from core.telemetry.adapters import (
     from_agent_telemetry_event,
     from_resource_telemetry_event,
     from_policy_telemetry_event,
+    from_routing_decision,
 )
 from core.telemetry.schema import (
     StatusCode,
@@ -337,3 +339,161 @@ class TestFromPolicyTelemetryEvent:
         )
 
         assert record.epic_tag == "EPIC-E"
+
+
+class TestFromRoutingDecision:
+    """
+    Tests for from_routing_decision adapter
+
+    EPIC I Integration (Issue #4085): Multi-Provider Governance
+    Tests cover provider-aware telemetry for Gemini-first routing.
+    """
+
+    def test_basic_routing_decision(self):
+        """Should create telemetry record for basic routing decision"""
+        record = from_routing_decision(
+            provider="gemini",
+            model_name="gemini-3-pro-preview",
+            trace_id="trace123",
+        )
+
+        assert record.name == "routing.decision"
+        assert record.span_context.trace_id == "trace123"
+        assert record.component == "RoutingEngine"
+        assert record.epic_tag == "EPIC-I"
+        assert record.provider == "gemini"
+        assert record.model_name == "gemini-3-pro-preview"
+        assert record.is_fallback is False
+        assert record.status_code == StatusCode.OK
+
+    def test_fallback_routing_decision(self):
+        """Should create telemetry record for fallback routing decision"""
+        record = from_routing_decision(
+            provider="alicloud",
+            model_name="qwen-max",
+            trace_id="trace123",
+            is_fallback=True,
+            fallback_reason="Primary provider gemini unavailable",
+        )
+
+        assert record.name == "routing.fallback"
+        assert record.provider == "alicloud"
+        assert record.model_name == "qwen-max"
+        assert record.is_fallback is True
+        assert record.fallback_reason == "Primary provider gemini unavailable"
+        assert record.status_message == "Primary provider gemini unavailable"
+
+    def test_with_task_type(self):
+        """Should include task_type in attributes"""
+        record = from_routing_decision(
+            provider="gemini",
+            model_name="gemini-3-flash-preview",
+            trace_id="trace123",
+            task_type="review",
+        )
+
+        assert record.attributes["task_type"] == "review"
+
+    def test_with_estimated_cost(self):
+        """Should include estimated_cost in metrics and field"""
+        record = from_routing_decision(
+            provider="openai",
+            model_name="gpt-4o",
+            trace_id="trace123",
+            estimated_cost=0.05,
+        )
+
+        assert record.estimated_cost == 0.05
+        assert record.metrics["estimated_cost_usd"] == 0.05
+
+    def test_parent_span_id(self):
+        """Should set parent_span_id when provided"""
+        record = from_routing_decision(
+            provider="gemini",
+            model_name="gemini-3-pro-preview",
+            trace_id="trace123",
+            parent_span_id="parent456",
+        )
+
+        assert record.span_context.parent_span_id == "parent456"
+
+    def test_custom_epic_tag(self):
+        """Should use custom epic_tag when provided"""
+        record = from_routing_decision(
+            provider="gemini",
+            model_name="gemini-3-pro-preview",
+            trace_id="trace123",
+            epic_tag="EPIC-D",
+        )
+
+        assert record.epic_tag == "EPIC-D"
+
+    def test_to_dict_includes_provider_fields(self):
+        """Should include provider fields in to_dict output"""
+        record = from_routing_decision(
+            provider="alicloud",
+            model_name="qwen-plus",
+            trace_id="trace123",
+            is_fallback=True,
+            fallback_reason="Rate limit exceeded",
+            estimated_cost=0.02,
+        )
+
+        result = record.to_dict()
+
+        assert result["provider"] == "alicloud"
+        assert result["model_name"] == "qwen-plus"
+        assert result["is_fallback"] is True
+        assert result["fallback_reason"] == "Rate limit exceeded"
+        assert result["estimated_cost"] == 0.02
+
+    def test_gemini_first_routing(self):
+        """Should correctly capture Gemini-first routing decision"""
+        record = from_routing_decision(
+            provider="gemini",
+            model_name="gemini-3-pro-preview",
+            trace_id="trace123",
+            task_type="planning",
+            estimated_cost=0.01,
+        )
+
+        assert record.provider == "gemini"
+        assert record.is_fallback is False
+        assert record.attributes["task_type"] == "planning"
+
+    def test_cross_provider_fallback(self):
+        """Should correctly capture cross-provider fallback"""
+        record = from_routing_decision(
+            provider="openai",
+            model_name="gpt-4o",
+            trace_id="trace123",
+            task_type="coding",
+            is_fallback=True,
+            fallback_reason="Gemini and AliCloud unavailable",
+            estimated_cost=0.10,
+        )
+
+        assert record.provider == "openai"
+        assert record.is_fallback is True
+        assert record.fallback_reason == "Gemini and AliCloud unavailable"
+        assert record.estimated_cost == 0.10
+
+    def test_sanitizes_fallback_reason_and_task_type(self):
+        """Should sanitize fallback_reason and task_type to prevent log injection (Issue #3718)"""
+        record = from_routing_decision(
+            provider="gemini",
+            model_name="gemini-3-pro-preview",
+            trace_id="trace123",
+            task_type="malicious\ninjection\rattempt",
+            is_fallback=True,
+            fallback_reason="error\nwith\nnewlines",
+        )
+
+        # Newlines should be replaced with underscores
+        assert "\n" not in record.status_message
+        assert "\r" not in record.status_message
+        assert "\n" not in record.attributes["task_type"]
+        assert "\r" not in record.attributes["task_type"]
+        # Verify sanitization replaced control characters
+        assert record.status_message == "error_with_newlines"
+        assert record.attributes["task_type"] == "malicious_injection_attempt"
