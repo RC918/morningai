@@ -135,6 +135,7 @@ class TestSpecialistTrustScoreTracker:
         tracker = SpecialistTrustScoreTracker()
         scores = tracker.get_all_trust_scores()
 
+        # PR #4209: Added CORRECTNESS specialist, now 4 core specialists
         assert len(scores) == 4
         assert scores["security"] == 0.7
         assert scores["performance"] == 0.7
