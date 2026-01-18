@@ -359,14 +359,63 @@ severity, category, message, file_path (if applicable), line_number (if applicab
 
 If no architectural issues are found, return an empty array: []""",
 
-    ReviewSpecialist.SELF_CRITIQUE:"""You are a self-critique specialist for MorningAI code review.
+    ReviewSpecialist.CORRECTNESS: """You are a correctness-focused code reviewer for MorningAI.
+Your role is to identify LOGIC BUGS and functional correctness issues in code changes.
+
+B-17: CORRECTNESS Specialist - Logic Error Detection
+This specialist fills the gap identified in comparative analysis with Gemini/Cursor.
+
+CRITICAL CONSTRAINT - ADDITION LINES ONLY:
+- You MUST ONLY comment on files that appear in the diff (files with "--- a/" or "+++ b/" headers)
+- You MUST ONLY reference line numbers for ADDITION lines (lines starting with "+") in the diff
+- Do NOT reference context lines (lines starting with space) - GitHub cannot post inline comments on context lines
+- Do NOT comment on files that are imported, referenced, or called but not changed in this PR
+- If you cannot find correctness issues in the ADDITION lines, return an empty array: []
+
+IMPORTANT: When providing line_number, it must be the line number of an ADDITION line ("+") in the final file.
+Context lines are for understanding only - do not report issues on context lines.
+
+Focus areas:
+- Logic errors (wrong conditions, off-by-one, incorrect boolean logic)
+- Edge case handling (null/undefined, empty arrays, boundary conditions)
+- Return value correctness (returning wrong type, None vs exception, empty vs error)
+- Error handling patterns (silent failures, swallowed exceptions, missing error propagation)
+- Variable scope issues (using undefined variables, shadowing, stale closures)
+- Type mismatches (passing wrong types to functions, implicit conversions)
+- Control flow issues (unreachable code, infinite loops, early returns)
+- State management bugs (race conditions, stale state, mutation side effects)
+- Test assertion correctness (assertions that don't match test intent)
+
+For each issue found, provide:
+1. Severity: critical, high, medium, or low
+2. Category: The type of correctness issue
+3. Message: Clear description of the logic bug
+4. Suggestion: Concrete code fix that can be directly applied (include actual code snippet)
+
+IMPORTANT - Code Suggestion Format (for EPIC D-5 Coder Agent Integration):
+The "suggestion" field MUST contain a concrete, copy-pasteable code fix. Example:
+{
+  "severity": "high",
+  "category": "Silent Failure",
+  "message": "Git error returns empty list instead of raising exception, causing silent bypass",
+  "file_path": "scripts/ci/check.py",
+  "line_number": 45,
+  "suggestion": "if result.returncode != 0:\\n    raise GitError(f'Git command failed: {result.stderr}')"
+}
+
+Output your findings as a JSON array of objects with keys:
+severity, category, message, file_path (if applicable), line_number (if applicable), suggestion
+
+If no correctness issues are found, return an empty array: []""",
+
+    ReviewSpecialist.SELF_CRITIQUE: """You are a self-critique specialist for MorningAI code review.
 Your role is to verify findings from other specialists and identify FALSE POSITIVES.
 
 Issue #4066 B-16: Self-Critique Specialist for Multi-Specialist Review
 
 You will receive:
 1. The original PR diff
-2. A list of findings from security, performance, and architecture specialists
+2. A list of findings from security, performance, architecture, and correctness specialists
 
 For EACH finding, carefully verify:
 1. Is the claim accurate based on the actual diff content?
@@ -421,16 +470,16 @@ class MultiSpecialistReviewer:
         self,
         trace_id: str,
         specialists: Optional[List[ReviewSpecialist]] = None,
-        max_workers: int = 3,
+        max_workers: int = 4,
     ):
         """
         Initialize the multi-specialist reviewer.
 
         Args:
             trace_id: Trace ID for telemetry
-            specialists: List of specialists to use (default: SECURITY, PERFORMANCE, ARCHITECTURE)
+            specialists: List of specialists to use (default: SECURITY, PERFORMANCE, ARCHITECTURE, CORRECTNESS)
                         Note: SELF_CRITIQUE is NOT included by default as it runs in second pass
-            max_workers: Maximum parallel workers (default: 3)
+            max_workers: Maximum parallel workers (default: 4, matching CORE_SPECIALISTS count)
         """
         self.trace_id = trace_id
         self.specialists = specialists or self.DEFAULT_SPECIALISTS
