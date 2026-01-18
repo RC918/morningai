@@ -980,10 +980,9 @@ def _downgrade_to_file_level(
     if comment.get("file"):
         downgraded["file"] = comment["file"]
 
-    # Add downgrade reason to message for transparency
-    downgraded["message"] = (
-        f"[Line info removed: {reason}] {comment['message']}"
-    )
+    # Keep original message without implementation detail prefix
+    # The downgrade reason is logged for debugging but not exposed to users/agents
+    # This avoids "Implementation Detail Leak" - users only care about the issue itself
 
     logger.debug(
         f"[ReviewCommentSchema] Downgraded comment for {comment.get('file')}: "
