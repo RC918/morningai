@@ -4,8 +4,8 @@ Test for validate_priority_score function.
 H-2 Verification: This test will FAIL because validate_priority_score
 has an intentional bug (missing upper bound check).
 
-This test is placed in the simulation directory (not tests/) to ensure
-the PR is processed by the Orchestrator (smart filtering skips test-only PRs).
+This test is placed in the tests/ directory to ensure pytest discovers it.
+The PR also contains code changes in regression.py to bypass smart filtering.
 """
 
 from simulation.regression import validate_priority_score
