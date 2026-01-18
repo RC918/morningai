@@ -3106,6 +3106,21 @@ class Settings(BaseSettings):
         )
     )
 
+    self_correction_push_unverified: bool = Field(
+        default=True,
+        alias="SELF_CORRECTION_PUSH_UNVERIFIED",
+        description=(
+            "Enable pushing unverified fixes from D-4 Self-Correction Loop (Issue #4201). "
+            "Default True = When SelfCorrectionLoop generates a fix but cannot verify locally "
+            "(no test callback), commit and push the fix to the PR branch anyway. "
+            "This enables the 'Self-Healing' vision where CI acts as the final judge. "
+            "The fix attempt will be committed with message 'fix: D-4 auto-fix attempt N'. "
+            "If the fix fails CI, D-4 will retry up to SELF_CORRECTION_MAX_ATTEMPTS times. "
+            "When False = Unverified fixes are not pushed, falls back to other coders. "
+            "Blueprint alignment: Wish Pool v2 Section 3.3 Self-Healing capability."
+        )
+    )
+
     enable_multi_file_hitl_escalation: bool = Field(
         default=True,
         alias="ENABLE_MULTI_FILE_HITL_ESCALATION",
