@@ -26,7 +26,9 @@ Usage:
 
 import asyncio
 import logging
+import re
 import time
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
@@ -36,6 +38,12 @@ from core.routing import TaskType
 
 # Issue #4074: Import shared types from common module
 from governance.types import SpecialistType, CORE_SPECIALISTS
+
+# Pre-compiled regex patterns for diff parsing (Comment #18: avoid recompilation on each call)
+# Pattern to match hunk headers: @@ -old_start,old_count +new_start,new_count @@
+HUNK_HEADER_PATTERN = re.compile(r'^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@')
+# Pattern to match diff --git headers: diff --git a/path b/path
+DIFF_GIT_HEADER_PATTERN = re.compile(r'^diff --git a/(.+?) b/\1$')
 
 logger = logging.getLogger(__name__)
 
@@ -737,37 +745,32 @@ class MultiSpecialistReviewer:
         Returns:
             Dict mapping file_path -> list of valid line numbers (addition lines only)
         """
-        import re
-
-        addition_lines: Dict[str, List[int]] = {}
+        # Comment #7: Use defaultdict to simplify code (no manual key existence checks)
+        addition_lines: Dict[str, List[int]] = defaultdict(list)
         current_file: Optional[str] = None
         current_line_num: int = 0
-
-        # Pattern to match hunk headers: @@ -old_start,old_count +new_start,new_count @@
-        hunk_header_pattern = re.compile(r'^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@')
 
         for line in diff_content.split('\n'):
             # Check for new file header
             if line.startswith('diff --git a/'):
-                # Extract file path from "diff --git a/path b/path"
-                match = re.match(r'^diff --git a/(.+?) b/\1$', line)
+                # Extract file path using pre-compiled pattern (Comment #18)
+                match = DIFF_GIT_HEADER_PATTERN.match(line)
                 if match:
                     current_file = match.group(1)
-                    if current_file not in addition_lines:
-                        addition_lines[current_file] = []
                 continue
 
             # Check for +++ header (fallback for file path)
+            # Comment #15: Use exact match '+++' to avoid excluding C++ pre-increment lines
+            if line == '+++ /dev/null':
+                # Deleted file, skip
+                continue
             if line.startswith('+++ b/'):
                 file_path = line[6:]  # Remove "+++ b/" prefix
-                if file_path != "/dev/null":
-                    current_file = file_path
-                    if current_file not in addition_lines:
-                        addition_lines[current_file] = []
+                current_file = file_path
                 continue
 
-            # Check for hunk header
-            hunk_match = hunk_header_pattern.match(line)
+            # Check for hunk header using pre-compiled pattern (Comment #18)
+            hunk_match = HUNK_HEADER_PATTERN.match(line)
             if hunk_match:
                 # new_start is the starting line number in the new file
                 current_line_num = int(hunk_match.group(1))
@@ -778,11 +781,13 @@ class MultiSpecialistReviewer:
                 continue
 
             # Process diff lines within a hunk
-            if line.startswith('+') and not line.startswith('+++'):
+            # Comment #15: Check for exact '+' prefix, not just startswith('+')
+            # This correctly handles C++ pre-increment lines like '+++counter;'
+            if line.startswith('+') and line != '+++' and not line.startswith('+++ '):
                 # Addition line - this is a valid line for inline comments
                 addition_lines[current_file].append(current_line_num)
                 current_line_num += 1
-            elif line.startswith('-') and not line.startswith('---'):
+            elif line.startswith('-') and line != '---' and not line.startswith('--- '):
                 # Deletion line - does NOT increment new file line counter
                 pass
             elif line.startswith(' ') or line == '':
