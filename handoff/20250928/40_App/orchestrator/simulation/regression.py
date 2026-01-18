@@ -1489,3 +1489,25 @@ def collect_regression_candidate(
         error_message=error_message,
         **kwargs,
     )
+
+
+def validate_priority_score(score: float) -> bool:
+    """
+    Validate that a priority score is within valid range.
+
+    SelfCorrectionLoop Test: This function has an intentional bug to test
+    the D-4 SelfCorrectionLoop with SimpleCoder. The bug is that it returns
+    True for invalid scores (score > 1.0 should return False).
+
+    Args:
+        score: Priority score to validate (should be 0.0 - 1.0)
+
+    Returns:
+        True if valid, False otherwise
+    """
+    # BUG: This should check score <= 1.0, but incorrectly allows scores > 1.0
+    # This is intentional for SelfCorrectionLoop verification
+    if score < 0.0:
+        return False
+    # Missing upper bound check - this is the intentional bug
+    return True
