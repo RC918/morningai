@@ -31,6 +31,7 @@ What Test Agent v2 CANNOT do (belongs to other agents):
 
 import ast
 import hashlib
+import json
 import logging
 import re
 import time
@@ -643,17 +644,42 @@ class TestAgentV2:
             ))
             return findings, 20, 0
 
-        # Check for assertion quality
-        if "assert True" in test_code or "assert False" in test_code:
-            findings.append(TestQualityFinding(
-                category=TestQualityCategory.ASSERTIONS,
-                level=TestQualityLevel.ACCEPTABLE,
-                finding_id="AST-002",
-                title="Trivial assertion",
-                description="Found trivial assertion (assert True/False)",
-                file_path=file_path,
-                recommendation="Replace with meaningful assertions",
-            ))
+        # Check for trivial assertions using AST (more robust than string matching)
+        # This avoids false positives from comments or strings containing "assert True"
+        try:
+            tree = ast.parse(test_code)
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Assert):
+                    # Check if assertion is trivial (assert True or assert False)
+                    if isinstance(node.test, ast.Constant):
+                        if node.test.value is True or node.test.value is False:
+                            findings.append(TestQualityFinding(
+                                category=TestQualityCategory.ASSERTIONS,
+                                level=TestQualityLevel.ACCEPTABLE,
+                                finding_id="AST-002",
+                                title="Trivial assertion",
+                                description="Found trivial assertion (assert True/False)",
+                                file_path=file_path,
+                                line_number=node.lineno,
+                                recommendation="Replace with meaningful assertions",
+                            ))
+                            break  # Only report once
+                    # Also check for NameConstant (Python 3.7 compatibility)
+                    elif isinstance(node.test, ast.NameConstant):
+                        if node.test.value is True or node.test.value is False:
+                            findings.append(TestQualityFinding(
+                                category=TestQualityCategory.ASSERTIONS,
+                                level=TestQualityLevel.ACCEPTABLE,
+                                finding_id="AST-002",
+                                title="Trivial assertion",
+                                description="Found trivial assertion (assert True/False)",
+                                file_path=file_path,
+                                line_number=node.lineno,
+                                recommendation="Replace with meaningful assertions",
+                            ))
+                            break  # Only report once
+        except SyntaxError:
+            pass  # Syntax errors are handled in _validate_syntax
 
         # Score based on assertion count
         score = min(100, 50 + assertion_count * 10)
@@ -731,8 +757,23 @@ class TestAgentV2:
         findings: List[TestQualityFinding] = []
         score = 100
 
-        # Check for setup/teardown and docstrings
-        has_docstrings = '"""' in test_code or "'''" in test_code
+        # Check for module-level docstring using AST (more robust than string matching)
+        # This correctly identifies actual docstrings vs triple-quoted strings in code
+        has_docstrings = False
+        try:
+            tree = ast.parse(test_code)
+            # Check for module-level docstring
+            if ast.get_docstring(tree) is not None:
+                has_docstrings = True
+            else:
+                # Also check for function/class docstrings
+                for node in ast.walk(tree):
+                    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                        if ast.get_docstring(node) is not None:
+                            has_docstrings = True
+                            break
+        except SyntaxError:
+            pass  # Syntax errors are handled in _validate_syntax
 
         if not has_docstrings:
             score -= 10
@@ -847,8 +888,19 @@ class TestAgentV2:
         test_code: str,
         findings: List[TestQualityFinding],
     ) -> str:
-        """Compute hash for evidence ledger."""
-        content = test_code + str([f.to_dict() for f in findings])
+        """Compute hash for evidence ledger.
+
+        Uses json.dumps with sort_keys=True for deterministic serialization,
+        ensuring consistent hash values regardless of dict ordering.
+        """
+        # Sort findings by finding_id for deterministic ordering
+        sorted_findings = sorted(
+            [f.to_dict() for f in findings],
+            key=lambda x: x.get("finding_id", ""),
+        )
+        # Use json.dumps with sort_keys for deterministic serialization
+        findings_json = json.dumps(sorted_findings, sort_keys=True)
+        content = test_code + findings_json
         return hashlib.sha256(content.encode()).hexdigest()[:16]
 
 

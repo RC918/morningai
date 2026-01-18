@@ -117,17 +117,14 @@ def test_example_function():
     assert result == 2
 '''
         result = agent.validate_test_quality(valid_code)
-        assert result.overall_level in [
-            TestQualityLevel.EXCELLENT,
-            TestQualityLevel.GOOD,
-            TestQualityLevel.ACCEPTABLE,
-        ]
-        assert result.action in [
-            TestQualityAction.APPROVE,
-            TestQualityAction.SUGGEST_IMPROVEMENTS,
-        ]
+        # Valid test code with docstrings, pytest import, and meaningful assertion
+        # Score is ~72 due to coverage heuristic (1 test = 20 coverage score)
+        # ACCEPTABLE threshold is 60, GOOD threshold is 75
+        assert result.overall_score >= 60
+        assert result.overall_level in [TestQualityLevel.ACCEPTABLE, TestQualityLevel.GOOD]
+        assert result.action in [TestQualityAction.APPROVE, TestQualityAction.SUGGEST_IMPROVEMENTS]
         assert result.test_count == 1
-        assert result.assertion_count >= 1
+        assert result.assertion_count == 1
 
     def test_validate_no_assertions(self):
         """Test validation of code without assertions."""
@@ -141,8 +138,8 @@ def test_no_assertions():
         result = agent.validate_test_quality(code_without_assertions)
         assert result.assertion_count == 0
         assert TestQualityCategory.ASSERTIONS in result.category_scores
-        # Score should be low due to no assertions
-        assert result.category_scores[TestQualityCategory.ASSERTIONS] <= 50
+        # Score should be exactly 20 for no assertions (as defined in _analyze_assertions)
+        assert result.category_scores[TestQualityCategory.ASSERTIONS] == 20
 
     def test_validate_multiple_tests(self):
         """Test validation of code with multiple tests."""
@@ -206,6 +203,32 @@ class TestValidClass:
         result = agent.validate_test_quality(good_naming_code)
         assert TestQualityCategory.NAMING in result.category_scores
         assert result.category_scores[TestQualityCategory.NAMING] >= 80
+
+    def test_validate_bad_naming_conventions(self):
+        """Test validation detects bad naming conventions."""
+        agent = TestAgentV2()
+        # Bad naming - functions that start with test_ but don't follow snake_case
+        # Note: The naming validator checks for test_ prefix and snake_case pattern
+        bad_naming_code = '''
+def test_BadlyNamedTest():
+    """Test with bad naming (camelCase instead of snake_case)."""
+    assert True
+
+class testlowercase:
+    """Class with bad naming (lowercase instead of PascalCase)."""
+    def test_method(self):
+        assert True
+'''
+        result = agent.validate_test_quality(bad_naming_code)
+        assert TestQualityCategory.NAMING in result.category_scores
+        # Bad naming should result in lower score (penalty of 20 per issue)
+        assert result.category_scores[TestQualityCategory.NAMING] < 100
+        # Should have naming-related findings
+        naming_findings = [
+            f for f in result.findings
+            if f.category == TestQualityCategory.NAMING
+        ]
+        assert len(naming_findings) >= 1
 
     def test_validate_trivial_assertions(self):
         """Test detection of trivial assertions."""
