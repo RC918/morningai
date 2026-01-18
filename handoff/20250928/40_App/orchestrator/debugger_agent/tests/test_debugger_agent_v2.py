@@ -680,6 +680,34 @@ class TestSecurityPathSanitization:
         for path in valid_paths:
             assert agent._validate_file_path(path, allowed) is True
 
+    def test_validate_file_path_blocks_partial_matches(self):
+        """Test that partial path matches are blocked (gemini-code-assist fix).
+
+        Security fix: 'file.py' should NOT match 'super_file.py' because
+        the string 'super_file.py'.endswith('file.py') would be True without
+        proper path boundary checking.
+        """
+        agent = DebuggerAgentV2()
+        allowed = [
+            "/home/user/project/src/super_file.py",
+            "/home/user/project/src/my_config.py",
+        ]
+
+        # These partial matches should be REJECTED
+        partial_paths = [
+            "file.py",  # Should NOT match super_file.py
+            "config.py",  # Should NOT match my_config.py
+            "er_file.py",  # Should NOT match super_file.py
+        ]
+
+        for path in partial_paths:
+            assert agent._validate_file_path(path, allowed) is False, \
+                f"Partial path '{path}' should be rejected"
+
+        # But exact segment matches should still work
+        assert agent._validate_file_path("super_file.py", allowed) is True
+        assert agent._validate_file_path("src/super_file.py", allowed) is True
+
     def test_validate_file_path_rejects_long_paths(self):
         """Test that overly long paths are rejected."""
         agent = DebuggerAgentV2()

@@ -506,14 +506,18 @@ class DebuggerAgentV2:
             return False
 
         # Verify the path matches one of the allowed files
+        # Security fix: Use path boundary checks to prevent partial matches
+        # (e.g., 'file.py' should not match 'super_file.py')
         for allowed in allowed_files:
             allowed_normalized = os.path.normpath(allowed)
-            # Check if the file path ends with the error file path
-            # or if they match after normalization
+            # Normalize paths for comparison, using forward slashes
+            norm_path = normalized.lstrip("./").replace("\\", "/")
+            allowed_path = allowed_normalized.replace("\\", "/")
+            # Check for exact match or path boundary match (with / prefix)
             if (
-                allowed_normalized.endswith(normalized.lstrip("./"))
-                or normalized.endswith(allowed_normalized.lstrip("./"))
-                or allowed_normalized == normalized
+                allowed_path == norm_path
+                or f"/{allowed_path}".endswith(f"/{norm_path}")
+                or f"/{norm_path}".endswith(f"/{allowed_path}")
             ):
                 return True
 
@@ -1001,8 +1005,11 @@ class DebuggerAgentV2:
         ]
 
         if error.file_path:
-            # Security: Limit file path length
-            safe_path = error.file_path[:MAX_FILE_PATH_LENGTH]
+            # Security: Sanitize file path to prevent prompt injection (Issue #4196)
+            # File paths from CI output could contain injection patterns like "system:.py"
+            safe_path = self._sanitize_for_llm(
+                error.file_path, MAX_FILE_PATH_LENGTH
+            )
             parts.append(f"File: {safe_path}")
 
         if error.line_number:
