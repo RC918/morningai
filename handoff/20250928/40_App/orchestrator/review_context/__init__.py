@@ -12,6 +12,9 @@ This module provides enhanced review capabilities for the MorningAI Reviewer Age
 All capabilities respect the Blueprint Agent Separation Principle (Section 3.3):
 - Reviewer Agent can FLAG issues and SUGGEST actions
 - Reviewer Agent CANNOT generate code or apply fixes
+
+Note: D-5 (GitHub Comment Parser) has been moved to webhooks/parsers/ as it
+belongs to the Infrastructure Layer, not the Intelligence Layer.
 """
 
 from review_context.multi_specialist_reviewer import (
