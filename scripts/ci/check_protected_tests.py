@@ -13,6 +13,7 @@ Usage:
 
 import argparse
 import os
+import re
 import subprocess
 import sys
 from typing import Dict, List, Optional, Tuple
@@ -77,8 +78,14 @@ def is_regression_test_file(file_path: str, regression_dir: str = REGRESSION_TES
 
 
 def is_protected_test(file_content: str) -> bool:
-    """Check if file content contains protection marker."""
-    return PROTECTION_MARKER in file_content
+    """Check if file content contains protection marker.
+    
+    Uses word boundary matching to avoid false positives with similar markers
+    like REGRESSION_METADATA_EXTRA.
+    """
+    # Use word boundary regex to match exact marker name
+    pattern = r'\b' + re.escape(PROTECTION_MARKER) + r'\b'
+    return bool(re.search(pattern, file_content))
 
 
 def check_protected_test_modifications(

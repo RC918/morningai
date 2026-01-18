@@ -172,7 +172,13 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install PyYAML
+          pip install PyYAML pytest
+      
+      - name: Run check_protected_tests unit tests
+        run: |
+          echo "=== Running check_protected_tests.py unit tests ==="
+          cd scripts/ci
+          pytest tests/test_check_protected_tests.py -v
       
       - name: Check for protected test modifications
         run: |
