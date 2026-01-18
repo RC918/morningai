@@ -334,15 +334,21 @@ class TestErrorAnalyzer:
         assert analysis["is_simple_fix"] is True
 
     def test_analyze_assertion_error_without_values(self):
-        """Test analyzing assertion error without expected/actual values."""
+        """Test analyzing assertion error without expected/actual values.
+
+        Issue #4193: Changed behavior - assertion errors with error messages
+        are now considered simple fixes with medium confidence (0.6) to allow
+        SimpleCoder/GeneralCoder to attempt repairs.
+        """
         failure = ParsedTestFailure(
             test_name="test_foo",
             error_type=ErrorType.ASSERTION,
             error_message="AssertionError: complex condition failed"
         )
         analysis = self.analyzer.analyze(failure)
-        assert analysis["is_simple_fix"] is False
-        assert analysis["confidence"] < 0.5
+        # Issue #4193: Now allows fix attempts for assertion errors with messages
+        assert analysis["is_simple_fix"] is True
+        assert analysis["confidence"] == 0.6
 
     def test_analyze_import_error(self):
         """Test analyzing import error."""
