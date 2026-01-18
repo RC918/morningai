@@ -2739,6 +2739,12 @@ class AgentState(TypedDict):
     # CRITICAL: This field MUST be defined in AgentState for LangGraph to properly
     # propagate it between nodes. Without this definition, the flag may be lost.
     loop_protection_triggered: Optional[bool]
+    # Issue #4165: Secondary Loop Protection Counter
+    # Incremented by hitl_gate_node on each pass through the routing loop.
+    # Checked by should_fix_or_finalize to prevent infinite loops that bypass fixer_node.
+    # CRITICAL: This field MUST be defined in AgentState for LangGraph to properly
+    # propagate it between nodes. Without this definition, the counter may be lost.
+    routing_iteration_count: Optional[int]
     # EPIC F Phase F-3c: FlowController v3 Integration Fields
     # Set by flow_executor_node when ENABLE_FLOW_CONTROLLER_V3=true.
     # These fields track the execution state of plans via FlowController.
@@ -8775,7 +8781,9 @@ def should_fix_or_finalize(state: AgentState) -> str:
     merge_decision = state.get("merge_decision", "pending")
     retry_count = state.get("retry_count", 0)
     trace_id = state.get("trace_id", "unknown")
-    ci_failure_trigger = state.get("ci_failure_trigger", False)
+    # Issue #4165: Use strict boolean check to prevent bugs from truthy string values
+    # like "False" which could come from serialization. Consistent with codebase pattern.
+    ci_failure_trigger = state.get("ci_failure_trigger") is True
     metrics = _get_metrics()
 
     outcome_to_node = {
