@@ -34,13 +34,50 @@ What Debugger Agent v2 CANNOT do (belongs to other agents):
 import hashlib
 import json
 import logging
+import os
 import re
+import signal
 import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
+
+
+# Security Constants (Issue #4196)
+MAX_CI_OUTPUT_LENGTH = 100000  # 100KB max CI output
+MAX_ERROR_MESSAGE_LENGTH = 2000  # 2KB max error message for LLM
+MAX_TRACEBACK_LENGTH = 5000  # 5KB max traceback
+MAX_FILE_PATH_LENGTH = 500  # Max file path length
+REGEX_TIMEOUT_SECONDS = 5  # Timeout for regex operations
+
+# Prompt injection patterns to sanitize (Issue #4196 - HIGH priority)
+PROMPT_INJECTION_PATTERNS = [
+    r"(?i)ignore\s+(all\s+)?previous\s+instructions?",
+    r"(?i)disregard\s+(all\s+)?previous",
+    r"(?i)forget\s+(all\s+)?previous",
+    r"(?i)system\s*:\s*",
+    r"(?i)assistant\s*:\s*",
+    r"(?i)user\s*:\s*",
+    r"(?i)human\s*:\s*",
+    r"(?i)<\|im_start\|>",
+    r"(?i)<\|im_end\|>",
+    r"(?i)\[INST\]",
+    r"(?i)\[/INST\]",
+    r"(?i)<<SYS>>",
+    r"(?i)<</SYS>>",
+]
+
+# Path traversal patterns to block (Issue #4196 - MEDIUM priority)
+PATH_TRAVERSAL_PATTERNS = [
+    r"\.\./",
+    r"\.\.\\",
+    r"%2e%2e%2f",
+    r"%2e%2e/",
+    r"\.%2e/",
+    r"%2e\./",
+]
 
 
 class DebugSeverity(Enum):
@@ -293,6 +330,217 @@ class DebuggerAgentV2:
             logger.warning("[DebuggerAgentV2] GeneralCoder not available")
             return None
 
+    def _sanitize_for_llm(self, text: str, max_length: int = MAX_ERROR_MESSAGE_LENGTH) -> str:
+        """Sanitize text before passing to LLM to prevent prompt injection.
+
+        Issue #4196 - HIGH priority security enhancement.
+
+        Args:
+            text: Text to sanitize
+            max_length: Maximum allowed length
+
+        Returns:
+            Sanitized text safe for LLM consumption
+        """
+        if not text:
+            return ""
+
+        # Truncate to max length first
+        sanitized = text[:max_length]
+
+        # Remove prompt injection patterns
+        for pattern in PROMPT_INJECTION_PATTERNS:
+            sanitized = re.sub(pattern, "[REDACTED]", sanitized)
+
+        # Remove control characters that could manipulate LLM
+        sanitized = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", sanitized)
+
+        # Escape potential markdown/formatting that could confuse LLM
+        sanitized = sanitized.replace("```", "'''")
+
+        logger.debug(
+            "[DebuggerAgentV2] Sanitized text: original_len=%d, sanitized_len=%d",
+            len(text),
+            len(sanitized),
+        )
+
+        return sanitized
+
+    def _safe_regex_search(
+        self,
+        pattern: re.Pattern,
+        text: str,
+        timeout_seconds: int = REGEX_TIMEOUT_SECONDS,
+    ) -> Optional[re.Match]:
+        """Execute regex search with timeout to prevent ReDoS.
+
+        Issue #4196 - MEDIUM priority security enhancement.
+
+        Args:
+            pattern: Compiled regex pattern
+            text: Text to search
+            timeout_seconds: Maximum time allowed for regex operation
+
+        Returns:
+            Match object or None if no match or timeout
+        """
+        # Limit input length to prevent catastrophic backtracking
+        if len(text) > MAX_CI_OUTPUT_LENGTH:
+            logger.warning(
+                "[DebuggerAgentV2] Input too long for regex: %d > %d, truncating",
+                len(text),
+                MAX_CI_OUTPUT_LENGTH,
+            )
+            text = text[:MAX_CI_OUTPUT_LENGTH]
+
+        def timeout_handler(signum: int, frame: Any) -> None:
+            raise TimeoutError("Regex operation timed out")
+
+        # Set up timeout (Unix only)
+        old_handler = None
+        try:
+            old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(timeout_seconds)
+
+            result = pattern.search(text)
+
+            signal.alarm(0)  # Cancel the alarm
+            return result
+
+        except TimeoutError:
+            logger.warning(
+                "[DebuggerAgentV2] Regex timed out after %d seconds",
+                timeout_seconds,
+            )
+            return None
+        except (ValueError, OSError):
+            # signal.alarm not available (e.g., Windows or threading)
+            # Fall back to direct execution with length limit
+            return pattern.search(text)
+        finally:
+            if old_handler is not None:
+                try:
+                    signal.signal(signal.SIGALRM, old_handler)
+                except (ValueError, OSError):
+                    pass
+
+    def _safe_regex_finditer(
+        self,
+        pattern: re.Pattern,
+        text: str,
+        max_matches: int = 100,
+    ) -> List[re.Match]:
+        """Execute regex finditer with match limit to prevent ReDoS.
+
+        Issue #4196 - MEDIUM priority security enhancement.
+
+        Args:
+            pattern: Compiled regex pattern
+            text: Text to search
+            max_matches: Maximum number of matches to return
+
+        Returns:
+            List of match objects (limited to max_matches)
+        """
+        # Limit input length
+        if len(text) > MAX_CI_OUTPUT_LENGTH:
+            text = text[:MAX_CI_OUTPUT_LENGTH]
+
+        matches = []
+        try:
+            for i, match in enumerate(pattern.finditer(text)):
+                if i >= max_matches:
+                    logger.warning(
+                        "[DebuggerAgentV2] Max matches (%d) reached, stopping",
+                        max_matches,
+                    )
+                    break
+                matches.append(match)
+        except Exception as e:
+            logger.warning("[DebuggerAgentV2] Regex finditer error: %s", e)
+
+        return matches
+
+    def _validate_file_path(self, file_path: str, allowed_files: List[str]) -> bool:
+        """Validate file path to prevent path traversal attacks.
+
+        Issue #4196 - MEDIUM priority security enhancement.
+
+        Args:
+            file_path: Path to validate
+            allowed_files: List of allowed file paths
+
+        Returns:
+            True if path is valid and safe, False otherwise
+        """
+        if not file_path:
+            return False
+
+        # Check length limit
+        if len(file_path) > MAX_FILE_PATH_LENGTH:
+            logger.warning(
+                "[DebuggerAgentV2] File path too long: %d > %d",
+                len(file_path),
+                MAX_FILE_PATH_LENGTH,
+            )
+            return False
+
+        # Check for path traversal patterns
+        for pattern in PATH_TRAVERSAL_PATTERNS:
+            if re.search(pattern, file_path, re.IGNORECASE):
+                logger.warning(
+                    "[DebuggerAgentV2] Path traversal detected in: %s",
+                    file_path[:100],
+                )
+                return False
+
+        # Normalize the path
+        normalized = os.path.normpath(file_path)
+
+        # Check if normalized path still contains traversal
+        if ".." in normalized:
+            logger.warning(
+                "[DebuggerAgentV2] Path traversal after normalization: %s",
+                normalized[:100],
+            )
+            return False
+
+        # Verify the path matches one of the allowed files
+        for allowed in allowed_files:
+            allowed_normalized = os.path.normpath(allowed)
+            # Check if the file path ends with the error file path
+            # or if they match after normalization
+            if (
+                allowed_normalized.endswith(normalized.lstrip("./"))
+                or normalized.endswith(allowed_normalized.lstrip("./"))
+                or allowed_normalized == normalized
+            ):
+                return True
+
+        return False
+
+    def _sanitize_ci_output(self, ci_output: str) -> str:
+        """Sanitize CI output before processing.
+
+        Issue #4196 - Combined security enhancement.
+
+        Args:
+            ci_output: Raw CI output
+
+        Returns:
+            Sanitized CI output
+        """
+        if not ci_output:
+            return ""
+
+        # Truncate to max length
+        sanitized = ci_output[:MAX_CI_OUTPUT_LENGTH]
+
+        # Remove null bytes and other dangerous characters
+        sanitized = sanitized.replace("\x00", "")
+
+        return sanitized
+
     def debug_ci_failure(
         self,
         ci_output: str,
@@ -330,6 +578,9 @@ class DebuggerAgentV2:
                 action=DebugAction.NO_ACTION,
                 summary="No CI output to debug",
             )
+
+        # Security: Sanitize CI output before processing (Issue #4196)
+        ci_output = self._sanitize_ci_output(ci_output)
 
         files = files or []
 
@@ -493,11 +744,15 @@ class DebuggerAgentV2:
         )
 
     def _parse_ci_output(self, ci_output: str) -> List[ErrorClassification]:
-        """Parse CI output and extract all errors."""
+        """Parse CI output and extract all errors.
+
+        Security: Uses safe regex operations to prevent ReDoS (Issue #4196).
+        """
         errors: List[ErrorClassification] = []
 
+        # Security: Use safe regex with match limits (Issue #4196)
         # Try pytest pattern first
-        for match in PYTEST_FAILED_PATTERN.finditer(ci_output):
+        for match in self._safe_regex_finditer(PYTEST_FAILED_PATTERN, ci_output):
             test_name = match.group(1)
             error_summary = match.group(2)
 
@@ -513,7 +768,7 @@ class DebuggerAgentV2:
 
         # If no pytest failures, try generic patterns
         if not errors:
-            for match in GENERIC_ERROR_PATTERN.finditer(ci_output):
+            for match in self._safe_regex_finditer(GENERIC_ERROR_PATTERN, ci_output):
                 error_type_str = match.group(1)
                 error_message = match.group(2)
 
@@ -622,11 +877,25 @@ class DebuggerAgentV2:
         attempt_num: int,
         trace_id: str,
     ) -> FixAttempt:
-        """Attempt to generate a fix for the error."""
+        """Attempt to generate a fix for the error.
+
+        Security: Uses path validation to prevent path traversal (Issue #4196).
+        """
         fix_attempt = FixAttempt(
             attempt_number=attempt_num,
             fix_description=f"Attempting to fix {error.error_type.value} error",
         )
+
+        # Security: Validate file path before processing (Issue #4196)
+        if error.file_path:
+            allowed_paths = [f["path"] for f in files]
+            if not self._validate_file_path(error.file_path, allowed_paths):
+                logger.warning(
+                    "[DebuggerAgentV2] Invalid file path rejected: %s",
+                    error.file_path[:100] if error.file_path else "None",
+                )
+                fix_attempt.fix_description = "Invalid or unsafe file path"
+                return fix_attempt
 
         # Find the relevant file
         target_file = None
@@ -718,23 +987,40 @@ class DebuggerAgentV2:
         return patches
 
     def _build_review_comment(self, error: ErrorClassification) -> str:
-        """Build a review comment from error classification."""
+        """Build a review comment from error classification.
+
+        Security: Sanitizes all error content before passing to LLM (Issue #4196).
+        """
+        # Security: Sanitize error message to prevent prompt injection (Issue #4196)
+        sanitized_message = self._sanitize_for_llm(
+            error.error_message or "", MAX_ERROR_MESSAGE_LENGTH
+        )
+
         parts = [
-            f"Fix {error.error_type.value} error: {error.error_message}",
+            f"Fix {error.error_type.value} error: {sanitized_message}",
         ]
 
         if error.file_path:
-            parts.append(f"File: {error.file_path}")
+            # Security: Limit file path length
+            safe_path = error.file_path[:MAX_FILE_PATH_LENGTH]
+            parts.append(f"File: {safe_path}")
 
         if error.line_number:
             parts.append(f"Line: {error.line_number}")
 
         if error.expected_value and error.actual_value:
-            parts.append(f"Expected: {error.expected_value}")
-            parts.append(f"Actual: {error.actual_value}")
+            # Security: Sanitize assertion values
+            safe_expected = self._sanitize_for_llm(error.expected_value, 500)
+            safe_actual = self._sanitize_for_llm(error.actual_value, 500)
+            parts.append(f"Expected: {safe_expected}")
+            parts.append(f"Actual: {safe_actual}")
 
         if error.traceback:
-            parts.append(f"Traceback:\n{error.traceback[:500]}")
+            # Security: Sanitize traceback
+            safe_traceback = self._sanitize_for_llm(
+                error.traceback, MAX_TRACEBACK_LENGTH
+            )[:500]
+            parts.append(f"Traceback:\n{safe_traceback}")
 
         return "\n".join(parts)
 
