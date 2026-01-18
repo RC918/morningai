@@ -477,3 +477,23 @@ class TestFromRoutingDecision:
         assert record.is_fallback is True
         assert record.fallback_reason == "Gemini and AliCloud unavailable"
         assert record.estimated_cost == 0.10
+
+    def test_sanitizes_fallback_reason_and_task_type(self):
+        """Should sanitize fallback_reason and task_type to prevent log injection (Issue #3718)"""
+        record = from_routing_decision(
+            provider="gemini",
+            model_name="gemini-3-pro-preview",
+            trace_id="trace123",
+            task_type="malicious\ninjection\rattempt",
+            is_fallback=True,
+            fallback_reason="error\nwith\nnewlines",
+        )
+
+        # Newlines should be replaced with underscores
+        assert "\n" not in record.status_message
+        assert "\r" not in record.status_message
+        assert "\n" not in record.attributes["task_type"]
+        assert "\r" not in record.attributes["task_type"]
+        # Verify sanitization replaced control characters
+        assert record.status_message == "error_with_newlines"
+        assert record.attributes["task_type"] == "malicious_injection_attempt"

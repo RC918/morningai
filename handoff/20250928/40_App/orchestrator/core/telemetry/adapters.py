@@ -341,11 +341,13 @@ def from_routing_decision(
     status_code = StatusCode.OK
     status_message = None
     if is_fallback and fallback_reason:
-        status_message = fallback_reason
+        # Issue #3718: Sanitize fallback_reason to prevent log injection
+        status_message = _sanitize_event_type(fallback_reason)
 
     attributes: Dict[str, Any] = {}
     if task_type:
-        attributes["task_type"] = task_type
+        # Issue #3718: Sanitize task_type to prevent log injection
+        attributes["task_type"] = _sanitize_event_type(task_type)
 
     metrics: Dict[str, float] = {}
     if estimated_cost is not None:
