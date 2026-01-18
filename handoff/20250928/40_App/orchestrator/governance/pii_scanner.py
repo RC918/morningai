@@ -113,6 +113,21 @@ class PIIAction(str, Enum):
     LOG_ONLY = "log_only"              # Log but allow
 
 
+class ContentType(str, Enum):
+    """Content types for context-aware PII scanning.
+
+    Issue #4039: Different content types require different scanning sensitivity.
+    Technical content (code, diffs, review feedback) generates false positives
+    with patterns designed for user-generated content.
+
+    Blueprint Reference: Section 9.2 (Safe by Design) - security measures
+    should not impede legitimate functionality.
+    """
+    USER_CONTENT = "user_content"      # Default: user-generated content (strict)
+    CODE_CONTENT = "code_content"      # Code, diffs, technical content (relaxed)
+    REVIEW_FEEDBACK = "review_feedback"  # Code review feedback (relaxed)
+
+
 @dataclass
 class PIIFinding:
     """Represents a single PII finding.
@@ -447,6 +462,64 @@ class PIIScanner:
         / "config" / "pii_scanner.yaml",
         Path.cwd() / "config" / "pii_scanner.yaml",
         Path(__file__).parent.parent.parent.parent / "config" / "pii_scanner.yaml",
+    ]
+
+    # Issue #4039: Code context patterns for false positive reduction
+    # These patterns identify code/technical contexts where PII-like patterns
+    # are likely false positives (e.g., "passport" in passport.js library)
+    # Blueprint Reference: Section 9.2 (Safe by Design) - security measures
+    # should not impede legitimate functionality
+    CODE_CONTEXT_ALLOWLIST: Dict[PIICategory, List[str]] = {
+        # Skip "passport" when part of code constructs
+        PIICategory.PASSPORT: [
+            r"passport\.js",
+            r"passport-",
+            r"passportjs",
+            r"passport\.validate",
+            r"passport\.authenticate",
+            r"passport_validator",
+            r"passport_number",
+            r"passport_field",
+            r"passport\.initialize",
+            r"passport\.session",
+            r"require\(['\"]passport",
+            r"import.*passport",
+        ],
+        # Skip "address" when part of variable/field names
+        PIICategory.ADDRESS: [
+            r"email_address",
+            r"ip_address",
+            r"address_field",
+            r"address_line",
+            r"address_type",
+            r"memory_address",
+            r"return_address",
+            r"callback_address",
+            r"mac_address",
+            r"wallet_address",
+            r"contract_address",
+            r"address\s*=",
+            r"\.address\b",
+            r"address\(",
+            r"getAddress",
+            r"setAddress",
+        ],
+    }
+
+    # Issue #4039: Patterns to skip numeric matches in code context
+    # These patterns identify numbers that are likely PR/issue numbers,
+    # commit hashes, or other technical identifiers
+    CODE_NUMERIC_SKIP_PATTERNS: List[str] = [
+        r"#\d{8,9}\b",           # Issue/PR numbers: #12345678
+        r"PR\s*#?\d{8,9}\b",     # PR references: PR #12345678
+        r"pr\s*#?\d{8,9}\b",     # PR references (lowercase)
+        r"Issue\s*#?\d{8,9}\b",  # Issue references
+        r"issue\s*#?\d{8,9}\b",  # Issue references (lowercase)
+        r"[0-9a-f]{40}",         # Git commit SHA (40 hex chars)
+        r"[0-9a-f]{7,8}\b",      # Short commit SHA (7-8 hex chars)
+        r"0x[0-9a-fA-F]+",       # Hex numbers
+        r"\d{8,9}T\d+",          # Timestamps: 20240115T123456
+        r"v\d+\.\d+\.\d+",       # Version numbers
     ]
 
     def __init__(
@@ -957,16 +1030,28 @@ class PIIScanner:
         self,
         content: str,
         context: Optional[Dict[str, Any]] = None,
+        content_type: ContentType = ContentType.USER_CONTENT,
     ) -> PIIScanResult:
         """
         Scan content for PII.
 
+        Issue #4039: Added content_type parameter for context-aware scanning.
+        Technical content (code, diffs, review feedback) uses relaxed filtering
+        to reduce false positives from code patterns like "passport.js".
+
         Args:
             content: Text content to scan
             context: Optional context metadata
+            content_type: Type of content being scanned (default: USER_CONTENT)
+                - USER_CONTENT: User-generated content (strict scanning)
+                - CODE_CONTENT: Code, diffs, technical content (relaxed)
+                - REVIEW_FEEDBACK: Code review feedback (relaxed)
 
         Returns:
             PIIScanResult with findings and recommended action
+
+        Blueprint Reference: Section 9.2 (Safe by Design) - security measures
+        should not impede legitimate functionality.
         """
         start_time = time.time()
 
@@ -997,13 +1082,20 @@ class PIIScanner:
             )
             content = content[:MAX_CONTENT_LENGTH]
 
+        # Issue #4039: Determine if we should apply code context filtering
+        is_technical_content = content_type in (
+            ContentType.CODE_CONTENT,
+            ContentType.REVIEW_FEEDBACK,
+        )
+
         findings: List[PIIFinding] = []
         found_critical = False
 
         # Scan for each PII category
         for category, compiled_patterns in self._compiled_patterns.items():
             category_findings, found_critical = self._check_category(
-                content, category, compiled_patterns, found_critical
+                content, category, compiled_patterns, found_critical,
+                is_technical_content=is_technical_content,
             )
             findings.extend(category_findings)
 
@@ -1016,6 +1108,10 @@ class PIIScanner:
 
         scan_duration = (time.time() - start_time) * 1000
 
+        # Issue #4039: Add content_type to context for audit trail
+        result_context = context.copy() if context else {}
+        result_context["content_type"] = content_type.value
+
         return PIIScanResult(
             has_pii=len(findings) > 0,
             overall_risk=overall_risk,
@@ -1023,7 +1119,7 @@ class PIIScanner:
             findings=findings,
             summary=summary,
             scan_duration_ms=scan_duration,
-            context=context or {},
+            context=result_context,
         )
 
     def _check_category(
@@ -1032,15 +1128,19 @@ class PIIScanner:
         category: PIICategory,
         compiled_patterns: List[Tuple[Pattern[str], str, str, PIIRiskLevel]],
         found_critical: bool,
+        is_technical_content: bool = False,
     ) -> Tuple[List[PIIFinding], bool]:
         """
         Check content for a specific PII category.
+
+        Issue #4039: Added is_technical_content parameter for context-aware filtering.
 
         Args:
             content: Text to scan
             category: PII category to check
             compiled_patterns: Pre-compiled patterns for this category
             found_critical: Whether CRITICAL risk was already found
+            is_technical_content: Whether to apply code context filtering
 
         Returns:
             Tuple of (findings list, whether CRITICAL was found)
@@ -1054,6 +1154,17 @@ class PIIScanner:
 
             for match in compiled_pattern.finditer(content):
                 matched_text = match.group(0)
+
+                # Issue #4039: Apply code context filtering for technical content
+                if is_technical_content:
+                    if self._is_code_context_match(content, match, category):
+                        logger.debug(
+                            "[PIIScanner] Skipping code context match: %s at %d",
+                            pattern_id,
+                            match.start(),
+                        )
+                        continue
+
                 confidence = self._calculate_confidence(
                     match, content, category
                 )
@@ -1091,6 +1202,51 @@ class PIIScanner:
                     found_critical = True
 
         return findings, found_critical
+
+    def _is_code_context_match(
+        self,
+        content: str,
+        match: re.Match,
+        category: PIICategory,
+    ) -> bool:
+        """
+        Check if a match is in a code context (likely false positive).
+
+        Issue #4039: Reduces false positives for technical content by checking
+        if the match appears in a code-like context.
+
+        Args:
+            content: Full content being scanned
+            match: The regex match object
+            category: PII category of the match
+
+        Returns:
+            True if the match should be skipped (code context), False otherwise
+
+        Blueprint Reference: Section 9.2 (Safe by Design) - security measures
+        should not impede legitimate functionality.
+        """
+        # Get context around the match (50 chars before and after)
+        start = max(0, match.start() - 50)
+        end = min(len(content), match.end() + 50)
+        context_text = content[start:end].lower()
+
+        # Check category-specific allowlist patterns
+        if category in self.CODE_CONTEXT_ALLOWLIST:
+            for pattern in self.CODE_CONTEXT_ALLOWLIST[category]:
+                if re.search(pattern, context_text, re.IGNORECASE):
+                    return True
+
+        # Check numeric patterns (for passport/driver license 8-9 digit patterns)
+        if category in (PIICategory.PASSPORT, PIICategory.DRIVER_LICENSE):
+            matched_text = match.group(0)
+            # Only apply numeric skip patterns to pure digit matches
+            if matched_text.isdigit() and len(matched_text) in (8, 9):
+                for pattern in self.CODE_NUMERIC_SKIP_PATTERNS:
+                    if re.search(pattern, context_text, re.IGNORECASE):
+                        return True
+
+        return False
 
     def _sanitize_matched_text(self, text: str) -> str:
         """Sanitize matched text for logging (security: prevent full PII exposure)."""
@@ -1355,9 +1511,21 @@ def reset_pii_scanner() -> None:
 def scan_for_pii(
     content: str,
     context: Optional[Dict[str, Any]] = None,
+    content_type: ContentType = ContentType.USER_CONTENT,
 ) -> PIIScanResult:
-    """Convenience function to scan content for PII."""
-    return get_pii_scanner().scan(content, context)
+    """Convenience function to scan content for PII.
+
+    Issue #4039: Added content_type parameter for context-aware scanning.
+
+    Args:
+        content: Text content to scan
+        context: Optional context metadata
+        content_type: Type of content being scanned (default: USER_CONTENT)
+
+    Returns:
+        PIIScanResult with findings and recommended action
+    """
+    return get_pii_scanner().scan(content, context, content_type)
 
 
 def redact_pii_text(text: str, category: PIICategory) -> str:
