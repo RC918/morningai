@@ -2739,6 +2739,12 @@ class AgentState(TypedDict):
     # CRITICAL: This field MUST be defined in AgentState for LangGraph to properly
     # propagate it between nodes. Without this definition, the flag may be lost.
     loop_protection_triggered: Optional[bool]
+    # Issue #4165: Secondary Loop Protection Counter
+    # Incremented by hitl_gate_node on each pass through the routing loop.
+    # Checked by should_fix_or_finalize to prevent infinite loops that bypass fixer_node.
+    # CRITICAL: This field MUST be defined in AgentState for LangGraph to properly
+    # propagate it between nodes. Without this definition, the counter may be lost.
+    routing_iteration_count: Optional[int]
     # EPIC F Phase F-3c: FlowController v3 Integration Fields
     # Set by flow_executor_node when ENABLE_FLOW_CONTROLLER_V3=true.
     # These fields track the execution state of plans via FlowController.
@@ -8761,10 +8767,23 @@ def should_fix_or_finalize(state: AgentState) -> str:
     - fix: If merge_decision is needs_fix and retries available
     - monitor_ci: If merge_decision is pending (waiting for CI)
     - finalize: If approved, request_changes, or max retries reached
+
+    Issue #4165: Secondary Loop Protection for CI Failure Flow
+    When ci_failure_trigger=True and merge_decision="pending", the flow would
+    previously route to ci_monitor, bypassing fixer_node entirely. This caused
+    retry_count to never increment, leading to infinite loops that hit LangGraph's
+    recursion limit of 100.
+
+    Fix: When ci_failure_trigger=True, force routing to fixer (not ci_monitor)
+    to ensure retry_count is incremented and loop protection works correctly.
+    Also track routing_iteration_count as a secondary safeguard.
     """
     merge_decision = state.get("merge_decision", "pending")
     retry_count = state.get("retry_count", 0)
     trace_id = state.get("trace_id", "unknown")
+    # Issue #4165: Use strict boolean check to prevent bugs from truthy string values
+    # like "False" which could come from serialization. Consistent with codebase pattern.
+    ci_failure_trigger = state.get("ci_failure_trigger") is True
     metrics = _get_metrics()
 
     outcome_to_node = {
@@ -8773,8 +8792,49 @@ def should_fix_or_finalize(state: AgentState) -> str:
         "finalize": "finalizer",
     }
 
+    # Issue #4165: Secondary loop protection - track total routing iterations
+    # This catches infinite loops that bypass fixer_node (where retry_count is incremented)
+    routing_iteration_count = state.get("routing_iteration_count", 0)
+    MAX_ROUTING_ITERATIONS = 20
+
+    if routing_iteration_count >= MAX_ROUTING_ITERATIONS:
+        logger.warning(
+            f"[ROUTING_LOOP_PROTECTION] Max routing iterations ({MAX_ROUTING_ITERATIONS}) "
+            f"exceeded, forcing finalize. trace_id={trace_id}, "
+            f"merge_decision={merge_decision}, retry_count={retry_count}",
+            extra={
+                "operation": "routing_loop_protection",
+                "trace_id": trace_id,
+                "routing_iteration_count": routing_iteration_count,
+                "merge_decision": merge_decision,
+                "retry_count": retry_count,
+                "ci_failure_trigger": ci_failure_trigger,
+            }
+        )
+        to_node = outcome_to_node["finalize"]
+        metrics.record_transition("decision", to_node, trace_id)
+        return "finalize"
+
+    # Issue #4165: When CI failure triggered and decision is pending,
+    # force routing to fixer instead of ci_monitor to ensure retry_count increments
+    if ci_failure_trigger and merge_decision == "pending":
+        logger.info(
+            f"[CI_FAILURE_PENDING_FIX] CI failure trigger active with pending decision, "
+            f"forcing route to fixer. trace_id={trace_id}, retry_count={retry_count}",
+            extra={
+                "operation": "ci_failure_pending_fix",
+                "trace_id": trace_id,
+                "merge_decision": merge_decision,
+                "retry_count": retry_count,
+                "ci_failure_trigger": ci_failure_trigger,
+            }
+        )
+        if retry_count >= MAX_FIXER_RETRIES:
+            outcome = "finalize"
+        else:
+            outcome = "fix"
     # If decision is pending (CI still running), go back to monitor CI
-    if merge_decision == "pending":
+    elif merge_decision == "pending":
         outcome = "monitor_ci"
     elif merge_decision == "needs_fix":
         if retry_count >= MAX_FIXER_RETRIES:
@@ -8895,6 +8955,12 @@ def hitl_gate_node(state: AgentState) -> AgentState:
             "operation": "hitl_gate",
             "trace_id": trace_id,
         })
+
+    # Issue #4165: Increment routing_iteration_count for secondary loop protection
+    # This counter is checked in should_fix_or_finalize to prevent infinite loops
+    # that bypass fixer_node (where retry_count is incremented)
+    routing_iteration_count = state.get("routing_iteration_count", 0)
+    state["routing_iteration_count"] = routing_iteration_count + 1
 
     latency_ms = (time.time() - start_time) * 1000
     metrics.record_node_complete("hitl_gate", trace_id, success=True, latency_ms=latency_ms)
