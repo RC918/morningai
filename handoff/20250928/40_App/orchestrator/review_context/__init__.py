@@ -1,5 +1,5 @@
 """
-Review Context Module - EPIC B Phase 7-8 and B-13 Implementation
+Review Context Module - EPIC B Phase 7-8, B-13, and D-5 Implementation
 
 This module provides enhanced review capabilities for the MorningAI Reviewer Agent:
 
@@ -8,10 +8,12 @@ This module provides enhanced review capabilities for the MorningAI Reviewer Age
 - B-11: Test Coverage Flagging
 - B-12: Dependency Analysis
 - B-13: Real-time Feedback Loop (Memory v2 Integration)
+- D-5: Review Comment Parser (Review Feedback Handler Phase 1)
 
 All capabilities respect the Blueprint Agent Separation Principle (Section 3.3):
 - Reviewer Agent can FLAG issues and SUGGEST actions
 - Reviewer Agent CANNOT generate code or apply fixes
+- D-5 bridges Reviewer output to Coder input for automated fixes
 """
 
 from review_context.multi_specialist_reviewer import (
@@ -50,6 +52,16 @@ from review_context.review_feedback_loop import (
     FeedbackLoopStats,
     get_feedback_loop,
 )
+from review_context.review_comment_parser import (
+    ReviewCommentParser,
+    ParsedReviewComment,
+    FixTask,
+    CommentType,
+    CommentSeverity,
+    ParserStats,
+    parse_review_comments,
+    get_review_comment_parser,
+)
 
 __all__ = [
     # B-9: Multi-Specialist Review
@@ -83,4 +95,13 @@ __all__ = [
     "ReviewPattern",
     "FeedbackLoopStats",
     "get_feedback_loop",
+    # D-5: Review Comment Parser
+    "ReviewCommentParser",
+    "ParsedReviewComment",
+    "FixTask",
+    "CommentType",
+    "CommentSeverity",
+    "ParserStats",
+    "parse_review_comments",
+    "get_review_comment_parser",
 ]
