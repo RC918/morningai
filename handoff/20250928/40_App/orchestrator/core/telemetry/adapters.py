@@ -297,6 +297,79 @@ def from_resource_telemetry_event(
     )
 
 
+def from_routing_decision(
+    provider: str,
+    model_name: str,
+    trace_id: str,
+    task_type: Optional[str] = None,
+    is_fallback: bool = False,
+    fallback_reason: Optional[str] = None,
+    estimated_cost: Optional[float] = None,
+    parent_span_id: Optional[str] = None,
+    epic_tag: str = "EPIC-I",
+) -> TelemetryRecordV3:
+    """
+    Create a TelemetryRecordV3 for a routing decision.
+
+    EPIC I Integration (Issue #4085): Multi-Provider Governance
+    This adapter captures routing decisions for Gemini-first multi-provider
+    routing, enabling observability across providers.
+
+    Args:
+        provider: Provider name (e.g., "gemini", "alicloud", "openai")
+        model_name: Model name (e.g., "gemini-3-pro-preview", "qwen-max")
+        trace_id: Trace ID for correlation
+        task_type: Optional task type (e.g., "planning", "coding", "review")
+        is_fallback: Whether fallback was used (default: False)
+        fallback_reason: Optional reason for fallback
+        estimated_cost: Optional estimated cost in USD
+        parent_span_id: Optional parent span ID
+        epic_tag: EPIC tag (default: EPIC-I for governance events)
+
+    Returns:
+        TelemetryRecordV3 instance with provider-aware fields populated
+    """
+    span_context = create_span_context(
+        trace_id=trace_id,
+        parent_span_id=parent_span_id,
+    )
+
+    name = "routing.decision"
+    if is_fallback:
+        name = "routing.fallback"
+
+    status_code = StatusCode.OK
+    status_message = None
+    if is_fallback and fallback_reason:
+        status_message = fallback_reason
+
+    attributes: Dict[str, Any] = {}
+    if task_type:
+        attributes["task_type"] = task_type
+
+    metrics: Dict[str, float] = {}
+    if estimated_cost is not None:
+        metrics["estimated_cost_usd"] = estimated_cost
+
+    return TelemetryRecordV3.create(
+        name=name,
+        span_context=span_context,
+        component="RoutingEngine",
+        kind=SpanKind.INTERNAL,
+        status_code=status_code,
+        status_message=status_message,
+        epic_tag=epic_tag,
+        attributes=attributes,
+        metrics=metrics,
+        # EPIC I: Multi-Provider Governance Integration (Issue #4085)
+        provider=provider,
+        model_name=model_name,
+        is_fallback=is_fallback,
+        fallback_reason=fallback_reason,
+        estimated_cost=estimated_cost,
+    )
+
+
 def from_policy_telemetry_event(
     event_dict: Dict[str, Any],
     trace_id: str,
