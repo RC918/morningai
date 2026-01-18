@@ -92,7 +92,7 @@ def _get_timestamp_ms() -> int:
 
 def _compute_hash(data: Any, algorithm: str = "sha256") -> str:
     """Compute hash of data for redaction purposes.
-    
+
     Returns 128-bit (32 hex chars) hash to minimize collision probability
     in high-volume telemetry systems.
     """
@@ -258,6 +258,11 @@ class TelemetryRecordV3:
     - Section 9.1 Deterministic: trace_id + span hierarchy enables replay
     - Section 9.2 Safe by Design: redaction protects PII/secrets
     - Section 9.3 Self-Governed: version tracking enables policy audit
+
+    EPIC I Integration (Issue #4085):
+    - Section 4.3 Model Governance: provider-aware telemetry for multi-provider routing
+    - Fallback tracking for observability across Gemini/AliCloud/OpenAI
+    - Cost attribution per provider for budget governance
     """
 
     # Envelope (required)
@@ -291,6 +296,14 @@ class TelemetryRecordV3:
     # Attributes (extensible)
     attributes: Dict[str, Any] = field(default_factory=dict)
 
+    # EPIC I: Multi-Provider Governance Integration (Issue #4085)
+    # Provider-aware telemetry for Gemini-first routing observability
+    provider: Optional[str] = None
+    model_name: Optional[str] = None
+    is_fallback: Optional[bool] = None
+    fallback_reason: Optional[str] = None
+    estimated_cost: Optional[float] = None
+
     @classmethod
     def create(
         cls,
@@ -313,6 +326,12 @@ class TelemetryRecordV3:
         output_data: Optional[Any] = None,
         redact_inputs: bool = True,
         redact_outputs: bool = True,
+        # EPIC I: Multi-Provider Governance Integration (Issue #4085)
+        provider: Optional[str] = None,
+        model_name: Optional[str] = None,
+        is_fallback: Optional[bool] = None,
+        fallback_reason: Optional[str] = None,
+        estimated_cost: Optional[float] = None,
     ) -> "TelemetryRecordV3":
         """
         Create a new TelemetryRecordV3 with automatic timestamp and redaction.
@@ -337,6 +356,11 @@ class TelemetryRecordV3:
             output_data: Optional output data (will be hashed if redact_outputs=True)
             redact_inputs: Whether to hash input data (default: True)
             redact_outputs: Whether to hash output data (default: True)
+            provider: Optional provider name (e.g., "gemini", "alicloud", "openai")
+            model_name: Optional model name (e.g., "gemini-3-pro-preview")
+            is_fallback: Optional flag indicating if fallback was used
+            fallback_reason: Optional reason for fallback
+            estimated_cost: Optional estimated cost in USD
 
         Returns:
             TelemetryRecordV3 instance
@@ -379,6 +403,12 @@ class TelemetryRecordV3:
             decision_context=decision_context or {},
             metrics=metrics or {},
             attributes=attributes or {},
+            # EPIC I: Multi-Provider Governance Integration (Issue #4085)
+            provider=provider,
+            model_name=model_name,
+            is_fallback=is_fallback,
+            fallback_reason=fallback_reason,
+            estimated_cost=estimated_cost,
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -427,6 +457,18 @@ class TelemetryRecordV3:
 
         if self.attributes:
             result["attributes"] = self.attributes
+
+        # EPIC I: Multi-Provider Governance Integration (Issue #4085)
+        if self.provider:
+            result["provider"] = self.provider
+        if self.model_name:
+            result["model_name"] = self.model_name
+        if self.is_fallback is not None:
+            result["is_fallback"] = self.is_fallback
+        if self.fallback_reason:
+            result["fallback_reason"] = self.fallback_reason
+        if self.estimated_cost is not None:
+            result["estimated_cost"] = self.estimated_cost
 
         return result
 

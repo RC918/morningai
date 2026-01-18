@@ -1,6 +1,6 @@
 # EPIC B: Diff-Aware Review Plumbing - Roadmap
 
-> Last Updated: 2026-01-11
+> Last Updated: 2026-01-18
 
 ## Overview
 
@@ -715,6 +715,67 @@ ReviewOutcome {                        │
 - [ ] Conversation context maintained
 - [ ] Responses are contextually relevant
 - [ ] Rate limiting prevents abuse
+
+---
+
+### B-16: Self-Critique Specialist
+
+> **Type**: Enhancement to B-9
+> **Issue**: [#4066](https://github.com/RC918/morningai/issues/4066)
+> **Effort**: Medium (2-3 days)
+> **Status**: Completed
+
+**Problem**: Multi-Specialist Review (B-9) can produce false positives - findings that reference non-existent code, wrong line numbers, or speculative issues.
+
+**Solution**: Add a Self-Critique specialist that verifies findings from other specialists and filters out false positives.
+
+**Implementation**:
+- Added `ReviewSpecialist.SELF_CRITIQUE` to `governance/types.py`
+- Added Self-Critique prompt to `SPECIALIST_PROMPTS` in `multi_specialist_reviewer.py`
+- Self-Critique runs as a second pass after Security, Performance, Architecture specialists
+- Outputs `false_positive_indices` to remove invalid findings
+
+**Acceptance Criteria**:
+- [x] Self-Critique specialist prompt implemented
+- [x] Second-pass execution after core specialists
+- [x] False positive filtering with verification notes
+- [x] Conservative approach (only removes findings when certain)
+
+---
+
+### B-17: CORRECTNESS Specialist (Logic Error Detection)
+
+> **Type**: New Capability (Enhancement to B-9)
+> **Issue**: TBD
+> **Effort**: Low (1-2 days)
+> **Status**: Completed
+
+**Problem**: Current specialists (Security, Performance, Architecture) focus on non-functional requirements. They miss **functional correctness issues** - logic bugs, edge cases, error handling patterns. Comparative analysis with Gemini Code Assist and Cursor Bugbot revealed this gap.
+
+**Solution**: Add a CORRECTNESS specialist that focuses on logic bugs and functional correctness.
+
+**Focus Areas**:
+- Logic errors (wrong conditions, off-by-one, incorrect boolean logic)
+- Edge case handling (null/undefined, empty arrays, boundary conditions)
+- Return value correctness (returning wrong type, None vs exception)
+- Error handling patterns (silent failures, swallowed exceptions)
+- Variable scope issues (using undefined variables, shadowing)
+- Type mismatches (passing wrong types to functions)
+- Control flow issues (unreachable code, infinite loops)
+- State management bugs (race conditions, stale state)
+- Test assertion correctness (assertions that don't match test intent)
+
+**Implementation**:
+- Added `SpecialistType.CORRECTNESS` to `governance/types.py`
+- Added CORRECTNESS to `CORE_SPECIALISTS` list
+- Added CORRECTNESS prompt to `SPECIALIST_PROMPTS` in `multi_specialist_reviewer.py`
+- Includes same ADDITION-LINES-ONLY constraint as other specialists
+
+**Acceptance Criteria**:
+- [x] CORRECTNESS specialist enum added
+- [x] CORRECTNESS prompt with logic error focus areas
+- [x] Included in CORE_SPECIALISTS (runs in parallel with others)
+- [x] Self-Critique updated to verify CORRECTNESS findings
 
 ---
 

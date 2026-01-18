@@ -23,6 +23,7 @@ class SpecialistType(str, Enum):
     - SECURITY: Vulnerabilities, injection attacks, auth issues
     - PERFORMANCE: Inefficiencies, memory leaks, N+1 queries
     - ARCHITECTURE: Design patterns, SOLID principles, coupling
+    - CORRECTNESS: Logic errors, edge cases, return value correctness (B-17)
     - SELF_CRITIQUE: Verifies findings from other specialists (B-16)
 
     Blueprint Reference: Section 7 (Parallel Collaboration)
@@ -30,6 +31,7 @@ class SpecialistType(str, Enum):
     SECURITY = "security"
     PERFORMANCE = "performance"
     ARCHITECTURE = "architecture"
+    CORRECTNESS = "correctness"
     SELF_CRITIQUE = "self_critique"
 
 
@@ -50,8 +52,10 @@ ReviewSpecialist = SpecialistType
 
 
 # Core specialists (excluding SELF_CRITIQUE which is a meta-specialist)
+# B-17: Added CORRECTNESS specialist for logic error detection
 CORE_SPECIALISTS = [
     SpecialistType.SECURITY,
     SpecialistType.PERFORMANCE,
     SpecialistType.ARCHITECTURE,
+    SpecialistType.CORRECTNESS,
 ]
