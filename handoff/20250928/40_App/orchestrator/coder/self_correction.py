@@ -566,7 +566,7 @@ class ErrorAnalyzer:
         The fix strategy:
         - With expected/actual values: High confidence (0.8), definitely attempt
         - Without expected/actual but with error message: Medium confidence (0.6), attempt
-        - No useful information: Low confidence (0.4), still attempt but with caution
+        - No useful information: Low confidence (0.5), still attempt but with caution
         """
         analysis["fix_strategy"] = "assertion_fix"
 
@@ -587,14 +587,16 @@ class ErrorAnalyzer:
             # "AssertionError: Score 1.5 should be invalid"
             analysis["is_simple_fix"] = True
             analysis["confidence"] = 0.6
+            # Wrap untrusted input in triple backticks to prevent prompt injection
+            # (test logs are external input that could contain malicious instructions)
             suggestions = [
                 "Review the assertion logic",
-                f"Error message: {failure.error_message[:200]}",  # Truncate long messages
+                f"Error message: ```{failure.error_message[:200]}```",  # Truncate long messages
             ]
             if failure.test_name:
-                suggestions.append(f"Failed test: {failure.test_name}")
+                suggestions.append(f"Failed test: ```{failure.test_name}```")
             if failure.file_path:
-                suggestions.append(f"File: {failure.file_path}")
+                suggestions.append(f"File: ```{failure.file_path}```")
             if failure.line_number:
                 suggestions.append(f"Line: {failure.line_number}")
             analysis["suggestions"] = suggestions
