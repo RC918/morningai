@@ -1,0 +1,218 @@
+name: Regression Tests
+
+# H-4 CI Enforcement (Blueprint Section 5.4)
+# - Runs regression tests on PRs
+# - Blocks PR on regression test failure
+# - Provides bypass mechanism for emergency fixes
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'handoff/20250928/40_App/**'
+      - 'tests/regression/**'
+      - '.github/workflows/regression-tests.yml'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  regression-tests:
+    name: Regression Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    # Skip if PR has bypass label
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-regression') }}
+    
+    services:
+      redis:
+        image: redis:alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        working-directory: handoff/20250928/40_App/orchestrator
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio pytest-timeout
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements-test.txt ]; then pip install -r requirements-test.txt; fi
+          pip install -e .
+      
+      - name: Check for regression tests
+        id: check-tests
+        run: |
+          # Check if regression test directory exists and has tests
+          REGRESSION_DIR="tests/regression"
+          if [ -d "$REGRESSION_DIR" ] && [ "$(find $REGRESSION_DIR -name 'test_*.py' -o -name '*_test.py' 2>/dev/null | wc -l)" -gt 0 ]; then
+            echo "has_tests=true" >> $GITHUB_OUTPUT
+            echo "Found regression tests in $REGRESSION_DIR"
+          else
+            echo "has_tests=false" >> $GITHUB_OUTPUT
+            echo "No regression tests found in $REGRESSION_DIR - skipping"
+          fi
+      
+      - name: Run regression tests
+        if: steps.check-tests.outputs.has_tests == 'true'
+        working-directory: tests/regression
+        run: |
+          echo "=== H-4 CI Enforcement: Running Regression Tests ==="
+          echo ""
+          echo "Blueprint Section 5.4: Regression test failure blocks PR"
+          echo ""
+          
+          # Run regression tests with verbose output
+          pytest -v --tb=long --timeout=60 || {
+            echo ""
+            echo "::error::Regression tests failed! PR is blocked."
+            echo "::error::To bypass (emergency only): Add 'skip-regression' label to PR"
+            echo ""
+            echo "If this is a legitimate fix that changes expected behavior:"
+            echo "1. Update the regression test to match new behavior"
+            echo "2. Get reviewer approval for the test modification"
+            echo "3. Reference the original issue in your PR description"
+            exit 1
+          }
+          
+          echo ""
+          echo "All regression tests passed!"
+        env:
+          PYTHONPATH: ${{ github.workspace }}/handoff/20250928/40_App/orchestrator:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}
+          REDIS_URL: redis://localhost:6379/0
+          TESTING: true
+      
+      - name: Comment on PR (failure)
+        if: failure() && steps.check-tests.outputs.has_tests == 'true'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const comment = `## :x: Regression Tests Failed
+            
+            **H-4 CI Enforcement (Blueprint Section 5.4)**
+            
+            One or more regression tests failed. This PR is blocked until the tests pass.
+            
+            ### What to do:
+            
+            1. **Fix the regression**: The test exists to prevent a known bug from recurring
+            2. **Update the test**: If behavior intentionally changed, update the test with reviewer approval
+            3. **Emergency bypass**: Add \`skip-regression\` label (requires justification in PR description)
+            
+            ### Why this matters:
+            
+            Regression tests are auto-generated from production errors. They ensure we don't reintroduce bugs that have already been fixed.
+            
+            ---
+            *This check is part of the H-2 Regression Pipeline (Blueprint Section 5.4)*
+            `;
+            
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.find(c => 
+              c.user.type === 'Bot' && 
+              c.body.includes('Regression Tests Failed')
+            );
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: comment
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: comment
+              });
+            }
+
+  check-protected-tests:
+    name: Check Protected Test Modifications
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install PyYAML
+      
+      - name: Check for protected test modifications
+        run: |
+          python scripts/ci/check_protected_tests.py \
+            --base "${{ github.event.pull_request.base.sha }}" \
+            --head "${{ github.sha }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Comment on PR (protected test modified)
+        if: failure()
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const comment = `## :warning: Protected Regression Test Modified
+            
+            **H-4 CI Enforcement (Blueprint Section 5.4)**
+            
+            This PR modifies or deletes a protected regression test. This requires explicit reviewer approval.
+            
+            ### Protected tests cannot be:
+            - **Deleted** without Safety Governor override
+            - **Modified** without reviewer approval
+            
+            ### Why this matters:
+            
+            Protected regression tests were auto-generated to prevent specific bugs from recurring. Modifying them could reintroduce those bugs.
+            
+            ### To proceed:
+            1. Ensure a reviewer explicitly approves the test modification
+            2. Document why the change is necessary in the PR description
+            3. Reference the original issue that created the test
+            
+            ---
+            *This check is part of the H-2 Regression Pipeline (Blueprint Section 5.4)*
+            `;
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: comment
+            });
