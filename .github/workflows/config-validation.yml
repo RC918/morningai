@@ -1,0 +1,79 @@
+name: Configuration Coverage Validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'config/env.schema.yaml'
+      - 'scripts/validate_config_coverage.py'
+      - '.github/workflows/config-validation.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'config/env.schema.yaml'
+      - 'scripts/validate_config_coverage.py'
+      - '.github/workflows/config-validation.yml'
+
+jobs:
+  validate-config:
+    name: Validate Configuration Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install pyyaml
+
+      - name: Run configuration validation
+        id: validate
+        run: |
+          # Note: In CI, we validate schema structure only since prod.md
+          # contains actual production values that may not be in the repo.
+          # For full validation, run locally with --prod-file pointing to
+          # the actual production config export.
+          echo "Validating env.schema.yaml structure..."
+          python -c "
+          import yaml
+          with open('config/env.schema.yaml', 'r') as f:
+              schema = yaml.safe_load(f)
+          assert 'fields' in schema, 'Schema must have fields key'
+          assert 'version' in schema, 'Schema must have version key'
+          print(f'Schema version: {schema[\"version\"]}')
+          print(f'Total fields defined: {len(schema[\"fields\"])}')
+          required = sum(1 for f in schema['fields'].values() if f.get('required', False))
+          print(f'Required fields: {required}')
+          print('Schema structure validation: PASSED')
+          "
+
+      - name: Generate validation summary
+        if: always()
+        run: |
+          echo "## Configuration Validation Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Schema Structure" >> $GITHUB_STEP_SUMMARY
+          python -c "
+          import yaml
+          with open('config/env.schema.yaml', 'r') as f:
+              schema = yaml.safe_load(f)
+          print(f'- **Version**: {schema[\"version\"]}')
+          print(f'- **Total fields**: {len(schema[\"fields\"])}')
+          required = sum(1 for f in schema['fields'].values() if f.get('required', False))
+          print(f'- **Required fields**: {required}')
+          optional = len(schema['fields']) - required
+          print(f'- **Optional fields**: {optional}')
+          " >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Notes" >> $GITHUB_STEP_SUMMARY
+          echo "For full production config validation, run locally:" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo 'python scripts/validate_config_coverage.py --prod-file /path/to/prod.md' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
