@@ -29,7 +29,7 @@ CI Integration:
 """
 
 import sys
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 # Add the repo root to the path so we can import from common.config
@@ -48,37 +48,37 @@ except ImportError as e:
 WARNING_DAYS = 30  # Warn if deadline is within this many days
 
 
-def parse_date(date_str: str) -> datetime:
-    """Parse a date string in YYYY-MM-DD format."""
-    return datetime.strptime(date_str, "%Y-%m-%d")
+def parse_date(date_str: str) -> date:
+    """Parse a date string in YYYY-MM-DD format and return a date object."""
+    return datetime.strptime(date_str, "%Y-%m-%d").date()
 
 
-def check_deprecations() -> tuple[list, list]:
+def check_deprecations() -> tuple[list, list, list]:
     """
     Check all deprecations in the registry.
 
     Returns:
-        tuple: (expired_list, warning_list)
+        tuple: (expired_list, warning_list, errors_list)
             - expired_list: List of deprecations that have passed their deadline
             - warning_list: List of deprecations within WARNING_DAYS of deadline
+            - errors_list: List of deprecations with configuration errors
     """
-    today = datetime.now()
+    today = date.today()
 
     expired = []
     warnings = []
+    errors = []
 
     for entry in DEPRECATION_REGISTRY:
         old_env = entry["old_env"]
         new_env = entry["new_env"]
         removal_date_str = entry["removal_date"]
-        issue_ref = entry.get("issue_ref", "N/A")
+        issue_ref = entry.get("issue_ref")
 
         try:
             removal_date = parse_date(removal_date_str)
         except ValueError as e:
-            print(f"ERROR: Invalid date format for {old_env}: {removal_date_str}")
-            print("  Expected format: YYYY-MM-DD")
-            expired.append({
+            errors.append({
                 "old_env": old_env,
                 "new_env": new_env,
                 "removal_date": removal_date_str,
@@ -108,15 +108,25 @@ def check_deprecations() -> tuple[list, list]:
                 "days_remaining": days_until,
             })
 
-    return expired, warnings
+    return expired, warnings, errors
 
 
-def print_report(expired: list, warnings: list) -> None:
+def print_report(expired: list, warnings: list, errors: list) -> None:
     """Print a formatted report of deprecation status."""
     print("=" * 60)
     print("DEPRECATION DEADLINE CHECK")
     print("=" * 60)
     print()
+
+    if errors:
+        print("CONFIGURATION ERRORS:")
+        print("-" * 40)
+        for item in errors:
+            print(f"  {item['old_env']} -> {item['new_env']}")
+            print(f"    Invalid date: {item['removal_date']}")
+            print(f"    Error: {item['error']}")
+            print("    Expected format: YYYY-MM-DD")
+            print()
 
     if expired:
         print("EXPIRED DEPRECATIONS (ACTION REQUIRED):")
@@ -124,10 +134,7 @@ def print_report(expired: list, warnings: list) -> None:
         for item in expired:
             print(f"  {item['old_env']} -> {item['new_env']}")
             print(f"    Deadline: {item['removal_date']}")
-            if "days_overdue" in item:
-                print(f"    Status: {item['days_overdue']} days OVERDUE")
-            if "error" in item:
-                print(f"    Error: {item['error']}")
+            print(f"    Status: {item['days_overdue']} days OVERDUE")
             if item["issue_ref"]:
                 print(f"    Issue: {item['issue_ref']}")
             print()
@@ -154,6 +161,7 @@ def print_report(expired: list, warnings: list) -> None:
     print("SUMMARY")
     print("=" * 60)
     print(f"  Total deprecations tracked: {len(DEPRECATION_REGISTRY)}")
+    print(f"  Configuration errors: {len(errors)}")
     print(f"  Expired (FAIL): {len(expired)}")
     print(f"  Upcoming warnings: {len(warnings)}")
     print()
@@ -164,10 +172,18 @@ def main() -> int:
     Main entry point.
 
     Returns:
-        int: Exit code (0 = success, 1 = expired deprecations found)
+        int: Exit code (0 = success, 1 = expired deprecations, 2 = config errors)
     """
-    expired, warnings = check_deprecations()
-    print_report(expired, warnings)
+    expired, warnings, errors = check_deprecations()
+    print_report(expired, warnings, errors)
+
+    if errors:
+        print("RESULT: FAIL - Configuration errors in DEPRECATION_REGISTRY")
+        print()
+        print("To fix this:")
+        print("  1. Check the date format for each entry (must be YYYY-MM-DD)")
+        print("  2. Ensure all required fields are present")
+        return 2
 
     if expired:
         print("RESULT: FAIL - Expired deprecations must be removed from codebase")

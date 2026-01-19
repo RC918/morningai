@@ -3470,6 +3470,17 @@ class Settings(BaseSettings):
             new_env = entry["new_env"]
             removal_date = entry["removal_date"]
             check_type = entry["check_type"]
+            issue_ref = entry.get("issue_ref")
+
+            # Build warning message with optional issue reference
+            base_msg = (
+                f"{old_env} is deprecated. Please use {new_env} instead. "
+                f"Support for {old_env} will be removed after {removal_date}."
+            )
+            if issue_ref:
+                base_msg += f" See {issue_ref} for details."
+
+            deprecated_in_use = False
 
             if check_type == "field":
                 # Field-based check: compare Settings field values
@@ -3479,24 +3490,17 @@ class Settings(BaseSettings):
                 new_value = getattr(self, new_field, None)
 
                 if old_value and not new_value:
-                    warnings.warn(
-                        f"{old_env} is deprecated. Please use {new_env} instead. "
-                        f"Support for {old_env} will be removed after {removal_date}.",
-                        DeprecationWarning,
-                        stacklevel=2
-                    )
+                    deprecated_in_use = True
 
             elif check_type == "env":
                 # Env-var-only check: compare environment variables directly
                 # This is used for AliasChoices fields where both names work
                 # but we want to encourage migration to the preferred name
                 if os.getenv(old_env) and not os.getenv(new_env):
-                    warnings.warn(
-                        f"{old_env} is deprecated. Please use {new_env} instead. "
-                        f"Support for {old_env} will be removed after {removal_date}.",
-                        DeprecationWarning,
-                        stacklevel=2
-                    )
+                    deprecated_in_use = True
+
+            if deprecated_in_use:
+                warnings.warn(base_msg, DeprecationWarning, stacklevel=2)
 
 
 _settings_instance = None
