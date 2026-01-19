@@ -8,7 +8,36 @@ from enum import Enum
 from src.models.user import db
 
 class AgentTypeDB(str, Enum):
-    """Database enum for agent types"""
+    """Database enum for agent types as defined in Blueprint Section 3.3.
+
+    Blueprint Reference: Section 3.3 - Agent Catalog V2
+    Issue: #4118 (EPIC K P0: AgentType Enum Extension)
+    Sync: Aligned with orchestrator/governance/principal_context.py::AgentType
+
+    Note: This enum must stay in sync with:
+    - agent_registry.py::AgentType (Pydantic model)
+    - migration 045_extend_agenttypedb_enum.sql (PostgreSQL enum)
+    """
+    # === Core Engineering Agents (Blueprint 3.3) ===
+    PLANNER = "planner"
+    CODING = "coding"
+    REVIEWER = "reviewer"
+    TEST = "test"
+    DEBUGGER = "debugger"
+
+    # === UX/UI Agents (Blueprint 3.3) ===
+    UI_CONSISTENCY = "ui_consistency"
+    UX_HEURISTIC = "ux_heuristic"
+    VISUAL_REGRESSION = "visual_regression"
+    DESIGN_TOKEN_GOVERNANCE = "design_token_governance"
+
+    # === Governance/Reasoning Agents (Blueprint 3.3) ===
+    JUDGE = "judge"
+    DEBATE_LEFT = "debate_left"
+    DEBATE_RIGHT = "debate_right"
+    RISK_ANALYZER = "risk_analyzer"
+
+    # === Legacy Agent Types (backward compatibility) ===
     DEV_AGENT = "dev_agent"
     OPS_AGENT = "ops_agent"
     PM_AGENT = "pm_agent"

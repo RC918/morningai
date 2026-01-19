@@ -10,7 +10,38 @@ from enum import Enum
 
 
 class AgentType(str, Enum):
-    """Type of agent"""
+    """Type of agent as defined in Blueprint Section 3.3 (Agent Catalog V2).
+
+    Blueprint Reference: Section 3.3 - 13 Agent Types
+    Issue: #4118 (EPIC K P0: AgentType Enum Extension)
+    Sync: Aligned with orchestrator/governance/principal_context.py::AgentType
+
+    Categories (13 Blueprint types + legacy types):
+    - Core Engineering Agents (5): Planner, Coding, Reviewer, Test, Debugger
+    - UX/UI Agents (4): UI Consistency, UX Heuristic, Visual Regression, Design Token
+    - Governance/Reasoning Agents (4): Judge, Debate Left, Debate Right, Risk Analyzer
+    - Legacy/Compatibility (5): dev_agent, ops_agent, pm_agent, growth_strategist, meta_agent
+    """
+    # === Core Engineering Agents (Blueprint 3.3) ===
+    PLANNER = "planner"
+    CODING = "coding"
+    REVIEWER = "reviewer"
+    TEST = "test"
+    DEBUGGER = "debugger"
+
+    # === UX/UI Agents (Blueprint 3.3) ===
+    UI_CONSISTENCY = "ui_consistency"
+    UX_HEURISTIC = "ux_heuristic"
+    VISUAL_REGRESSION = "visual_regression"
+    DESIGN_TOKEN_GOVERNANCE = "design_token_governance"
+
+    # === Governance/Reasoning Agents (Blueprint 3.3) ===
+    JUDGE = "judge"
+    DEBATE_LEFT = "debate_left"
+    DEBATE_RIGHT = "debate_right"
+    RISK_ANALYZER = "risk_analyzer"
+
+    # === Legacy Agent Types (backward compatibility) ===
     DEV_AGENT = "dev_agent"
     OPS_AGENT = "ops_agent"
     PM_AGENT = "pm_agent"
