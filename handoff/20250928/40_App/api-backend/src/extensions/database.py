@@ -90,12 +90,14 @@ def configure_database(app, app_settings, db):
         }
         logger.info("ℹ️  Test mode detected: Using SQLite in-memory with StaticPool")
     else:
+        # Use configurable DB pool settings from settings.py (P1.3)
+        db_settings = get_settings()
         app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-            "pool_pre_ping": True,
-            "pool_recycle": 300,
-            "pool_size": 5,
-            "max_overflow": 10,
-            "pool_timeout": 10,
+            "pool_pre_ping": db_settings.db_pool_pre_ping,
+            "pool_recycle": db_settings.db_pool_recycle,
+            "pool_size": db_settings.db_pool_size,
+            "max_overflow": db_settings.db_pool_max,
+            "pool_timeout": db_settings.db_pool_timeout,
         }
 
     db.init_app(app)
