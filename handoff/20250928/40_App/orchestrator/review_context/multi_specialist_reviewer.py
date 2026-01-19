@@ -440,6 +440,7 @@ def filter_findings_by_confidence(
             "filtered_count": 0,
             "removed_count": 0,
             "threshold": threshold,
+            "removed_findings": [],  # Cursor Bugbot: Consistent stats structure
         }
 
     filtered = [f for f in findings if f.confidence >= threshold]
@@ -454,7 +455,8 @@ def filter_findings_by_confidence(
             {
                 "specialist": f.specialist.value,
                 "confidence": f.confidence,
-                "message": f.message[:100],  # Truncate for logging
+                # Gemini/MorningAI: Sanitize newlines before truncation to prevent log injection
+                "message": f.message.replace('\n', ' ').replace('\r', '')[:100],
             }
             for f in removed
         ],
@@ -1093,6 +1095,7 @@ Return your findings as a JSON array."""
     ) -> List[SpecialistFinding]:
         """Parse the LLM response into SpecialistFinding objects."""
         import json
+        import math
         import re
 
         findings: List[SpecialistFinding] = []
@@ -1117,11 +1120,14 @@ Return your findings as a JSON array."""
             for item in parsed:
                 if isinstance(item, dict):
                     # Parse confidence score (B-18)
-                    # Default to 0.8 if not provided, clamp to [0.0, 1.0]
+                    # Default to 0.8 if not provided
+                    # MorningAI/Cursor: Treat out-of-range and NaN as invalid, use default
                     raw_confidence = item.get("confidence", 0.8)
                     try:
                         confidence = float(raw_confidence)
-                        confidence = max(0.0, min(1.0, confidence))
+                        # Check for NaN (Cursor Bugbot) and out-of-range (MorningAI)
+                        if math.isnan(confidence) or confidence < 0.0 or confidence > 1.0:
+                            confidence = 0.8
                     except (TypeError, ValueError):
                         confidence = 0.8
 
