@@ -443,6 +443,7 @@ class TestMultiSpecialistReviewerWithSelfCritique:
     def test_review_with_self_critique_disabled(self, mock_get_client, mock_settings):
         """Test that self-critique is skipped when disabled."""
         mock_settings.enable_self_critique = False
+        mock_settings.enable_confidence_filtering = False  # B-18: Disable for this test
 
         mock_client = MagicMock()
         mock_response = MagicMock()
@@ -475,6 +476,7 @@ class TestMultiSpecialistReviewerWithSelfCritique:
     def test_review_with_self_critique_enabled(self, mock_get_client, mock_settings):
         """Test that self-critique runs when enabled."""
         mock_settings.enable_self_critique = True
+        mock_settings.enable_confidence_filtering = False  # B-18: Disable for this test
 
         mock_client = MagicMock()
 
