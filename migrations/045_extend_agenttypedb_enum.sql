@@ -36,6 +36,9 @@ ALTER TYPE agenttypedb ADD VALUE IF NOT EXISTS 'debate_left';
 ALTER TYPE agenttypedb ADD VALUE IF NOT EXISTS 'debate_right';
 ALTER TYPE agenttypedb ADD VALUE IF NOT EXISTS 'risk_analyzer';
 
+-- Default/Unknown Type (backward compatibility)
+ALTER TYPE agenttypedb ADD VALUE IF NOT EXISTS 'unknown';
+
 -- Step 2: Add comment documenting the change
 COMMENT ON TYPE agenttypedb IS 
-    'Agent types as defined in Blueprint Section 3.3 (Agent Catalog V2). Extended in migration 045 to include all 18 Blueprint agent types. Synced with orchestrator/governance/principal_context.py::AgentType.';
+    'Agent types as defined in Blueprint Section 3.3 (Agent Catalog V2). Extended in migration 045 to include all 19 Blueprint agent types (including unknown for backward compatibility). Synced with orchestrator/governance/principal_context.py::AgentType.';

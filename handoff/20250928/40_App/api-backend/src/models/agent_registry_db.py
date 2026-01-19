@@ -43,6 +43,7 @@ class AgentTypeDB(str, Enum):
     PM_AGENT = "pm_agent"
     GROWTH_STRATEGIST = "growth_strategist"
     META_AGENT = "meta_agent"
+    UNKNOWN = "unknown"  # Default for backward compatibility
 
 class AgentStatusDB(str, Enum):
     """Database enum for agent status"""

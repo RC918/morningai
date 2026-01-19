@@ -16,11 +16,11 @@ class AgentType(str, Enum):
     Issue: #4118 (EPIC K P0: AgentType Enum Extension)
     Sync: Aligned with orchestrator/governance/principal_context.py::AgentType
 
-    Categories (13 Blueprint types + legacy types):
+    Categories (13 Blueprint types + legacy types + unknown):
     - Core Engineering Agents (5): Planner, Coding, Reviewer, Test, Debugger
     - UX/UI Agents (4): UI Consistency, UX Heuristic, Visual Regression, Design Token
     - Governance/Reasoning Agents (4): Judge, Debate Left, Debate Right, Risk Analyzer
-    - Legacy/Compatibility (5): dev_agent, ops_agent, pm_agent, growth_strategist, meta_agent
+    - Legacy/Compatibility (6): dev_agent, ops_agent, pm_agent, growth_strategist, meta_agent, unknown
     """
     # === Core Engineering Agents (Blueprint 3.3) ===
     PLANNER = "planner"
@@ -47,6 +47,7 @@ class AgentType(str, Enum):
     PM_AGENT = "pm_agent"
     GROWTH_STRATEGIST = "growth_strategist"
     META_AGENT = "meta_agent"
+    UNKNOWN = "unknown"  # Default for backward compatibility
 
 
 class AgentStatus(str, Enum):
