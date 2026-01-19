@@ -1312,8 +1312,11 @@ class TestEnqueueCIFailureTask:
         with patch("src.routes.webhooks.settings") as mock_settings:
             mock_settings.redis_url = "redis://localhost:6379"
             mock_settings.github_repo = None
-            result = _enqueue_ci_failure_task(mock_task)
-            assert result is None
+            with patch("redis.Redis") as mock_redis_class:
+                mock_redis = MagicMock()
+                mock_redis_class.from_url.return_value = mock_redis
+                result = _enqueue_ci_failure_task(mock_task)
+                assert result is None
 
     def test_enqueue_ci_failure_task_no_pr_number(self):
         """Should return None when no PR number is specified."""
@@ -1327,8 +1330,11 @@ class TestEnqueueCIFailureTask:
         with patch("src.routes.webhooks.settings") as mock_settings:
             mock_settings.redis_url = "redis://localhost:6379"
             mock_settings.github_repo = "test/repo"
-            result = _enqueue_ci_failure_task(mock_task)
-            assert result is None
+            with patch("redis.Redis") as mock_redis_class:
+                mock_redis = MagicMock()
+                mock_redis_class.from_url.return_value = mock_redis
+                result = _enqueue_ci_failure_task(mock_task)
+                assert result is None
 
     def test_enqueue_ci_failure_task_success(self):
         """Should enqueue CI failure task successfully."""
@@ -1416,8 +1422,11 @@ class TestEnqueueMetaAgentTask:
         with patch("src.routes.webhooks.settings") as mock_settings:
             mock_settings.redis_url = "redis://localhost:6379"
             mock_settings.github_repo = None
-            result = _enqueue_meta_agent_task(mock_task)
-            assert result is None
+            with patch("redis.Redis") as mock_redis_class:
+                mock_redis = MagicMock()
+                mock_redis_class.from_url.return_value = mock_redis
+                result = _enqueue_meta_agent_task(mock_task)
+                assert result is None
 
     def test_enqueue_meta_agent_task_success(self):
         """Should enqueue meta agent task successfully."""
@@ -1445,7 +1454,7 @@ class TestEnqueueMetaAgentTask:
                     mock_queue.enqueue.return_value = mock_job
                     mock_queue_class.return_value = mock_queue
 
-                    with patch("redis_queue.worker.run_orchestrator_task"):
+                    with patch("redis_queue.worker.run_meta_agent_task"):
                         result = _enqueue_meta_agent_task(mock_task)
                         assert result == "meta-job-456"
 
@@ -1560,8 +1569,8 @@ class TestSlackWebhookEdgeCases:
                 },
                 content_type="application/x-www-form-urlencoded"
             )
-            # Should not crash, gracefully handles invalid JSON
-            assert response.status_code in [200, 400]
+            # Should not crash and return 200 OK, as the invalid JSON is currently ignored.
+            assert response.status_code == 200
 
     def test_slack_webhook_with_task_creation(self, client, mock_normalizer):
         """Should create task for actionable Slack events."""
