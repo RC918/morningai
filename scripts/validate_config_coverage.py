@@ -30,15 +30,14 @@ import yaml
 DEFAULT_PROD_FILE = Path(__file__).parent.parent / "attachments" / "prod.md"
 DEFAULT_SCHEMA_FILE = Path(__file__).parent.parent / "config" / "env.schema.yaml"
 
-# Type mapping for validation
-TYPE_VALIDATORS = {
-    "string": lambda v: isinstance(v, str),
-    "integer": lambda v: v.isdigit() or (v.startswith("-") and v[1:].isdigit()),
-    "boolean": lambda v: v.upper() in ("TRUE", "FALSE", "YES", "NO", "1", "0"),
-    "url": lambda v: v.startswith(("http://", "https://", "redis://", "rediss://", "postgresql://")),
-    "secret": lambda v: isinstance(v, str),  # Secrets are just strings
-    "float": lambda v: _is_float(v),
-}
+
+def _is_int(value: str) -> bool:
+    """Check if a string represents an integer."""
+    try:
+        int(value)
+        return True
+    except ValueError:
+        return False
 
 
 def _is_float(value: str) -> bool:
@@ -48,6 +47,17 @@ def _is_float(value: str) -> bool:
         return True
     except ValueError:
         return False
+
+
+# Type mapping for validation
+TYPE_VALIDATORS = {
+    "string": lambda v: isinstance(v, str),
+    "integer": _is_int,
+    "boolean": lambda v: v.upper() in ("TRUE", "FALSE", "YES", "NO", "1", "0"),
+    "url": lambda v: v.startswith(("http://", "https://", "redis://", "rediss://", "postgresql://")),
+    "secret": lambda v: isinstance(v, str),  # Secrets are just strings
+    "float": _is_float,
+}
 
 
 def parse_prod_md(file_path: Path) -> dict[str, str]:
@@ -67,7 +77,7 @@ def parse_prod_md(file_path: Path) -> dict[str, str]:
         raise FileNotFoundError(f"Production config file not found: {file_path}")
 
     config = {}
-    with open(file_path, "r") as f:
+    with open(file_path, "r", encoding="utf-8") as f:
         for line_num, line in enumerate(f, 1):
             line = line.strip()
             if not line:
@@ -98,13 +108,19 @@ def parse_schema(file_path: Path) -> dict[str, dict[str, Any]]:
     if not file_path.exists():
         raise FileNotFoundError(f"Schema file not found: {file_path}")
 
-    with open(file_path, "r") as f:
+    with open(file_path, "r", encoding="utf-8") as f:
         schema = yaml.safe_load(f)
 
     if not schema or "fields" not in schema:
         raise ValueError(f"Invalid schema format: missing 'fields' key in {file_path}")
 
-    return schema.get("fields", {})
+    fields = schema.get("fields")
+    if fields is None:
+        raise ValueError(f"Invalid schema format: 'fields' is null in {file_path}")
+    if not isinstance(fields, dict):
+        raise ValueError(f"Invalid schema format: 'fields' must be a dict in {file_path}")
+
+    return fields
 
 
 def validate_type(var_name: str, value: str, schema_type: str) -> tuple[bool, str]:
@@ -130,21 +146,22 @@ def validate_type(var_name: str, value: str, schema_type: str) -> tuple[bool, st
     return True, ""
 
 
-def validate_choices(var_name: str, value: str, choices: list[str]) -> tuple[bool, str]:
+def validate_choices(var_name: str, value: str, choices: list[Any]) -> tuple[bool, str]:
     """
     Validate that a value is in the allowed choices.
 
     Args:
         var_name: Variable name (for error messages)
         value: The value to validate
-        choices: List of allowed values
+        choices: List of allowed values (may contain non-string types from YAML)
 
     Returns:
         Tuple of (is_valid, error_message)
     """
     # Normalize for case-insensitive comparison
+    # Convert choices to strings first (YAML may parse as bool/int)
     normalized_value = value.lower()
-    normalized_choices = [c.lower() for c in choices]
+    normalized_choices = [str(c).lower() for c in choices]
 
     if normalized_value not in normalized_choices:
         return False, f"Invalid choice for {var_name}: '{value}' not in {choices}"
@@ -181,6 +198,10 @@ def validate_config(
 
     # 2. Check for required variables missing from prod.md
     for var_name, var_schema in schema.items():
+        # Skip null field definitions (malformed schema entries)
+        if var_schema is None:
+            warnings.append(f"MALFORMED_SCHEMA: {var_name} has null definition in schema")
+            continue
         if var_schema.get("required", False) and var_name not in prod_vars:
             # Check if it's a secret (secrets might be intentionally omitted)
             if var_schema.get("type") == "secret":
@@ -192,6 +213,10 @@ def validate_config(
     for var_name in sorted(prod_vars & schema_vars):
         value = prod_config[var_name]
         var_schema = schema[var_name]
+
+        # Skip null field definitions (malformed schema entries)
+        if var_schema is None:
+            continue
 
         # Type validation
         schema_type = var_schema.get("type", "string")
@@ -235,18 +260,18 @@ def print_report(
     print()
 
     if errors:
-        print("ERRORS (must fix):")
-        print("-" * 50)
+        print("ERRORS (must fix):", file=sys.stderr)
+        print("-" * 50, file=sys.stderr)
         for error in errors:
-            print(f"  [ERROR] {error}")
-        print()
+            print(f"  [ERROR] {error}", file=sys.stderr)
+        print(file=sys.stderr)
 
     if warnings:
-        print("WARNINGS (should review):")
-        print("-" * 50)
+        print("WARNINGS (should review):", file=sys.stderr)
+        print("-" * 50, file=sys.stderr)
         for warning in warnings:
-            print(f"  [WARN] {warning}")
-        print()
+            print(f"  [WARN] {warning}", file=sys.stderr)
+        print(file=sys.stderr)
 
     if info:
         print("INFO (for reference):")
@@ -321,10 +346,10 @@ def main() -> int:
         return 0
 
     except FileNotFoundError as e:
-        print(f"ERROR: {e}")
+        print(f"ERROR: {e}", file=sys.stderr)
         return 2
     except (yaml.YAMLError, ValueError) as e:
-        print(f"ERROR: Failed to parse configuration: {e}")
+        print(f"ERROR: Failed to parse configuration: {e}", file=sys.stderr)
         return 2
 
 
