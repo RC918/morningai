@@ -3417,6 +3417,17 @@ class Settings(BaseSettings):
                     stacklevel=2
                 )
 
+        # P2: Check for legacy JWT_EXPIRATION_MINUTES usage (Issue #4219)
+        # This field uses AliasChoices, so both names work but we want to
+        # encourage migration to the preferred name.
+        if os.getenv("JWT_EXPIRATION_MINUTES") and not os.getenv("ACCESS_TOKEN_EXPIRY_MINUTES"):
+            warnings.warn(
+                "JWT_EXPIRATION_MINUTES is deprecated. Please use ACCESS_TOKEN_EXPIRY_MINUTES instead. "
+                "Support for JWT_EXPIRATION_MINUTES will be removed after 2026-06-30.",
+                DeprecationWarning,
+                stacklevel=2
+            )
+
 
 _settings_instance = None
 
