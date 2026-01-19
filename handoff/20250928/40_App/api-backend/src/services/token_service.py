@@ -74,10 +74,24 @@ class TokenService:
         """Get JWT secret key from settings.
 
         Returns:
-            JWT secret key string. Falls back to test secret if not configured.
+            JWT secret key string. Falls back to test secret if not configured
+            (only in non-production environments).
+
+        Raises:
+            ValueError: If JWT_SECRET_KEY is not configured in production.
         """
         secret = self._resolved_settings.jwt_secret_key
         if not secret:
+            # Fail fast in production - never use fallback secret
+            if self._resolved_settings.is_production:
+                logger.critical(
+                    "CRITICAL: JWT_SECRET_KEY is not configured in production. "
+                    "This is a security risk. Aborting."
+                )
+                raise ValueError(
+                    "JWT_SECRET_KEY must be configured in production environment."
+                )
+            # Non-production: use fallback with warning
             logger.warning(
                 "JWT_SECRET_KEY not configured, using test fallback. "
                 "DO NOT USE IN PRODUCTION."
@@ -134,7 +148,8 @@ class TokenService:
             except jwt.InvalidTokenError:
                 # Handle invalid token
         """
-        decode_options = options or {}
+        # Copy options to avoid mutating caller's dict
+        decode_options = options.copy() if options else {}
         if not verify:
             decode_options['verify_signature'] = False
 
