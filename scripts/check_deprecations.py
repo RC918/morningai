@@ -3,6 +3,7 @@
 Deprecation Deadline Enforcement Script
 
 Issue #4223: Implement deprecation milestone tracking system
+Issue #4238: DRY refactoring using shared deprecation_utils
 
 This script checks the DEPRECATION_REGISTRY in settings.py and:
 1. FAILS if any deprecation deadline has passed (enforcement)
@@ -29,7 +30,6 @@ CI Integration:
 """
 
 import sys
-from datetime import date, datetime
 from pathlib import Path
 
 # Add the repo root to the path so we can import from common.config
@@ -38,24 +38,18 @@ sys.path.insert(0, str(repo_root))
 
 try:
     from common.config.settings import DEPRECATION_REGISTRY
+    from common.config.deprecation_utils import iter_deprecations_safe
 except ImportError as e:
-    print(f"ERROR: Failed to import DEPRECATION_REGISTRY: {e}")
+    print(f"ERROR: Failed to import deprecation utilities: {e}")
     print("Make sure you're running this script from the repository root.")
     sys.exit(2)
-
-
-# Configuration
-WARNING_DAYS = 30  # Warn if deadline is within this many days
-
-
-def parse_date(date_str: str) -> date:
-    """Parse a date string in YYYY-MM-DD format and return a date object."""
-    return datetime.strptime(date_str, "%Y-%m-%d").date()
 
 
 def check_deprecations() -> tuple[list, list, list]:
     """
     Check all deprecations in the registry.
+
+    Uses shared iter_deprecations_safe() for DRY code.
 
     Returns:
         tuple: (expired_list, warning_list, errors_list)
@@ -63,52 +57,35 @@ def check_deprecations() -> tuple[list, list, list]:
             - warning_list: List of deprecations within WARNING_DAYS of deadline
             - errors_list: List of deprecations with configuration errors
     """
-    today = date.today()
-
     expired = []
     warnings = []
     errors = []
 
-    for entry in DEPRECATION_REGISTRY:
-        old_env = entry["old_env"]
-        new_env = entry["new_env"]
-        removal_date_str = entry["removal_date"]
-        issue_ref = entry.get("issue_ref")
-
-        try:
-            removal_date = parse_date(removal_date_str)
-        except ValueError as e:
+    for dep, error in iter_deprecations_safe():
+        if error:
+            # Extract old_env from error message for reporting
+            # Error format: "Invalid date for {old_env}: {error}"
             errors.append({
-                "old_env": old_env,
-                "new_env": new_env,
-                "removal_date": removal_date_str,
-                "issue_ref": issue_ref,
-                "error": str(e),
+                "error": error,
             })
             continue
 
-        days_until = (removal_date - today).days
-
-        if days_until < 0:
-            # Deadline has passed
+        if dep.is_expired:
             expired.append({
-                "old_env": old_env,
-                "new_env": new_env,
-                "removal_date": removal_date_str,
-                "issue_ref": issue_ref,
-                "days_overdue": abs(days_until),
+                "old_env": dep.old_env,
+                "new_env": dep.new_env,
+                "removal_date": dep.removal_date_str,
+                "issue_ref": dep.issue_ref,
+                "days_overdue": abs(dep.days_until_removal),
             })
-        elif days_until <= WARNING_DAYS:
-            # Deadline is approaching
+        elif dep.is_warning:
             warnings.append({
-                "old_env": old_env,
-                "new_env": new_env,
-                "removal_date": removal_date_str,
-                "issue_ref": issue_ref,
-                "days_remaining": days_until,
+                "old_env": dep.old_env,
+                "new_env": dep.new_env,
+                "removal_date": dep.removal_date_str,
+                "issue_ref": dep.issue_ref,
+                "days_remaining": dep.days_until_removal,
             })
-
-    return expired, warnings, errors
 
 
 def print_report(expired: list, warnings: list, errors: list) -> None:
@@ -122,9 +99,7 @@ def print_report(expired: list, warnings: list, errors: list) -> None:
         print("CONFIGURATION ERRORS:")
         print("-" * 40)
         for item in errors:
-            print(f"  {item['old_env']} -> {item['new_env']}")
-            print(f"    Invalid date: {item['removal_date']}")
-            print(f"    Error: {item['error']}")
+            print(f"  {item['error']}")
             print("    Expected format: YYYY-MM-DD")
             print()
 
