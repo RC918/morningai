@@ -17,6 +17,7 @@ Benefits:
 
 import jwt
 import logging
+import threading
 from typing import Optional, Dict, Any
 
 from common.config.settings import get_settings, Settings
@@ -188,16 +189,25 @@ class TokenService:
             return None
 
 
-# Singleton instance
+# Singleton instance with thread-safe initialization
+# Issue #4233: Thread-safe singleton pattern using double-checked locking
 _token_service_instance: Optional[TokenService] = None
+_token_service_lock = threading.Lock()
 
 
 def get_token_service() -> TokenService:
-    """Get the singleton TokenService instance.
+    """Get the singleton TokenService instance (thread-safe).
 
     This function provides a singleton TokenService for use throughout
-    the application. For testing, you can create a new TokenService
-    instance with custom settings.
+    the application. Uses double-checked locking pattern for thread-safety
+    with minimal performance overhead.
+
+    Thread Safety:
+        This implementation uses double-checked locking to ensure that:
+        1. Only one instance is ever created, even under concurrent access
+        2. After initialization, no lock acquisition is needed (fast path)
+        3. The lock is only acquired during the first initialization
+        4. Local variable caching prevents TOCTOU race conditions
 
     Returns:
         TokenService singleton instance.
@@ -207,16 +217,30 @@ def get_token_service() -> TokenService:
         token = token_service.encode({'user_id': '123'})
     """
     global _token_service_instance
-    if _token_service_instance is None:
-        _token_service_instance = TokenService()
-    return _token_service_instance
+    # Fast path: cache in local variable to prevent TOCTOU race
+    # (another thread could call reset_token_service() between check and return)
+    instance = _token_service_instance
+    if instance is not None:
+        return instance
+
+    # Slow path: acquire lock and double-check
+    with _token_service_lock:
+        # Double-check after acquiring lock (another thread may have created it)
+        if _token_service_instance is None:
+            _token_service_instance = TokenService()
+        # Return inside lock to prevent TOCTOU race
+        return _token_service_instance
 
 
 def reset_token_service() -> None:
-    """Reset the singleton TokenService instance.
+    """Reset the singleton TokenService instance (thread-safe).
 
     This is primarily useful for testing to ensure a fresh instance
     is created with updated settings.
+
+    Thread Safety:
+        Uses lock to ensure safe reset even under concurrent access.
     """
     global _token_service_instance
-    _token_service_instance = None
+    with _token_service_lock:
+        _token_service_instance = None
