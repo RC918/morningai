@@ -750,6 +750,14 @@ class TestP0SecurityEnhancements:
     def test_missing_jwt_secret_key(self, app, monkeypatch):
         """Test that missing JWT_SECRET_KEY uses default test secret"""
         monkeypatch.delenv('JWT_SECRET_KEY', raising=False)
+        # Set non-production environment so TokenService uses fallback secret
+        # instead of throwing ValueError (production security check from PR #4224)
+        monkeypatch.setenv('ENVIRONMENT', 'development')
+        # Reset settings and token_service singletons to pick up new environment
+        from common.config.settings import reload_settings
+        from src.services.token_service import reset_token_service
+        reload_settings()
+        reset_token_service()
         client = app.test_client()
         
         temp_secret = 'wrong-secret'
