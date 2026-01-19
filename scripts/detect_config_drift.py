@@ -66,11 +66,15 @@ def parse_render_yaml(file_path: Path) -> dict[str, dict[str, Any]]:
 
     env_vars: dict[str, dict[str, Any]] = {}
 
-    for service in render_config.get("services", []):
+    for service in render_config.get("services", []) or []:
+        if service is None:
+            continue
         service_name = service.get("name", "unknown")
         service_type = service.get("type", "unknown")
 
-        for env_var in service.get("envVars", []):
+        for env_var in service.get("envVars", []) or []:
+            if env_var is None:
+                continue
             key = env_var.get("key")
             if not key:
                 continue
@@ -460,19 +464,17 @@ def main() -> int:
             min_severity=args.severity,
         )
 
-        # Determine exit code
+        # Determine exit code based on severity counts
         critical_count = len([item for item in drift_items if item["severity"] == SEVERITY_CRITICAL])
         high_count = len([item for item in drift_items if item["severity"] == SEVERITY_HIGH])
 
+        # Always block on critical drift
         if critical_count > 0:
             return EXIT_DRIFT_DETECTED
 
-        if args.strict and high_count > 0:
+        # --strict blocks on HIGH severity (unless --block-on-critical overrides)
+        if args.strict and high_count > 0 and not args.block_on_critical:
             return EXIT_DRIFT_DETECTED
-
-        if args.block_on_critical:
-            # Only block on critical, not high
-            return EXIT_SUCCESS
 
         return EXIT_SUCCESS
 

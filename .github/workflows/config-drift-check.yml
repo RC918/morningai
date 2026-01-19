@@ -43,7 +43,7 @@ jobs:
       - name: Run drift detection
         id: drift-check
         run: |
-          python scripts/detect_config_drift.py --severity medium 2>&1 | tee drift-report.txt
+          python scripts/detect_config_drift.py --severity medium --strict 2>&1 | tee drift-report.txt
           exit_code=${PIPESTATUS[0]}
           echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
           
