@@ -87,6 +87,8 @@ def check_deprecations() -> tuple[list, list, list]:
                 "days_remaining": dep.days_until_removal,
             })
 
+    return expired, warnings, errors
+
 
 def print_report(expired: list, warnings: list, errors: list) -> None:
     """Print a formatted report of deprecation status."""
