@@ -207,6 +207,7 @@ def get_token_service() -> TokenService:
         1. Only one instance is ever created, even under concurrent access
         2. After initialization, no lock acquisition is needed (fast path)
         3. The lock is only acquired during the first initialization
+        4. Local variable caching prevents TOCTOU race conditions
 
     Returns:
         TokenService singleton instance.
@@ -216,16 +217,19 @@ def get_token_service() -> TokenService:
         token = token_service.encode({'user_id': '123'})
     """
     global _token_service_instance
-    # Fast path: instance already exists (no lock needed)
-    if _token_service_instance is not None:
-        return _token_service_instance
+    # Fast path: cache in local variable to prevent TOCTOU race
+    # (another thread could call reset_token_service() between check and return)
+    instance = _token_service_instance
+    if instance is not None:
+        return instance
 
     # Slow path: acquire lock and double-check
     with _token_service_lock:
         # Double-check after acquiring lock (another thread may have created it)
         if _token_service_instance is None:
             _token_service_instance = TokenService()
-    return _token_service_instance
+        # Return inside lock to prevent TOCTOU race
+        return _token_service_instance
 
 
 def reset_token_service() -> None:
