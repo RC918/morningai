@@ -1213,6 +1213,73 @@ class Settings(BaseSettings):
         description="Deployment environment"
     )
 
+    # Issue #4190: CLOUD_ENV configuration
+    cloud_env: Literal["development", "staging", "production"] = Field(
+        default="development",
+        alias="CLOUD_ENV",
+        description="Cloud environment identifier for infrastructure-level configuration"
+    )
+
+    # Issue #4189: SMTP configuration for email sending
+    smtp_host: str = Field(
+        default="",
+        alias="SMTP_HOST",
+        description="SMTP server hostname for email sending"
+    )
+
+    smtp_port: int = Field(
+        default=587,
+        ge=1,
+        le=65535,
+        alias="SMTP_PORT",
+        description="SMTP server port (587 for TLS, 465 for SSL)"
+    )
+
+    smtp_user_secret: Optional[SecretStr] = Field(
+        default=None,
+        alias="SMTP_USER",
+        description="SMTP authentication username",
+        repr=False
+    )
+
+    @property
+    def smtp_user(self) -> Optional[str]:
+        """SMTP user (unwrapped from SecretStr)"""
+        return self.smtp_user_secret.get_secret_value() if self.smtp_user_secret else None
+
+    smtp_password_secret: Optional[SecretStr] = Field(
+        default=None,
+        alias="SMTP_PASSWORD",
+        description="SMTP authentication password",
+        repr=False
+    )
+
+    @property
+    def smtp_password(self) -> Optional[str]:
+        """SMTP password (unwrapped from SecretStr)"""
+        return self.smtp_password_secret.get_secret_value() if self.smtp_password_secret else None
+
+    email_from: str = Field(
+        default="",
+        alias="EMAIL_FROM",
+        description="Default sender email address for outgoing emails"
+    )
+
+    # Issue #4191: Referral system configuration
+    referral_max_usage: int = Field(
+        default=5,
+        ge=1,
+        alias="REFERRAL_MAX_USAGE",
+        description="Maximum number of times a referral code can be used"
+    )
+
+    referral_default_points: int = Field(
+        default=100,
+        ge=0,
+        alias="REFERRAL_DEFAULT_POINTS",
+        description="Default points awarded for successful referral"
+    )
+
     port: int = Field(
         default=5000,
         alias="PORT",
