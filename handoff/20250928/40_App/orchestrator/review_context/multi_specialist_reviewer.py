@@ -238,7 +238,7 @@ class ForceApproveResult:
         should_approve: Whether findings can be force-approved
         reason: Human-readable reason for the decision
         blocked_by: List of specialist types that are blocking approval
-        filtered_findings: Findings that remain after filtering (non-blocking)
+        filtered_findings: Findings that are still blocking after applying retry thresholds
     """
     should_approve: bool
     reason: str
@@ -331,14 +331,17 @@ def should_force_approve(
     if performance_issues and retry_count < 3:
         blocked_by.append("PERFORMANCE")
 
-    # Rule 3: Architecture/CORRECTNESS findings can be force-approved after 2 retries
-    # (they are NOT blocking if retry_count >= 2)
+    # Rule 3: Architecture/CORRECTNESS findings require 2+ retries
+    if retry_count < 2:
+        if architecture_issues:
+            blocked_by.append("ARCHITECTURE")
+        if correctness_issues:
+            blocked_by.append("CORRECTNESS")
 
     # Determine filtered findings (what remains after applying retry thresholds)
     filtered: List[SpecialistFinding] = []
 
-    # Security blockers always remain (but we already returned if any exist)
-    filtered.extend(security_blockers)
+    # Note: security_blockers is always empty here (we returned early if any exist)
 
     # Performance issues remain if retry_count < 3
     if retry_count < 3:
@@ -357,7 +360,7 @@ def should_force_approve(
     if blocked_by:
         return ForceApproveResult(
             should_approve=False,
-            reason=f"Blocked by {', '.join(blocked_by)} (retry_count={retry_count}, need 3+ for PERFORMANCE)",
+            reason=f"Blocked by {', '.join(blocked_by)} (retry_count={retry_count}, need 2+ for ARCHITECTURE/CORRECTNESS, 3+ for PERFORMANCE)",
             blocked_by=blocked_by,
             filtered_findings=filtered,
         )
@@ -371,11 +374,11 @@ def should_force_approve(
             filtered_findings=filtered,
         )
 
-    # Default: not enough retries yet
+    # Default: no blocking findings at current retry count
     return ForceApproveResult(
         should_approve=False,
-        reason=f"Need more retries (current={retry_count}, need 2+ for Architecture/CORRECTNESS, 3+ for PERFORMANCE)",
-        blocked_by=["RETRY_THRESHOLD"],
+        reason=f"No blocking findings but retry_count={retry_count} < 2",
+        blocked_by=[],
         filtered_findings=filtered,
     )
 
