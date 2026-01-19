@@ -4,6 +4,15 @@ from functools import wraps
 from flask import request, jsonify
 from common.config.settings import get_settings
 
+
+def _get_jwt_algorithm() -> str:
+    """Get JWT algorithm from settings (P1.4 - configurable JWT_ALGORITHM).
+
+    This ensures consistency with auth_service.py when encoding/decoding tokens.
+    """
+    return get_settings().jwt_algorithm
+
+
 def verify_jwt_library():
     """
     Verify that the correct PyJWT library is installed.
@@ -150,7 +159,7 @@ def _try_decode_token(token, jwt_secret):
         tuple: (payload, exception) where exception is None if successful
     """
     try:
-        payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
+        payload = jwt.decode(token, jwt_secret, algorithms=[_get_jwt_algorithm()])
         return payload, None
     except Exception as e:
         return None, e
@@ -391,7 +400,7 @@ def generate_jwt_token(user_data, expires_hours=24):
         'iat': datetime.datetime.now(datetime.UTC)
     }
 
-    return jwt.encode(payload, jwt_secret, algorithm='HS256')
+    return jwt.encode(payload, jwt_secret, algorithm=_get_jwt_algorithm())
 
 def create_admin_token(user_id=1, username='admin'):
     """Create admin JWT token for testing purposes"""
@@ -552,4 +561,4 @@ def create_platform_admin_token(user_id=0, username='platform_admin'):
         'iat': datetime.datetime.now(datetime.UTC)
     }
 
-    return jwt.encode(payload, jwt_secret, algorithm='HS256')
+    return jwt.encode(payload, jwt_secret, algorithm=_get_jwt_algorithm())

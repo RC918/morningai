@@ -24,7 +24,7 @@ import os
 import sys
 import warnings
 from typing import Optional, Literal, Tuple
-from pydantic import Field, field_validator, model_validator, ConfigDict, SecretStr
+from pydantic import Field, field_validator, model_validator, ConfigDict, SecretStr, AliasChoices
 from pydantic_settings import BaseSettings
 
 
@@ -83,8 +83,9 @@ class Settings(BaseSettings):
 
     access_token_expiry_minutes: int = Field(
         default=15,
-        alias="ACCESS_TOKEN_EXPIRY_MINUTES",
-        description="JWT access token expiry time in minutes (CI/E2E can override to 60)"
+        validation_alias=AliasChoices("ACCESS_TOKEN_EXPIRY_MINUTES", "JWT_EXPIRATION_MINUTES"),
+        description="JWT access token expiry time in minutes (CI/E2E can override to 60). "
+                    "Accepts both ACCESS_TOKEN_EXPIRY_MINUTES (preferred) and JWT_EXPIRATION_MINUTES (legacy)."
     )
 
     log_token_expiry_on_startup: bool = Field(
@@ -244,7 +245,37 @@ class Settings(BaseSettings):
     db_pool_max: int = Field(
         default=10,
         alias="DB_POOL_MAX",
-        description="Maximum database connection pool size"
+        description="Maximum database connection pool size (max_overflow)"
+    )
+
+    db_pool_size: int = Field(
+        default=5,
+        alias="DB_POOL_SIZE",
+        description="Database connection pool size"
+    )
+
+    db_pool_recycle: int = Field(
+        default=300,
+        alias="DB_POOL_RECYCLE",
+        description="Database connection recycle time in seconds"
+    )
+
+    db_pool_pre_ping: bool = Field(
+        default=True,
+        alias="DB_POOL_PRE_PING",
+        description="Enable pre-ping to check connection health before use"
+    )
+
+    db_pool_timeout: int = Field(
+        default=10,
+        alias="DB_POOL_TIMEOUT",
+        description="Database connection pool timeout in seconds"
+    )
+
+    jwt_algorithm: str = Field(
+        default="HS256",
+        alias="JWT_ALGORITHM",
+        description="JWT signing algorithm (default: HS256)"
     )
 
     supabase_url: Optional[str] = Field(
