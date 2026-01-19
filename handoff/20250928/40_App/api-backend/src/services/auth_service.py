@@ -27,7 +27,11 @@ _warned_startup_config_failed = False
 
 # Token Configuration
 REFRESH_TOKEN_EXPIRY_DAYS = 7
-JWT_ALGORITHM = 'HS256'
+
+
+def _get_jwt_algorithm() -> str:
+    """Get JWT algorithm from settings (P1.4 - configurable JWT_ALGORITHM)."""
+    return get_settings().jwt_algorithm
 
 
 def get_access_token_expiry_minutes() -> int:
@@ -337,7 +341,7 @@ def generate_access_token(user_id: str, email: str, role: str) -> Tuple[str, int
         'exp': expiry
     }
     
-    token = jwt.encode(payload, _get_jwt_secret(), algorithm=JWT_ALGORITHM)
+    token = jwt.encode(payload, _get_jwt_secret(), algorithm=_get_jwt_algorithm())
     return token, expiry_timestamp
 
 
@@ -361,7 +365,7 @@ def generate_refresh_token(user_id: str, email: str) -> str:
         'exp': expiry
     }
     
-    token = jwt.encode(payload, _get_jwt_secret(), algorithm=JWT_ALGORITHM)
+    token = jwt.encode(payload, _get_jwt_secret(), algorithm=_get_jwt_algorithm())
     return token
 
 
@@ -373,7 +377,7 @@ def verify_access_token(token: str) -> Optional[Dict]:
         Decoded payload or None if invalid
     """
     try:
-        payload = jwt.decode(token, _get_jwt_secret(), algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, _get_jwt_secret(), algorithms=[_get_jwt_algorithm()])
         
         if payload.get('type') != 'access':
             logger.warning("Token is not an access token")
@@ -396,7 +400,7 @@ def verify_refresh_token(token: str) -> Optional[Dict]:
         Decoded payload or None if invalid/blacklisted
     """
     try:
-        payload = jwt.decode(token, _get_jwt_secret(), algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, _get_jwt_secret(), algorithms=[_get_jwt_algorithm()])
         
         if payload.get('type') != 'refresh':
             logger.warning("Token is not a refresh token")
