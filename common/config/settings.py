@@ -53,6 +53,72 @@ Used for:
 """
 
 
+# =============================================================================
+# Deprecation Registry - Centralized Tracking for Tech Debt Management
+# =============================================================================
+# Issue #4223: Implement deprecation milestone tracking system
+#
+# This registry tracks all deprecated environment variables with their:
+# - old_env: The deprecated environment variable name
+# - new_env: The replacement environment variable name
+# - old_field: The deprecated field name in Settings (optional, for field-based deprecations)
+# - new_field: The replacement field name in Settings (optional, for field-based deprecations)
+# - removal_date: The date after which support will be removed (YYYY-MM-DD)
+# - issue_ref: Reference to the GitHub issue tracking this deprecation
+# - check_type: "field" for field-based checks, "env" for env-var-only checks
+#
+# Blueprint Alignment:
+# - Section 4.3: Model Governance Framework v2 - Clean tech debt management
+# - Section 4.6: Evidence Ledger - Track deprecation decisions and enforcement
+# =============================================================================
+
+DEPRECATION_REGISTRY = [
+    {
+        "old_env": "STRIPE_WEBHOOK_SECRET",
+        "new_env": "STRIPE_WEBHOOK_SECRET_KEY",
+        "old_field": "stripe_webhook_secret",
+        "new_field": "stripe_webhook_secret_key",
+        "removal_date": "2026-06-30",  # Extended from 2025-12-31 - migration still in progress
+        "issue_ref": None,
+        "check_type": "field",
+    },
+    {
+        "old_env": "OWNER_PASSWORD",
+        "new_env": "ADMIN_PASSWORD",
+        "old_field": "owner_password",
+        "new_field": "admin_password",
+        "removal_date": "2026-06-30",  # Extended from 2025-12-31 - migration still in progress
+        "issue_ref": None,
+        "check_type": "field",
+    },
+    {
+        "old_env": "JWT_EXPIRATION_MINUTES",
+        "new_env": "ACCESS_TOKEN_EXPIRY_MINUTES",
+        "old_field": None,
+        "new_field": None,
+        "removal_date": "2026-06-30",
+        "issue_ref": "#4219",
+        "check_type": "env",
+    },
+]
+"""
+Centralized registry of all deprecated environment variables.
+
+Each entry contains:
+- old_env: The deprecated environment variable name
+- new_env: The replacement environment variable name
+- old_field: The deprecated field name in Settings (None for env-only checks)
+- new_field: The replacement field name in Settings (None for env-only checks)
+- removal_date: The date after which support will be removed (YYYY-MM-DD format)
+- issue_ref: Reference to the GitHub issue tracking this deprecation (e.g., "#4219")
+- check_type: "field" for field-based checks, "env" for env-var-only checks
+
+Used by:
+- log_deprecation_warnings(): Runtime warnings for deprecated usage
+- scripts/check_deprecations.py: CI enforcement and pre-deadline alerts
+"""
+
+
 class Settings(BaseSettings):
     """
     Application settings loaded from environment variables.
@@ -3389,44 +3455,52 @@ class Settings(BaseSettings):
     def log_deprecation_warnings(self):
         """Log warnings for deprecated variable usage.
 
-        This method checks for deprecated environment variables and emits
-        warnings when they are used. Each deprecated variable has:
-        - old_field: The deprecated field name in Settings
-        - new_field: The replacement field name in Settings
-        - old_env: The deprecated environment variable name
-        - new_env: The replacement environment variable name
-        - removal_date: The date after which support will be removed
+        This method uses the centralized DEPRECATION_REGISTRY to check for
+        deprecated environment variables and emit warnings when they are used.
+
+        Issue #4223: Refactored to use DEPRECATION_REGISTRY for centralized
+        tech debt management.
+
+        See DEPRECATION_REGISTRY docstring for the structure of each entry.
         """
         # SECRET_KEY and MASTER_KEY removed - deadline 2025-11-30 passed
-        # Deprecated variables with their replacements and removal dates
-        deprecated_vars = [
-            # (old_field, new_field, old_env, new_env, removal_date)
-            ("stripe_webhook_secret", "stripe_webhook_secret_key", "STRIPE_WEBHOOK_SECRET", "STRIPE_WEBHOOK_SECRET_KEY", "2025-12-31"),
-            ("owner_password", "admin_password", "OWNER_PASSWORD", "ADMIN_PASSWORD", "2025-12-31"),
-        ]
 
-        for old_field, new_field, old_env, new_env, removal_date in deprecated_vars:
-            old_value = getattr(self, old_field, None)
-            new_value = getattr(self, new_field, None)
+        for entry in DEPRECATION_REGISTRY:
+            old_env = entry["old_env"]
+            new_env = entry["new_env"]
+            removal_date = entry["removal_date"]
+            check_type = entry["check_type"]
+            issue_ref = entry.get("issue_ref")
 
-            if old_value and not new_value:
-                warnings.warn(
-                    f"{old_env} is deprecated. Please use {new_env} instead. "
-                    f"Support for {old_env} will be removed after {removal_date}.",
-                    DeprecationWarning,
-                    stacklevel=2
-                )
-
-        # P2: Check for legacy JWT_EXPIRATION_MINUTES usage (Issue #4219)
-        # This field uses AliasChoices, so both names work but we want to
-        # encourage migration to the preferred name.
-        if os.getenv("JWT_EXPIRATION_MINUTES") and not os.getenv("ACCESS_TOKEN_EXPIRY_MINUTES"):
-            warnings.warn(
-                "JWT_EXPIRATION_MINUTES is deprecated. Please use ACCESS_TOKEN_EXPIRY_MINUTES instead. "
-                "Support for JWT_EXPIRATION_MINUTES will be removed after 2026-06-30.",
-                DeprecationWarning,
-                stacklevel=2
+            # Build warning message with optional issue reference
+            base_msg = (
+                f"{old_env} is deprecated. Please use {new_env} instead. "
+                f"Support for {old_env} will be removed after {removal_date}."
             )
+            if issue_ref:
+                base_msg += f" See {issue_ref} for details."
+
+            deprecated_in_use = False
+
+            if check_type == "field":
+                # Field-based check: compare Settings field values
+                old_field = entry["old_field"]
+                new_field = entry["new_field"]
+                old_value = getattr(self, old_field, None)
+                new_value = getattr(self, new_field, None)
+
+                if old_value and not new_value:
+                    deprecated_in_use = True
+
+            elif check_type == "env":
+                # Env-var-only check: compare environment variables directly
+                # This is used for AliasChoices fields where both names work
+                # but we want to encourage migration to the preferred name
+                if os.getenv(old_env) and not os.getenv(new_env):
+                    deprecated_in_use = True
+
+            if deprecated_in_use:
+                warnings.warn(base_msg, DeprecationWarning, stacklevel=2)
 
 
 _settings_instance = None
