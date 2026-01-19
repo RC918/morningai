@@ -297,6 +297,38 @@ def print_report(
         print("RESULT: PASS")
 
 
+def validate_path_security(file_path: Path, repo_root: Path, arg_name: str) -> Path:
+    """
+    Validate that a file path is within the repository root directory.
+
+    This prevents path traversal attacks when the script is run in automated
+    environments where an attacker might control the arguments.
+
+    Args:
+        file_path: The file path to validate
+        repo_root: The repository root directory
+        arg_name: The argument name (for error messages)
+
+    Returns:
+        The resolved absolute path
+
+    Raises:
+        ValueError: If path traversal is detected
+    """
+    resolved_path = file_path.resolve()
+
+    try:
+        resolved_path.relative_to(repo_root)
+    except ValueError:
+        raise ValueError(
+            f"Path traversal detected for {arg_name}: "
+            f"'{file_path}' resolves to '{resolved_path}' which is outside "
+            f"the repository root '{repo_root}'"
+        )
+
+    return resolved_path
+
+
 def main() -> int:
     """
     Main entry point.
@@ -324,13 +356,29 @@ def main() -> int:
         action="store_true",
         help="Treat warnings as errors",
     )
+    parser.add_argument(
+        "--allow-external-paths",
+        action="store_true",
+        help="Skip path traversal validation (use with caution)",
+    )
 
     args = parser.parse_args()
 
     try:
+        # Get repository root directory
+        repo_root = Path(__file__).parent.parent.resolve()
+
+        # Validate paths are within repository (security check)
+        if not args.allow_external_paths:
+            prod_file = validate_path_security(args.prod_file, repo_root, "--prod-file")
+            schema_file = validate_path_security(args.schema_file, repo_root, "--schema-file")
+        else:
+            prod_file = args.prod_file.resolve()
+            schema_file = args.schema_file.resolve()
+
         # Parse files
-        prod_config = parse_prod_md(args.prod_file)
-        schema = parse_schema(args.schema_file)
+        prod_config = parse_prod_md(prod_file)
+        schema = parse_schema(schema_file)
 
         # Validate
         errors, warnings, info = validate_config(prod_config, schema)
