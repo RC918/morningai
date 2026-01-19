@@ -1207,3 +1207,535 @@ class TestWebhookDeliveryIdempotency:
                 assert response.status_code == 200
                 data = response.get_json()
                 assert data["success"] is True
+
+
+class TestSanitizeDedupKeyComponent:
+    """Tests for _sanitize_dedup_key_component edge cases."""
+
+    def test_sanitize_empty_value(self):
+        """Should return empty string for empty value."""
+        from src.routes.webhooks import _sanitize_dedup_key_component
+
+        result = _sanitize_dedup_key_component("", "test_component")
+        assert result == ""
+
+    def test_sanitize_none_value(self):
+        """Should return empty string for None value."""
+        from src.routes.webhooks import _sanitize_dedup_key_component
+
+        result = _sanitize_dedup_key_component(None, "test_component")
+        assert result == ""
+
+    def test_sanitize_whitespace_only(self):
+        """Should return empty string for whitespace-only value."""
+        from src.routes.webhooks import _sanitize_dedup_key_component
+
+        result = _sanitize_dedup_key_component("   ", "test_component")
+        assert result == ""
+
+    def test_sanitize_valid_uuid(self):
+        """Should return valid UUID unchanged."""
+        from src.routes.webhooks import _sanitize_dedup_key_component
+
+        result = _sanitize_dedup_key_component("abc123-def456", "delivery_id")
+        assert result == "abc123-def456"
+
+    def test_sanitize_valid_numeric(self):
+        """Should return valid numeric ID unchanged."""
+        from src.routes.webhooks import _sanitize_dedup_key_component
+
+        result = _sanitize_dedup_key_component("12345678", "hook_id")
+        assert result == "12345678"
+
+    def test_sanitize_strips_whitespace(self):
+        """Should strip leading/trailing whitespace."""
+        from src.routes.webhooks import _sanitize_dedup_key_component
+
+        result = _sanitize_dedup_key_component("  abc123  ", "test_component")
+        assert result == "abc123"
+
+    def test_sanitize_rejects_special_characters(self):
+        """Should reject values with special characters."""
+        from src.routes.webhooks import _sanitize_dedup_key_component
+
+        result = _sanitize_dedup_key_component("abc:123", "test_component")
+        assert result == ""
+
+    def test_sanitize_rejects_newlines(self):
+        """Should reject values with newlines."""
+        from src.routes.webhooks import _sanitize_dedup_key_component
+
+        result = _sanitize_dedup_key_component("abc\n123", "test_component")
+        assert result == ""
+
+    def test_sanitize_rejects_spaces_in_middle(self):
+        """Should reject values with spaces in the middle."""
+        from src.routes.webhooks import _sanitize_dedup_key_component
+
+        result = _sanitize_dedup_key_component("abc 123", "test_component")
+        assert result == ""
+
+    def test_sanitize_allows_underscores(self):
+        """Should allow underscores in values."""
+        from src.routes.webhooks import _sanitize_dedup_key_component
+
+        result = _sanitize_dedup_key_component("abc_123_def", "test_component")
+        assert result == "abc_123_def"
+
+
+class TestEnqueueCIFailureTask:
+    """Tests for _enqueue_ci_failure_task edge cases."""
+
+    def test_enqueue_ci_failure_task_no_redis_url(self):
+        """Should return None when Redis URL is not configured."""
+        from src.routes.webhooks import _enqueue_ci_failure_task
+
+        mock_task = MagicMock()
+        mock_task.task_id = "ci-task-123"
+        mock_task.goal_text = "Fix CI failure"
+        mock_task.context = {"ci_failure_trigger": True}
+
+        with patch("src.routes.webhooks.settings") as mock_settings:
+            mock_settings.redis_url = None
+            result = _enqueue_ci_failure_task(mock_task)
+            assert result is None
+
+    def test_enqueue_ci_failure_task_no_repo(self):
+        """Should return None when no repository is configured."""
+        from src.routes.webhooks import _enqueue_ci_failure_task
+
+        mock_task = MagicMock()
+        mock_task.task_id = "ci-task-123"
+        mock_task.goal_text = "Fix CI failure"
+        mock_task.context = {"ci_failure_trigger": True}
+
+        with patch("src.routes.webhooks.settings") as mock_settings:
+            mock_settings.redis_url = "redis://localhost:6379"
+            mock_settings.github_repo = None
+            result = _enqueue_ci_failure_task(mock_task)
+            assert result is None
+
+    def test_enqueue_ci_failure_task_no_pr_number(self):
+        """Should return None when no PR number is specified."""
+        from src.routes.webhooks import _enqueue_ci_failure_task
+
+        mock_task = MagicMock()
+        mock_task.task_id = "ci-task-123"
+        mock_task.goal_text = "Fix CI failure"
+        mock_task.context = {"ci_failure_trigger": True, "repo": "test/repo"}
+
+        with patch("src.routes.webhooks.settings") as mock_settings:
+            mock_settings.redis_url = "redis://localhost:6379"
+            mock_settings.github_repo = "test/repo"
+            result = _enqueue_ci_failure_task(mock_task)
+            assert result is None
+
+    def test_enqueue_ci_failure_task_success(self):
+        """Should enqueue CI failure task successfully."""
+        from src.routes.webhooks import _enqueue_ci_failure_task
+
+        mock_task = MagicMock()
+        mock_task.task_id = "ci-task-123"
+        mock_task.goal_text = "Fix CI failure"
+        mock_task.context = {
+            "ci_failure_trigger": True,
+            "ci_failure_pr_number": 42,
+            "repo": "test/repo"
+        }
+
+        with patch("src.routes.webhooks.settings") as mock_settings:
+            mock_settings.redis_url = "redis://localhost:6379"
+            mock_settings.github_repo = "test/repo"
+            mock_settings.rq_queue_name = "orchestrator"
+            mock_settings.rq_ci_autofix_timeout = 1800
+
+            with patch("redis.Redis") as mock_redis_class:
+                mock_redis = MagicMock()
+                mock_redis_class.from_url.return_value = mock_redis
+
+                with patch("rq.Queue") as mock_queue_class:
+                    mock_queue = MagicMock()
+                    mock_job = MagicMock()
+                    mock_job.id = "job-456"
+                    mock_queue.enqueue.return_value = mock_job
+                    mock_queue_class.return_value = mock_queue
+
+                    with patch("redis_queue.worker.run_orchestrator_task"):
+                        result = _enqueue_ci_failure_task(mock_task)
+                        assert result == "job-456"
+
+    def test_enqueue_ci_failure_task_redis_error(self):
+        """Should return None on Redis connection error."""
+        from src.routes.webhooks import _enqueue_ci_failure_task
+
+        mock_task = MagicMock()
+        mock_task.task_id = "ci-task-123"
+        mock_task.goal_text = "Fix CI failure"
+        mock_task.context = {
+            "ci_failure_trigger": True,
+            "ci_failure_pr_number": 42,
+            "repo": "test/repo"
+        }
+
+        with patch("src.routes.webhooks.settings") as mock_settings:
+            mock_settings.redis_url = "redis://localhost:6379"
+            mock_settings.github_repo = "test/repo"
+
+            with patch("redis.Redis") as mock_redis_class:
+                mock_redis_class.from_url.side_effect = Exception("Connection failed")
+                result = _enqueue_ci_failure_task(mock_task)
+                assert result is None
+
+
+class TestEnqueueMetaAgentTask:
+    """Tests for _enqueue_meta_agent_task edge cases."""
+
+    def test_enqueue_meta_agent_task_no_redis_url(self):
+        """Should return None when Redis URL is not configured."""
+        from src.routes.webhooks import _enqueue_meta_agent_task
+
+        mock_task = MagicMock()
+        mock_task.task_id = "meta-task-123"
+        mock_task.goal_text = "Meta agent task"
+        mock_task.context = {"use_meta_agent": True}
+
+        with patch("src.routes.webhooks.settings") as mock_settings:
+            mock_settings.redis_url = None
+            result = _enqueue_meta_agent_task(mock_task)
+            assert result is None
+
+    def test_enqueue_meta_agent_task_no_repo(self):
+        """Should return None when no repository is configured."""
+        from src.routes.webhooks import _enqueue_meta_agent_task
+
+        mock_task = MagicMock()
+        mock_task.task_id = "meta-task-123"
+        mock_task.goal_text = "Meta agent task"
+        mock_task.context = {"use_meta_agent": True}
+
+        with patch("src.routes.webhooks.settings") as mock_settings:
+            mock_settings.redis_url = "redis://localhost:6379"
+            mock_settings.github_repo = None
+            result = _enqueue_meta_agent_task(mock_task)
+            assert result is None
+
+    def test_enqueue_meta_agent_task_success(self):
+        """Should enqueue meta agent task successfully."""
+        from src.routes.webhooks import _enqueue_meta_agent_task
+
+        mock_task = MagicMock()
+        mock_task.task_id = "meta-task-123"
+        mock_task.goal_text = "Meta agent task"
+        mock_task.context = {"use_meta_agent": True, "repo": "test/repo"}
+
+        with patch("src.routes.webhooks.settings") as mock_settings:
+            mock_settings.redis_url = "redis://localhost:6379"
+            mock_settings.github_repo = "test/repo"
+            mock_settings.rq_queue_name = "orchestrator"
+            mock_settings.rq_job_timeout = 600
+
+            with patch("redis.Redis") as mock_redis_class:
+                mock_redis = MagicMock()
+                mock_redis_class.from_url.return_value = mock_redis
+
+                with patch("rq.Queue") as mock_queue_class:
+                    mock_queue = MagicMock()
+                    mock_job = MagicMock()
+                    mock_job.id = "meta-job-456"
+                    mock_queue.enqueue.return_value = mock_job
+                    mock_queue_class.return_value = mock_queue
+
+                    with patch("redis_queue.worker.run_orchestrator_task"):
+                        result = _enqueue_meta_agent_task(mock_task)
+                        assert result == "meta-job-456"
+
+
+class TestJiraWebhookEdgeCases:
+    """Additional edge case tests for Jira webhook."""
+
+    def test_jira_webhook_invalid_json(self, client, mock_normalizer):
+        """Should return 400 for invalid JSON payload."""
+        with patch("src.routes.webhooks.get_normalizer", return_value=mock_normalizer):
+            response = client.post(
+                "/api/webhooks/jira",
+                data="not valid json {{{",
+                content_type="application/json"
+            )
+            assert response.status_code == 400
+            data = response.get_json()
+            assert "Invalid JSON" in data.get("error", "")
+
+    def test_jira_webhook_with_task_creation(self, client, mock_normalizer):
+        """Should create task for actionable Jira events."""
+        mock_event = MagicMock()
+        mock_event.to_dict.return_value = {"type": "issue_created"}
+        mock_task = MagicMock()
+        mock_task.task_id = "jira-task-123"
+        mock_task.goal_text = "Fix Jira issue"
+        mock_task.context = {"repo": "test/repo"}
+        mock_task.to_dict.return_value = {"task_id": "jira-task-123"}
+
+        mock_normalizer.parse_event.return_value = mock_event
+        mock_normalizer.extract_task.return_value = mock_task
+
+        with patch("src.routes.webhooks.get_normalizer", return_value=mock_normalizer):
+            with patch("src.routes.webhooks._enqueue_task", return_value="job-123"):
+                response = client.post(
+                    "/api/webhooks/jira",
+                    data=json.dumps({
+                        "webhookEvent": "jira:issue_created",
+                        "issue": {"key": "TEST-123", "fields": {"summary": "Test"}}
+                    }),
+                    content_type="application/json"
+                )
+                assert response.status_code == 200
+
+    def test_jira_webhook_payload_too_large(self, client, mock_normalizer):
+        """Should return 413 for payload exceeding size limit."""
+        with patch("src.routes.webhooks.get_normalizer", return_value=mock_normalizer):
+            with patch("src.routes.webhooks.check_payload_size") as mock_check:
+                mock_check.return_value = (False, ({"error": "Payload too large"}, 413))
+                response = client.post(
+                    "/api/webhooks/jira",
+                    data=json.dumps({"webhookEvent": "test"}),
+                    content_type="application/json"
+                )
+                assert response.status_code == 413
+
+
+class TestSlackWebhookEdgeCases:
+    """Additional edge case tests for Slack webhook."""
+
+    def test_slack_webhook_invalid_json(self, client, mock_normalizer):
+        """Should return 400 for invalid JSON payload."""
+        with patch("src.routes.webhooks.get_normalizer", return_value=mock_normalizer):
+            response = client.post(
+                "/api/webhooks/slack",
+                data="not valid json {{{",
+                content_type="application/json"
+            )
+            assert response.status_code == 400
+            data = response.get_json()
+            assert "Invalid JSON" in data.get("error", "")
+
+    def test_slack_webhook_interactive_component_payload(self, client, mock_normalizer):
+        """Should handle interactive component payload parsing."""
+        mock_handler = MagicMock()
+        mock_handler.handle.return_value = MagicMock(
+            success=True,
+            message="Interactive received",
+            to_dict=lambda: {"success": True, "message": "Interactive received"}
+        )
+        mock_normalizer.get_handler.return_value = mock_handler
+
+        with patch("src.routes.webhooks.get_normalizer", return_value=mock_normalizer):
+            response = client.post(
+                "/api/webhooks/slack",
+                data={
+                    "payload": json.dumps({
+                        "type": "block_actions",
+                        "actions": [{"action_id": "test"}],
+                        "team": {"id": "T123"}
+                    })
+                },
+                content_type="application/x-www-form-urlencoded"
+            )
+            assert response.status_code == 200
+
+    def test_slack_webhook_interactive_component_invalid_json(self, client, mock_normalizer):
+        """Should handle invalid JSON in interactive component payload."""
+        mock_handler = MagicMock()
+        mock_handler.handle.return_value = MagicMock(
+            success=True,
+            message="Received",
+            to_dict=lambda: {"success": True, "message": "Received"}
+        )
+        mock_normalizer.get_handler.return_value = mock_handler
+
+        with patch("src.routes.webhooks.get_normalizer", return_value=mock_normalizer):
+            response = client.post(
+                "/api/webhooks/slack",
+                data={
+                    "payload": "not valid json {{{"
+                },
+                content_type="application/x-www-form-urlencoded"
+            )
+            # Should not crash, gracefully handles invalid JSON
+            assert response.status_code in [200, 400]
+
+    def test_slack_webhook_with_task_creation(self, client, mock_normalizer):
+        """Should create task for actionable Slack events."""
+        mock_handler = MagicMock()
+        mock_handler.handle.return_value = MagicMock(
+            success=True,
+            message="Event received",
+            to_dict=lambda: {"success": True, "message": "Event received"}
+        )
+        mock_normalizer.get_handler.return_value = mock_handler
+
+        mock_event = MagicMock()
+        mock_event.to_dict.return_value = {"type": "message"}
+        mock_task = MagicMock()
+        mock_task.task_id = "slack-task-123"
+        mock_task.goal_text = "Handle Slack message"
+        mock_task.context = {"repo": "test/repo"}
+        mock_task.to_dict.return_value = {"task_id": "slack-task-123"}
+
+        mock_normalizer.parse_event.return_value = mock_event
+        mock_normalizer.extract_task.return_value = mock_task
+
+        with patch("src.routes.webhooks.get_normalizer", return_value=mock_normalizer):
+            with patch("src.routes.webhooks._enqueue_task", return_value="job-123"):
+                response = client.post(
+                    "/api/webhooks/slack",
+                    data=json.dumps({
+                        "type": "event_callback",
+                        "event": {"type": "message", "text": "Hello"},
+                        "team_id": "T123"
+                    }),
+                    content_type="application/json",
+                    headers={
+                        "X-Slack-Signature": "v0=test",
+                        "X-Slack-Request-Timestamp": "1234567890"
+                    }
+                )
+                assert response.status_code == 200
+
+    def test_slack_webhook_payload_too_large(self, client, mock_normalizer):
+        """Should return 413 for payload exceeding size limit."""
+        with patch("src.routes.webhooks.get_normalizer", return_value=mock_normalizer):
+            with patch("src.routes.webhooks.check_payload_size") as mock_check:
+                mock_check.return_value = (False, ({"error": "Payload too large"}, 413))
+                response = client.post(
+                    "/api/webhooks/slack",
+                    data=json.dumps({"type": "event_callback"}),
+                    content_type="application/json"
+                )
+                assert response.status_code == 413
+
+    def test_slack_webhook_challenge_from_handler(self, client, mock_normalizer):
+        """Should return challenge response from handler."""
+        mock_handler = MagicMock()
+        mock_handler.handle.return_value = {"challenge": "handler-challenge-123"}
+        mock_normalizer.get_handler.return_value = mock_handler
+
+        with patch("src.routes.webhooks.get_normalizer", return_value=mock_normalizer):
+            response = client.post(
+                "/api/webhooks/slack",
+                data=json.dumps({
+                    "type": "event_callback",
+                    "event": {"type": "message"}
+                }),
+                content_type="application/json"
+            )
+            assert response.status_code == 200
+            data = response.get_json()
+            assert data.get("challenge") == "handler-challenge-123"
+
+
+class TestGitHubWebhookEdgeCases:
+    """Additional edge case tests for GitHub webhook."""
+
+    def test_github_webhook_payload_too_large(self, client, mock_normalizer):
+        """Should return 413 for payload exceeding size limit."""
+        with patch("src.routes.webhooks.get_normalizer", return_value=mock_normalizer):
+            with patch("src.routes.webhooks.check_payload_size") as mock_check:
+                mock_check.return_value = (False, ({"error": "Payload too large"}, 413))
+                response = client.post(
+                    "/api/webhooks/github",
+                    data=json.dumps({"action": "opened"}),
+                    content_type="application/json",
+                    headers={"X-GitHub-Event": "issues"}
+                )
+                assert response.status_code == 413
+
+    def test_github_webhook_with_hook_id(self, client, mock_normalizer):
+        """Should pass hook_id to idempotency check."""
+        with patch("src.routes.webhooks._check_webhook_delivery_idempotency", return_value=False) as mock_check:
+            with patch("src.routes.webhooks.get_normalizer", return_value=mock_normalizer):
+                response = client.post(
+                    "/api/webhooks/github",
+                    data=json.dumps({"action": "opened"}),
+                    content_type="application/json",
+                    headers={
+                        "X-GitHub-Event": "issues",
+                        "X-GitHub-Delivery": "delivery-123",
+                        "X-GitHub-Hook-ID": "hook-456"
+                    }
+                )
+                assert response.status_code == 200
+                mock_check.assert_called_once_with("delivery-123", "hook-456")
+
+
+class TestTestWebhookEdgeCases:
+    """Additional edge case tests for test webhook endpoint."""
+
+    def test_test_webhook_with_task_creation(self, client, mock_normalizer):
+        """Should create task for actionable test events."""
+        mock_event = MagicMock()
+        mock_event.to_dict.return_value = {"type": "issue_created", "source": "github"}
+        mock_task = MagicMock()
+        mock_task.task_id = "test-task-123"
+        mock_task.goal_text = "Test task"
+        mock_task.context = {"repo": "test/repo"}
+        mock_task.to_dict.return_value = {"task_id": "test-task-123"}
+
+        mock_normalizer.parse_event.return_value = mock_event
+        mock_normalizer.extract_task.return_value = mock_task
+
+        with patch("src.routes.webhooks.settings") as mock_settings:
+            mock_settings.environment = "development"
+            with patch("src.routes.webhooks.get_normalizer", return_value=mock_normalizer):
+                with patch("src.routes.webhooks._enqueue_task", return_value="job-123"):
+                    response = client.post(
+                        "/api/webhooks/test",
+                        data=json.dumps({
+                            "source": "github",
+                            "headers": {"X-GitHub-Event": "issues"},
+                            "payload": {"action": "opened"}
+                        }),
+                        content_type="application/json"
+                    )
+                    assert response.status_code == 200
+                    data = response.get_json()
+                    assert data["success"] is True
+                    assert "task" in data
+
+
+class TestIdempotencyWithHookId:
+    """Tests for idempotency check with hook_id parameter."""
+
+    def test_idempotency_uses_hook_id_in_key(self):
+        """Should include hook_id in dedup key when provided."""
+        from src.routes.webhooks import _check_webhook_delivery_idempotency
+
+        with patch("utils.redis_client.get_redis_client") as mock_get_client:
+            mock_redis = MagicMock()
+            mock_redis.set.return_value = True
+            mock_get_client.return_value = mock_redis
+
+            result = _check_webhook_delivery_idempotency("delivery-123", "hook-456")
+
+            assert result is False
+            mock_redis.set.assert_called_once()
+            call_args = mock_redis.set.call_args
+            assert "hook-456" in call_args[0][0]
+            assert "delivery-123" in call_args[0][0]
+
+    def test_idempotency_fallback_without_hook_id(self):
+        """Should use delivery_id only when hook_id is not provided."""
+        from src.routes.webhooks import _check_webhook_delivery_idempotency
+
+        with patch("utils.redis_client.get_redis_client") as mock_get_client:
+            mock_redis = MagicMock()
+            mock_redis.set.return_value = True
+            mock_get_client.return_value = mock_redis
+
+            result = _check_webhook_delivery_idempotency("delivery-123", "")
+
+            assert result is False
+            mock_redis.set.assert_called_once()
+            call_args = mock_redis.set.call_args
+            key = call_args[0][0]
+            assert "delivery-123" in key
+            assert key.count(":") == 2
