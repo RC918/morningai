@@ -119,7 +119,7 @@ Each entry follows this structure:
 | New Value | Configurable via environment |
 | Rationale | Migrate hardcoded settings to settings.py for centralized management |
 | Approver | @RC918 |
-| Related Issue/PR | P1.3-P1.5, PR #4216 |
+| Related Issue/PR | PR #4216 |
 
 **Default Values:**
 - `DB_POOL_SIZE`: 5
