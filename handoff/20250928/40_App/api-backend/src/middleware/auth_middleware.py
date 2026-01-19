@@ -8,7 +8,6 @@ import jwt
 import logging
 from functools import wraps
 from flask import request, jsonify
-from common.config.settings import get_settings
 from src.services.token_service import get_token_service
 
 
