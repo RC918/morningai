@@ -7,6 +7,8 @@ Provides:
 - Token rotation on refresh
 - Redis blacklist for token revocation
 - HttpOnly cookie management
+
+Issue #4220: Refactored to use centralized TokenService for JWT operations.
 """
 
 import os
@@ -18,6 +20,7 @@ import secrets
 from typing import Optional, Dict, Tuple
 from werkzeug.security import check_password_hash, generate_password_hash
 from common.config.settings import get_settings, settings
+from src.services.token_service import get_token_service
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +33,12 @@ REFRESH_TOKEN_EXPIRY_DAYS = 7
 
 
 def _get_jwt_algorithm() -> str:
-    """Get JWT algorithm from settings (P1.4 - configurable JWT_ALGORITHM)."""
-    return get_settings().jwt_algorithm
+    """Get JWT algorithm from settings.
+    
+    Note: This function is kept for backward compatibility.
+    New code should use get_token_service().algorithm instead.
+    """
+    return get_token_service().algorithm
 
 
 def get_access_token_expiry_minutes() -> int:
@@ -220,8 +227,12 @@ def is_mock_users_enabled():
     return False
 
 def _get_jwt_secret():
-    """Get JWT secret key from settings at runtime"""
-    return get_settings().jwt_secret_key or 'test-secret-key-for-testing'
+    """Get JWT secret key from settings at runtime.
+    
+    Note: This function is kept for backward compatibility.
+    New code should use get_token_service().secret instead.
+    """
+    return get_token_service().secret
 
 # Cookie Configuration (read from settings at module load - these are less critical for tests)
 COOKIE_SECURE = (
@@ -341,7 +352,8 @@ def generate_access_token(user_id: str, email: str, role: str) -> Tuple[str, int
         'exp': expiry
     }
     
-    token = jwt.encode(payload, _get_jwt_secret(), algorithm=_get_jwt_algorithm())
+    # Issue #4220: Use centralized TokenService for JWT operations
+    token = get_token_service().encode(payload)
     return token, expiry_timestamp
 
 
@@ -365,7 +377,8 @@ def generate_refresh_token(user_id: str, email: str) -> str:
         'exp': expiry
     }
     
-    token = jwt.encode(payload, _get_jwt_secret(), algorithm=_get_jwt_algorithm())
+    # Issue #4220: Use centralized TokenService for JWT operations
+    token = get_token_service().encode(payload)
     return token
 
 
@@ -377,7 +390,8 @@ def verify_access_token(token: str) -> Optional[Dict]:
         Decoded payload or None if invalid
     """
     try:
-        payload = jwt.decode(token, _get_jwt_secret(), algorithms=[_get_jwt_algorithm()])
+        # Issue #4220: Use centralized TokenService for JWT operations
+        payload = get_token_service().decode(token)
         
         if payload.get('type') != 'access':
             logger.warning("Token is not an access token")
@@ -400,7 +414,8 @@ def verify_refresh_token(token: str) -> Optional[Dict]:
         Decoded payload or None if invalid/blacklisted
     """
     try:
-        payload = jwt.decode(token, _get_jwt_secret(), algorithms=[_get_jwt_algorithm()])
+        # Issue #4220: Use centralized TokenService for JWT operations
+        payload = get_token_service().decode(token)
         
         if payload.get('type') != 'refresh':
             logger.warning("Token is not a refresh token")

@@ -1,16 +1,23 @@
+"""
+Authentication Middleware for Owner Console
+
+Issue #4220: Refactored to use centralized TokenService for JWT operations.
+"""
+
 import jwt
 import logging
 from functools import wraps
 from flask import request, jsonify
-from common.config.settings import get_settings
+from src.services.token_service import get_token_service
 
 
 def _get_jwt_algorithm() -> str:
-    """Get JWT algorithm from settings (P1.4 - configurable JWT_ALGORITHM).
+    """Get JWT algorithm from settings.
 
-    This ensures consistency with auth_service.py when encoding/decoding tokens.
+    Note: This function is kept for backward compatibility.
+    New code should use get_token_service().algorithm instead.
     """
-    return get_settings().jwt_algorithm
+    return get_token_service().algorithm
 
 
 def verify_jwt_library():
@@ -147,19 +154,23 @@ def _error_response_from_exception(e):
             'message': 'Unable to verify JWT token.'
         }), 401
 
-def _try_decode_token(token, jwt_secret):
+def _try_decode_token(token, jwt_secret=None):
     """
     Try to decode a JWT token.
 
     Args:
         token: JWT token string
-        jwt_secret: Secret key for decoding
+        jwt_secret: Secret key for decoding (deprecated, uses TokenService)
 
     Returns:
         tuple: (payload, exception) where exception is None if successful
     """
     try:
-        payload = jwt.decode(token, jwt_secret, algorithms=[_get_jwt_algorithm()])
+        # Issue #4220: Get secret and algorithm from TokenService, but use jwt.decode
+        # directly to maintain backward compatibility with test mocks that patch
+        # src.middleware.auth_middleware.jwt.decode
+        token_service = get_token_service()
+        payload = jwt.decode(token, token_service.secret, algorithms=[token_service.algorithm])
         return payload, None
     except Exception as e:
         return None, e
@@ -180,7 +191,7 @@ def _decode_jwt_with_fallback():
     Returns:
         tuple: (payload, error_response) where error_response is None if successful
     """
-    jwt_secret = get_settings().jwt_secret_key or 'test-secret-key-for-testing'
+    # Issue #4220: TokenService handles secret retrieval internally
     primary_error = None
 
     auth_header = request.headers.get('Authorization')
@@ -192,7 +203,7 @@ def _decode_jwt_with_fallback():
                 f"Invalid Authorization header format, trying fallback: {parse_error[0].get_json()}"
             )
         else:
-            payload, decode_error = _try_decode_token(token, jwt_secret)
+            payload, decode_error = _try_decode_token(token)
             if payload:
                 return payload, None
             primary_error = _error_response_from_exception(decode_error)
@@ -202,13 +213,13 @@ def _decode_jwt_with_fallback():
 
     x_access_token = request.headers.get('X-Access-Token')
     if x_access_token:
-        payload, decode_error = _try_decode_token(x_access_token, jwt_secret)
+        payload, decode_error = _try_decode_token(x_access_token)
         if payload:
             return payload, None
 
     cookie_token = request.cookies.get('access_token')
     if cookie_token:
-        payload, decode_error = _try_decode_token(cookie_token, jwt_secret)
+        payload, decode_error = _try_decode_token(cookie_token)
         if payload:
             return payload, None
 
@@ -382,12 +393,9 @@ def normalize_role(role):
 def generate_jwt_token(user_data, expires_hours=24):
     """Generate JWT token for user authentication
 
-    Note: Uses a default test secret if JWT_SECRET_KEY is not set.
-    This is for testing purposes only. Production deployments must set JWT_SECRET_KEY.
+    Note: Uses TokenService for centralized JWT operations (Issue #4220).
     """
     import datetime
-
-    jwt_secret = get_settings().jwt_secret_key or 'test-secret-key-for-testing'
 
     original_role = user_data.get('role')
     normalized_role = normalize_role(original_role)
@@ -400,7 +408,8 @@ def generate_jwt_token(user_data, expires_hours=24):
         'iat': datetime.datetime.now(datetime.UTC)
     }
 
-    return jwt.encode(payload, jwt_secret, algorithm=_get_jwt_algorithm())
+    # Issue #4220: Use centralized TokenService for JWT operations
+    return get_token_service().encode(payload)
 
 def create_admin_token(user_id=1, username='admin'):
     """Create admin JWT token for testing purposes"""
@@ -550,8 +559,6 @@ def create_platform_admin_token(user_id=0, username='platform_admin'):
     """Create platform admin JWT token for testing purposes"""
     import datetime
 
-    jwt_secret = get_settings().jwt_secret_key or 'test-secret-key-for-testing'
-
     payload = {
         'user_id': user_id,
         'username': username,
@@ -561,4 +568,5 @@ def create_platform_admin_token(user_id=0, username='platform_admin'):
         'iat': datetime.datetime.now(datetime.UTC)
     }
 
-    return jwt.encode(payload, jwt_secret, algorithm=_get_jwt_algorithm())
+    # Issue #4220: Use centralized TokenService for JWT operations
+    return get_token_service().encode(payload)
