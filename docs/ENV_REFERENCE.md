@@ -6,9 +6,9 @@
 ## Overview
 
 - **Schema Version**: 1.1
-- **Total Variables**: 270
+- **Total Variables**: 278
 - **Required**: 21
-- **Optional**: 249
+- **Optional**: 257
 - **Last Updated**: 2025-12-18
 
 ## Security Levels
@@ -27,7 +27,7 @@
 - [Security](#security) (12 variables)
 - [Database](#database) (9 variables)
 - [Cloud Services](#cloud-services) (14 variables)
-- [Infrastructure](#infrastructure) (21 variables)
+- [Infrastructure](#infrastructure) (22 variables)
 - [Monitoring](#monitoring) (16 variables)
 - [Integration](#integration) (20 variables)
 - [Worker](#worker) (8 variables)
@@ -591,6 +591,7 @@ Secondary Vercel token for testing/sandbox environments (optional)
 | `SETUPTOOLS_EXT_SUFFIX` | string | No | - | PUBLIC |
 | `GIT_COMMIT` | string | No | - | PUBLIC |
 | `RENDER_GIT_COMMIT` | string | No | - | PUBLIC |
+| `CLOUD_ENV` | string (development, staging, production) | No | development | PUBLIC |
 
 ### Details
 
@@ -834,6 +835,19 @@ Git commit SHA from Render platform (auto-set by Render)
 - **Required**: No
 - **Default**: `-`
 - **Security Level**: PUBLIC
+
+#### `CLOUD_ENV`
+
+Cloud environment identifier for infrastructure-level configuration
+
+- **Type**: string (development, staging, production)
+- **Required**: No
+- **Default**: `development`
+- **Security Level**: PUBLIC
+
+**Notes**:
+> Identifies the cloud environment for infrastructure-level decisions.
+> Used separately from ENVIRONMENT/FLASK_ENV for cloud-specific configurations.
 
 ## Monitoring
 
