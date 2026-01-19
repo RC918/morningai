@@ -110,7 +110,12 @@ jobs:
 
           echo "Running Refactor Agent with max_errors=$MAX_ERRORS, dry_run=$DRY_RUN"
 
+          # NOTE: Using legacy refactor_agent.agent (deprecated) because RefactorAgentV2
+          # does not yet have full PR automation features (run_refactor, create_pr).
+          # See Issue #4232 for migration tracking.
           python -c "
+          import warnings
+          warnings.filterwarnings('ignore', category=DeprecationWarning)
           import json
           from refactor_agent.agent import run_nightly_refactor
 

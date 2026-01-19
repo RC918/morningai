@@ -2,6 +2,17 @@
 """
 Refactor Agent - Phase 4 (#1818, #1888, #1889, #1890)
 
+.. deprecated:: 2026.01
+    This module is deprecated. Use :mod:`refactor_agent.agent_v2` instead.
+    The RefactorAgentV2 class provides the same functionality with BaseAgent
+    integration and RoutingEngine support.
+
+    Migration guide:
+    - Replace `from refactor_agent.agent import RefactorAgent` with
+      `from refactor_agent.agent_v2 import RefactorAgentV2`
+    - Replace `get_refactor_agent()` with `get_refactor_agent_v2()`
+    - The v2 API uses AgentInput/AgentOutput instead of direct method calls
+
 Automated TypeScript strict mode error fixing agent.
 Runs nightly to fix TS errors and submit PRs automatically.
 
@@ -15,6 +26,7 @@ Design Principles:
 - PR Automation: Automatically creates PRs with changelog (#1890)
 """
 import logging
+import warnings
 import re
 import shutil
 import subprocess
@@ -362,6 +374,9 @@ class RefactorAgent:
     """
     Refactor Agent for automated TypeScript strict mode error fixing.
 
+    .. deprecated:: 2026.01
+        Use :class:`refactor_agent.agent_v2.RefactorAgentV2` instead.
+
     Phase 4 Features (#1818):
     - Nightly execution: Runs automatically at configured time
     - Incremental fixes: Fixes configurable number of errors per run
@@ -375,6 +390,12 @@ class RefactorAgent:
 
     def __init__(self, repo_path: Optional[str] = None):
         """Initialize RefactorAgent with configuration"""
+        warnings.warn(
+            "RefactorAgent is deprecated and will be removed in a future release. "
+            "Use RefactorAgentV2 from refactor_agent.agent_v2 instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         self.repo_path = Path(repo_path) if repo_path else self._find_repo_path()
         self._load_settings()
         logger.info("[RefactorAgent] Initialized - Phase 4 (#1818)")
@@ -1925,7 +1946,18 @@ _refactor_agent: Optional[RefactorAgent] = None
 
 
 def get_refactor_agent() -> RefactorAgent:
-    """Get or create the singleton RefactorAgent instance"""
+    """
+    Get or create the singleton RefactorAgent instance.
+
+    .. deprecated:: 2026.01
+        Use :func:`refactor_agent.agent_v2.get_refactor_agent_v2` instead.
+    """
+    warnings.warn(
+        "get_refactor_agent() is deprecated. "
+        "Use get_refactor_agent_v2() from refactor_agent.agent_v2 instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
     global _refactor_agent
     if _refactor_agent is None:
         _refactor_agent = RefactorAgent()
@@ -1939,6 +1971,10 @@ def run_nightly_refactor(
     """
     Convenience function for nightly refactor runs.
 
+    .. deprecated:: 2026.01
+        This function uses the deprecated RefactorAgent.
+        Consider migrating to RefactorAgentV2 for new implementations.
+
     Args:
         max_errors: Maximum number of errors to fix
         dry_run: If True, don't apply fixes
@@ -1946,5 +1982,11 @@ def run_nightly_refactor(
     Returns:
         RefactorResult with summary
     """
+    warnings.warn(
+        "run_nightly_refactor() uses deprecated RefactorAgent. "
+        "Consider migrating to RefactorAgentV2 for new implementations.",
+        DeprecationWarning,
+        stacklevel=2
+    )
     agent = get_refactor_agent()
     return agent.run_refactor(max_errors=max_errors, dry_run=dry_run)
