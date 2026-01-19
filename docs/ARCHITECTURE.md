@@ -513,7 +513,7 @@ The repository contains **two orchestrator directories** with distinct responsib
 
 **Producer-Consumer Pattern**:
 1. **API Orchestrator** (`orchestrator/`): Receives HTTP task submissions, validates requests, enqueues to Redis
-2. **Worker Orchestrator** (`handoff/.../orchestrator/`): Polls Redis queue, executes tasks via LangGraph 22-node workflow
+2. **Worker Orchestrator** (`handoff/.../orchestrator/`): Polls Redis queue, executes tasks via LangGraph 22-node workflow (see `langgraph_orchestrator.py` for node definitions)
 
 See [ADR-005: Dual Orchestrator Architecture](adr/005-dual-orchestrator-architecture.md) for design rationale.
 
@@ -590,7 +590,7 @@ See [CTO Strategic Plan](../CTO_STRATEGIC_PLAN_MVP_TO_WORLD_CLASS.md) for detail
 
 ---
 
-**Last Updated**: December 2025  
+**Last Updated**: January 2026  
 **Version**: 2.1 (Phase 1 Refactoring Complete)  
 **Owner**: CTO  
 **Related Documents**:
