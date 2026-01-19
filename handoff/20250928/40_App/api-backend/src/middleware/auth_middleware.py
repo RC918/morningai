@@ -166,8 +166,11 @@ def _try_decode_token(token, jwt_secret=None):
         tuple: (payload, exception) where exception is None if successful
     """
     try:
-        # Issue #4220: Use centralized TokenService for JWT operations
-        payload = get_token_service().decode(token)
+        # Issue #4220: Get secret and algorithm from TokenService, but use jwt.decode
+        # directly to maintain backward compatibility with test mocks that patch
+        # src.middleware.auth_middleware.jwt.decode
+        token_service = get_token_service()
+        payload = jwt.decode(token, token_service.secret, algorithms=[token_service.algorithm])
         return payload, None
     except Exception as e:
         return None, e
