@@ -7,6 +7,7 @@ import pytest
 import os
 import sys
 import json
+import redis
 from unittest.mock import patch, MagicMock
 
 from src.routes.sessions import transform_session_for_frontend, _extract_ide_activity
@@ -1583,7 +1584,6 @@ class TestRedisConnectionFailures:
         """Test list_sessions handles Redis connection timeout"""
         with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
             with patch('src.routes.sessions.REDIS_AVAILABLE', True):
-                import redis
                 mock_redis_client.scan_iter.side_effect = redis.exceptions.TimeoutError("Connection timed out")
 
                 response = client.get('/api/sessions', headers=auth_headers_admin)
@@ -1596,7 +1596,6 @@ class TestRedisConnectionFailures:
         """Test get_session_detail handles Redis connection error"""
         with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
             with patch('src.routes.sessions.REDIS_AVAILABLE', True):
-                import redis
                 mock_redis_client.get.side_effect = redis.exceptions.ConnectionError("Connection refused")
 
                 response = client.get('/api/sessions/test-123', headers=auth_headers_admin)
@@ -1610,7 +1609,6 @@ class TestRedisConnectionFailures:
         with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
             with patch('src.routes.sessions.REDIS_AVAILABLE', True):
                 mock_redis_client.get.return_value = json.dumps(sample_session_data)
-                import redis
                 mock_redis_client.setex.side_effect = redis.exceptions.ConnectionError("Write failed")
 
                 response = client.post('/api/sessions/test-session-123/pause', headers=auth_headers_admin)
@@ -1625,7 +1623,6 @@ class TestRedisConnectionFailures:
         with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
             with patch('src.routes.sessions.REDIS_AVAILABLE', True):
                 mock_redis_client.get.return_value = json.dumps(sample_session_data)
-                import redis
                 mock_redis_client.setex.side_effect = redis.exceptions.ConnectionError("Write failed")
 
                 response = client.post('/api/sessions/test-session-123/resume', headers=auth_headers_admin)
@@ -1639,7 +1636,6 @@ class TestRedisConnectionFailures:
         with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
             with patch('src.routes.sessions.REDIS_AVAILABLE', True):
                 mock_redis_client.get.return_value = json.dumps(sample_session_data)
-                import redis
                 mock_redis_client.setex.side_effect = redis.exceptions.ConnectionError("Write failed")
 
                 response = client.post('/api/sessions/test-session-123/cancel', headers=auth_headers_admin)
@@ -1656,7 +1652,6 @@ class TestRedisConnectionFailures:
                 mock_pipe = MagicMock()
                 mock_redis_client.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
                 mock_redis_client.pipeline.return_value.__exit__ = MagicMock(return_value=False)
-                import redis
                 mock_pipe.execute.side_effect = redis.exceptions.ConnectionError("Pipeline failed")
 
                 response = client.post(
