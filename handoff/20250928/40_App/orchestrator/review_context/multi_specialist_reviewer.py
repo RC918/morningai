@@ -26,9 +26,7 @@ Usage:
 
 import asyncio
 import logging
-import re
 import time
-from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
@@ -39,11 +37,8 @@ from core.routing import TaskType
 # Issue #4074: Import shared types from common module
 from governance.types import SpecialistType, CORE_SPECIALISTS
 
-# Pre-compiled regex patterns for diff parsing (Comment #18: avoid recompilation on each call)
-# Pattern to match hunk headers: @@ -old_start,old_count +new_start,new_count @@
-HUNK_HEADER_PATTERN = re.compile(r'^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@')
-# Pattern to match diff --git headers: diff --git a/path b/path
-DIFF_GIT_HEADER_PATTERN = re.compile(r'^diff --git a/(.+?) b/\1$')
+# Issue #4215: Import DiffParser from separate module (Separation of Concerns)
+from review_context.diff_parser import DiffParser
 
 logger = logging.getLogger(__name__)
 
@@ -699,34 +694,16 @@ class MultiSpecialistReviewer:
         Issue #4199: Prevent specialist file path hallucination by providing
         an explicit list of valid files to the LLM.
 
+        Issue #4215: Refactored to use DiffParser module (Separation of Concerns).
+        Issue #4214: Now handles quoted file paths with spaces.
+
         Args:
             diff_content: The unified diff content
 
         Returns:
             List of file paths that appear in the diff
         """
-        import re
-
-        files: List[str] = []
-        # Match diff headers: "diff --git a/path/to/file b/path/to/file"
-        # or "+++ b/path/to/file" lines
-        diff_header_pattern = re.compile(r'^diff --git a/(.+?) b/\1$', re.MULTILINE)
-        plus_header_pattern = re.compile(r'^\+\+\+ b/(.+)$', re.MULTILINE)
-
-        # Try diff --git headers first (more reliable)
-        for match in diff_header_pattern.finditer(diff_content):
-            file_path = match.group(1)
-            if file_path not in files:
-                files.append(file_path)
-
-        # Fallback to +++ headers if no diff --git headers found
-        if not files:
-            for match in plus_header_pattern.finditer(diff_content):
-                file_path = match.group(1)
-                if file_path not in files and file_path != "/dev/null":
-                    files.append(file_path)
-
-        return files
+        return DiffParser(diff_content).extract_files()
 
     def _extract_addition_lines_from_diff(
         self, diff_content: str
@@ -739,63 +716,16 @@ class MultiSpecialistReviewer:
         constraint. This gives the LLM a concrete list of line numbers it can
         use for inline comments.
 
+        Issue #4215: Refactored to use DiffParser module (Separation of Concerns).
+        Issue #4214: Now handles quoted file paths with spaces.
+
         Args:
             diff_content: The unified diff content
 
         Returns:
             Dict mapping file_path -> list of valid line numbers (addition lines only)
         """
-        # Comment #7: Use defaultdict to simplify code (no manual key existence checks)
-        addition_lines: Dict[str, List[int]] = defaultdict(list)
-        current_file: Optional[str] = None
-        current_line_num: int = 0
-
-        for line in diff_content.split('\n'):
-            # Check for new file header
-            if line.startswith('diff --git a/'):
-                # Extract file path using pre-compiled pattern (Comment #18)
-                match = DIFF_GIT_HEADER_PATTERN.match(line)
-                if match:
-                    current_file = match.group(1)
-                continue
-
-            # Check for +++ header (fallback for file path)
-            # Comment #15: Use exact match '+++' to avoid excluding C++ pre-increment lines
-            if line == '+++ /dev/null':
-                # Deleted file, skip
-                continue
-            if line.startswith('+++ b/'):
-                file_path = line[6:]  # Remove "+++ b/" prefix
-                current_file = file_path
-                continue
-
-            # Check for hunk header using pre-compiled pattern (Comment #18)
-            hunk_match = HUNK_HEADER_PATTERN.match(line)
-            if hunk_match:
-                # new_start is the starting line number in the new file
-                current_line_num = int(hunk_match.group(1))
-                continue
-
-            # Skip if we don't have a current file
-            if current_file is None:
-                continue
-
-            # Process diff lines within a hunk
-            # Comment #15: Check for exact '+' prefix, not just startswith('+')
-            # This correctly handles C++ pre-increment lines like '+++counter;'
-            if line.startswith('+') and line != '+++' and not line.startswith('+++ '):
-                # Addition line - this is a valid line for inline comments
-                addition_lines[current_file].append(current_line_num)
-                current_line_num += 1
-            elif line.startswith('-') and line != '---' and not line.startswith('--- '):
-                # Deletion line - does NOT increment new file line counter
-                pass
-            elif line.startswith(' ') or line == '':
-                # Context line or empty line - increments new file line counter
-                current_line_num += 1
-
-        # Remove files with no addition lines
-        return {f: lines for f, lines in addition_lines.items() if lines}
+        return DiffParser(diff_content).extract_addition_lines()
 
     def _build_user_prompt(
         self,
@@ -852,33 +782,10 @@ Return your findings as a JSON array."""
         Format a list of line numbers into compact ranges.
 
         Example: [1, 2, 3, 5, 7, 8, 9] -> "1-3, 5, 7-9"
+
+        Issue #4215: Refactored to use DiffParser module (Separation of Concerns).
         """
-        if not lines:
-            return ""
-
-        lines = sorted(set(lines))
-        ranges = []
-        start = lines[0]
-        end = lines[0]
-
-        for line in lines[1:]:
-            if line == end + 1:
-                end = line
-            else:
-                if start == end:
-                    ranges.append(str(start))
-                else:
-                    ranges.append(f"{start}-{end}")
-                start = line
-                end = line
-
-        # Add the last range
-        if start == end:
-            ranges.append(str(start))
-        else:
-            ranges.append(f"{start}-{end}")
-
-        return ", ".join(ranges)
+        return DiffParser("").format_line_ranges(lines)
 
     def _parse_specialist_response(
         self,
