@@ -1,0 +1,63 @@
+name: Deprecation Deadline Check
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'common/config/settings.py'
+      - 'scripts/check_deprecations.py'
+      - '.github/workflows/deprecation-check.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'common/config/settings.py'
+      - 'scripts/check_deprecations.py'
+      - '.github/workflows/deprecation-check.yml'
+  schedule:
+    # Run daily at 00:00 UTC to catch approaching deadlines
+    - cron: '0 0 * * *'
+
+jobs:
+  check:
+    name: Check Deprecation Deadlines
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install pydantic pydantic-settings
+
+      - name: Run deprecation check
+        id: deprecation_check
+        run: |
+          python scripts/check_deprecations.py
+        continue-on-error: true
+
+      - name: Generate summary
+        if: always()
+        run: |
+          echo "### Deprecation Deadline Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.deprecation_check.outcome }}" == "success" ]; then
+            echo "All deprecation deadlines are within their allowed timeframes." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**WARNING**: Some deprecation deadlines have passed or are approaching!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please review the output above and take action:" >> $GITHUB_STEP_SUMMARY
+            echo "1. Remove support for expired deprecated environment variables" >> $GITHUB_STEP_SUMMARY
+            echo "2. Remove the entry from DEPRECATION_REGISTRY in settings.py" >> $GITHUB_STEP_SUMMARY
+            echo "3. Update any documentation referencing the old variable" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Fail if deadlines passed
+        if: steps.deprecation_check.outcome == 'failure'
+        run: |
+          echo "Deprecation deadlines have passed. Please address the expired deprecations."
+          exit 1
