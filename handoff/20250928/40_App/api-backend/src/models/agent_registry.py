@@ -16,6 +16,10 @@ class AgentType(str, Enum):
     Issue: #4118 (EPIC K P0: AgentType Enum Extension)
     Sync: Aligned with orchestrator/governance/principal_context.py::AgentType
 
+    Note: This enum is used for API models (Pydantic) and must stay in sync with:
+    - agent_registry_db.py::AgentTypeDB (SQLAlchemy/Database model)
+    - migration 045_extend_agenttypedb_enum.sql (PostgreSQL enum)
+
     Categories (13 Blueprint types + legacy types + unknown):
     - Core Engineering Agents (5): Planner, Coding, Reviewer, Test, Debugger
     - UX/UI Agents (4): UI Consistency, UX Heuristic, Visual Regression, Design Token
