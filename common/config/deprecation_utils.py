@@ -80,6 +80,35 @@ class DeprecationInfo:
             msg += f" See {self.issue_ref} for details."
         return msg
 
+    @classmethod
+    def from_entry(cls, entry: dict) -> "DeprecationInfo":
+        """Create a DeprecationInfo object from a registry entry dict.
+
+        This classmethod centralizes the creation logic for DeprecationInfo,
+        reducing duplication between iter_deprecations() and iter_deprecations_safe().
+
+        Args:
+            entry: A dictionary from DEPRECATION_REGISTRY with keys:
+                old_env, new_env, old_field, new_field, removal_date, issue_ref, check_type
+
+        Returns:
+            A DeprecationInfo instance with parsed date.
+
+        Raises:
+            ValueError: If the removal_date cannot be parsed.
+        """
+        removal_date = parse_removal_date(entry["removal_date"])
+        return cls(
+            old_env=entry["old_env"],
+            new_env=entry["new_env"],
+            old_field=entry["old_field"],
+            new_field=entry["new_field"],
+            removal_date=removal_date,
+            removal_date_str=entry["removal_date"],
+            issue_ref=entry["issue_ref"],
+            check_type=entry["check_type"],
+        )
+
 
 def parse_removal_date(date_str: str) -> date:
     """Parse a date string in YYYY-MM-DD format.
@@ -114,17 +143,7 @@ def iter_deprecations() -> Iterator[DeprecationInfo]:
                 print(f"{dep.old_env} is overdue by {abs(dep.days_until_removal)} days")
     """
     for entry in DEPRECATION_REGISTRY:
-        removal_date = parse_removal_date(entry["removal_date"])
-        yield DeprecationInfo(
-            old_env=entry["old_env"],
-            new_env=entry["new_env"],
-            old_field=entry["old_field"],
-            new_field=entry["new_field"],
-            removal_date=removal_date,
-            removal_date_str=entry["removal_date"],
-            issue_ref=entry["issue_ref"],
-            check_type=entry["check_type"],
-        )
+        yield DeprecationInfo.from_entry(entry)
 
 
 def iter_deprecations_safe() -> Iterator[tuple[Optional[DeprecationInfo], Optional[str]]]:
@@ -146,16 +165,9 @@ def iter_deprecations_safe() -> Iterator[tuple[Optional[DeprecationInfo], Option
     """
     for entry in DEPRECATION_REGISTRY:
         try:
-            removal_date = parse_removal_date(entry["removal_date"])
-            yield DeprecationInfo(
-                old_env=entry["old_env"],
-                new_env=entry["new_env"],
-                old_field=entry["old_field"],
-                new_field=entry["new_field"],
-                removal_date=removal_date,
-                removal_date_str=entry["removal_date"],
-                issue_ref=entry["issue_ref"],
-                check_type=entry["check_type"],
-            ), None
+            yield DeprecationInfo.from_entry(entry), None
         except ValueError as e:
-            yield None, f"Invalid date for {entry['old_env']}: {e}"
+            yield None, (
+                f"Invalid date '{entry['removal_date']}' for "
+                f"{entry['old_env']} -> {entry['new_env']}: {e}"
+            )
