@@ -1517,3 +1517,393 @@ class TestExtractIdeActivity:
         read_files = [f for f in result['recentFiles'] if f['action'] == 'read']
         assert len(modified_files) == 2
         assert len(read_files) == 1
+
+
+class TestSessionTTLEdgeCases:
+    """Tests for session TTL (Time-To-Live) edge cases - Issue #4228"""
+
+    def test_pause_session_uses_correct_ttl(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test that pause_session uses SESSION_TTL_SECONDS (86400) when saving"""
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+
+                response = client.post('/api/sessions/test-session-123/pause', headers=auth_headers_admin)
+
+                assert response.status_code == 200
+                mock_redis_client.setex.assert_called_once()
+                call_args = mock_redis_client.setex.call_args
+                assert call_args[0][1] == 86400
+
+    def test_resume_session_uses_correct_ttl(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test that resume_session uses SESSION_TTL_SECONDS (86400) when saving"""
+        sample_session_data['status'] = 'paused'
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+
+                response = client.post('/api/sessions/test-session-123/resume', headers=auth_headers_admin)
+
+                assert response.status_code == 200
+                mock_redis_client.setex.assert_called_once()
+                call_args = mock_redis_client.setex.call_args
+                assert call_args[0][1] == 86400
+
+    def test_cancel_session_uses_correct_ttl(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test that cancel_session uses SESSION_TTL_SECONDS (86400) when saving"""
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+
+                response = client.post('/api/sessions/test-session-123/cancel', headers=auth_headers_admin)
+
+                assert response.status_code == 200
+                mock_redis_client.setex.assert_called_once()
+                call_args = mock_redis_client.setex.call_args
+                assert call_args[0][1] == 86400
+
+    def test_pause_session_refreshes_ttl_on_update(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test that pausing a session refreshes its TTL (extends expiration)"""
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+
+                response = client.post('/api/sessions/test-session-123/pause', headers=auth_headers_admin)
+
+                assert response.status_code == 200
+                call_args = mock_redis_client.setex.call_args
+                key = call_args[0][0]
+                assert key == 'dev_agent:session:test-session-123'
+
+
+class TestRedisConnectionFailures:
+    """Tests for Redis connection failure scenarios - Issue #4228"""
+
+    def test_list_sessions_redis_connection_timeout(self, client, auth_headers_admin, mock_redis_client):
+        """Test list_sessions handles Redis connection timeout"""
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                import redis
+                mock_redis_client.scan_iter.side_effect = redis.exceptions.TimeoutError("Connection timed out")
+
+                response = client.get('/api/sessions', headers=auth_headers_admin)
+
+                assert response.status_code == 500
+                data = response.get_json()
+                assert 'error' in data
+
+    def test_get_session_detail_redis_connection_error(self, client, auth_headers_admin, mock_redis_client):
+        """Test get_session_detail handles Redis connection error"""
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                import redis
+                mock_redis_client.get.side_effect = redis.exceptions.ConnectionError("Connection refused")
+
+                response = client.get('/api/sessions/test-123', headers=auth_headers_admin)
+
+                assert response.status_code == 500
+                data = response.get_json()
+                assert 'error' in data
+
+    def test_pause_session_redis_write_error(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test pause_session handles Redis write error"""
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+                import redis
+                mock_redis_client.setex.side_effect = redis.exceptions.ConnectionError("Write failed")
+
+                response = client.post('/api/sessions/test-session-123/pause', headers=auth_headers_admin)
+
+                assert response.status_code == 500
+                data = response.get_json()
+                assert 'error' in data
+
+    def test_resume_session_redis_write_error(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test resume_session handles Redis write error"""
+        sample_session_data['status'] = 'paused'
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+                import redis
+                mock_redis_client.setex.side_effect = redis.exceptions.ConnectionError("Write failed")
+
+                response = client.post('/api/sessions/test-session-123/resume', headers=auth_headers_admin)
+
+                assert response.status_code == 500
+                data = response.get_json()
+                assert 'error' in data
+
+    def test_cancel_session_redis_write_error(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test cancel_session handles Redis write error"""
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+                import redis
+                mock_redis_client.setex.side_effect = redis.exceptions.ConnectionError("Write failed")
+
+                response = client.post('/api/sessions/test-session-123/cancel', headers=auth_headers_admin)
+
+                assert response.status_code == 500
+                data = response.get_json()
+                assert 'error' in data
+
+    def test_send_command_redis_pipeline_error(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test send_command handles Redis pipeline execution error"""
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+                mock_pipe = MagicMock()
+                mock_redis_client.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+                mock_redis_client.pipeline.return_value.__exit__ = MagicMock(return_value=False)
+                import redis
+                mock_pipe.execute.side_effect = redis.exceptions.ConnectionError("Pipeline failed")
+
+                response = client.post(
+                    '/api/sessions/test-session-123/command',
+                    headers=auth_headers_admin,
+                    json={'command': 'test'}
+                )
+
+                assert response.status_code == 500
+                data = response.get_json()
+                assert 'error' in data
+
+
+class TestConcurrentAccess:
+    """Tests for concurrent access scenarios - Issue #4228"""
+
+    def test_list_sessions_with_null_data_in_mget(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test list_sessions handles null values in MGET response (concurrent deletion)"""
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.scan_iter.return_value = [
+                    b'dev_agent:session:test-1',
+                    b'dev_agent:session:test-2',
+                    b'dev_agent:session:test-3'
+                ]
+                mock_redis_client.mget.return_value = [
+                    json.dumps(sample_session_data),
+                    None,
+                    json.dumps({**sample_session_data, 'session_id': 'test-3'})
+                ]
+
+                response = client.get('/api/sessions', headers=auth_headers_admin)
+
+                assert response.status_code == 200
+                data = response.get_json()
+                assert len(data['sessions']) == 2
+
+    def test_send_command_uses_atomic_pipeline(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test send_command uses atomic pipeline for RPUSH+EXPIRE (race condition prevention)"""
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+                mock_pipe = MagicMock()
+                mock_redis_client.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+                mock_redis_client.pipeline.return_value.__exit__ = MagicMock(return_value=False)
+
+                response = client.post(
+                    '/api/sessions/test-session-123/command',
+                    headers=auth_headers_admin,
+                    json={'command': 'test command'}
+                )
+
+                assert response.status_code == 200
+                mock_redis_client.pipeline.assert_called_once()
+                mock_pipe.rpush.assert_called_once()
+                mock_pipe.expire.assert_called_once()
+                mock_pipe.execute.assert_called_once()
+
+    def test_list_sessions_handles_mixed_valid_invalid_data(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test list_sessions gracefully handles mix of valid, invalid, and null data"""
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.scan_iter.return_value = [
+                    b'dev_agent:session:valid-1',
+                    b'dev_agent:session:invalid-json',
+                    b'dev_agent:session:null-data',
+                    b'dev_agent:session:valid-2'
+                ]
+                mock_redis_client.mget.return_value = [
+                    json.dumps(sample_session_data),
+                    'not valid json {{{',
+                    None,
+                    json.dumps({**sample_session_data, 'session_id': 'valid-2'})
+                ]
+
+                response = client.get('/api/sessions', headers=auth_headers_admin)
+
+                assert response.status_code == 200
+                data = response.get_json()
+                assert len(data['sessions']) == 2
+
+
+class TestSessionDataEdgeCases:
+    """Tests for session data edge cases - Issue #4228"""
+
+    def test_transform_session_with_missing_optional_fields(self):
+        """Test transform handles session with minimal required fields"""
+        minimal_session = {
+            'session_id': 'minimal-123',
+            'goal': 'Minimal goal',
+            'status': 'active'
+        }
+
+        result = transform_session_for_frontend(minimal_session)
+
+        assert result['id'] == 'minimal-123'
+        assert result['goal'] == 'Minimal goal'
+        assert result['status'] == 'running'
+        assert result['progress'] == 0
+        assert result['plan']['totalTasks'] == 0
+
+    def test_transform_session_with_empty_context(self):
+        """Test transform handles session with empty context"""
+        session_data = {
+            'session_id': 'test-123',
+            'goal': 'Test',
+            'status': 'active',
+            'iteration': 0,
+            'max_iterations': 10,
+            'decisions': [],
+            'actions': [],
+            'observations': [],
+            'context': {}
+        }
+
+        result = transform_session_for_frontend(session_data)
+
+        assert result['prUrl'] is None
+        assert result['errorMessage'] is None
+
+    def test_resume_escalated_session_success(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test resuming an escalated session succeeds"""
+        sample_session_data['status'] = 'escalated'
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+
+                response = client.post('/api/sessions/test-session-123/resume', headers=auth_headers_admin)
+
+                assert response.status_code == 200
+                data = response.get_json()
+                assert data['success'] is True
+                assert data['status'] == 'running'
+
+    def test_transform_session_with_failed_actions(self):
+        """Test transform correctly calculates confidence with failed actions"""
+        session_data = {
+            'session_id': 'test-123',
+            'goal': 'Test',
+            'status': 'active',
+            'iteration': 5,
+            'max_iterations': 10,
+            'decisions': [
+                {'decision': 'Task 1', 'action_type': 'analyze'},
+                {'decision': 'Task 2', 'action_type': 'fix'}
+            ],
+            'actions': [
+                {'success': False, 'timestamp': '2024-01-15T10:00:00Z', 'result': {'message': 'Failed'}},
+                {'success': False, 'timestamp': '2024-01-15T10:01:00Z', 'result': {'message': 'Failed again'}}
+            ],
+            'observations': []
+        }
+
+        result = transform_session_for_frontend(session_data)
+
+        assert result['confidence'] == 0.0
+        assert result['plan']['tasks'][0]['status'] == 'failed'
+        assert result['plan']['tasks'][1]['status'] == 'failed'
+
+    def test_cancel_session_without_reason(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test cancelling session without providing a reason"""
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+
+                response = client.post('/api/sessions/test-session-123/cancel', headers=auth_headers_admin)
+
+                assert response.status_code == 200
+                data = response.get_json()
+                assert data['success'] is True
+                assert data['reason'] is None
+
+    def test_cancel_paused_session_success(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test cancelling a paused session succeeds"""
+        sample_session_data['status'] = 'paused'
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+
+                response = client.post(
+                    '/api/sessions/test-session-123/cancel',
+                    headers=auth_headers_admin,
+                    json={'reason': 'No longer needed'}
+                )
+
+                assert response.status_code == 200
+                data = response.get_json()
+                assert data['success'] is True
+                assert data['status'] == 'failed'
+
+
+class TestGetSessionAndUserHelper:
+    """Tests for _get_session_and_user helper function - Issue #4228"""
+
+    def test_get_session_and_user_extracts_user_info(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test that _get_session_and_user correctly extracts user info from request context"""
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+
+                response = client.post('/api/sessions/test-session-123/pause', headers=auth_headers_admin)
+
+                assert response.status_code == 200
+                data = response.get_json()
+                assert 'paused_by' in data
+
+    def test_pause_session_records_user_email(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test that pause operation records the user who paused"""
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+
+                response = client.post('/api/sessions/test-session-123/pause', headers=auth_headers_admin)
+
+                assert response.status_code == 200
+                call_args = mock_redis_client.setex.call_args
+                saved_data = json.loads(call_args[0][2])
+                assert 'paused_by' in saved_data
+
+    def test_resume_session_records_user_email(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test that resume operation records the user who resumed"""
+        sample_session_data['status'] = 'paused'
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+
+                response = client.post('/api/sessions/test-session-123/resume', headers=auth_headers_admin)
+
+                assert response.status_code == 200
+                call_args = mock_redis_client.setex.call_args
+                saved_data = json.loads(call_args[0][2])
+                assert 'resumed_by' in saved_data
+
+    def test_cancel_session_records_user_and_reason(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test that cancel operation records user and reason in context"""
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+
+                response = client.post(
+                    '/api/sessions/test-session-123/cancel',
+                    headers=auth_headers_admin,
+                    json={'reason': 'Test cancellation reason'}
+                )
+
+                assert response.status_code == 200
+                call_args = mock_redis_client.setex.call_args
+                saved_data = json.loads(call_args[0][2])
+                assert 'cancelled_by' in saved_data
+                assert saved_data['context']['cancellation_reason'] == 'Test cancellation reason'
