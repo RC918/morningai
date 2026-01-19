@@ -12,7 +12,7 @@
 # =============================================================================
 
 version: "1.0.0"
-last_updated: "2025-12-18"
+last_updated: "2026-01-19"
 
 # -----------------------------------------------------------------------------
 # Services
@@ -52,7 +52,7 @@ services:
     path: "handoff/20250928/40_App/api-backend"
     entrypoint: "src/main.py"
     framework: "flask"
-    framework_version: "3.1.1"
+    framework_version: "3.1.2"
     wsgi_server: "gunicorn"
     language: "python"
     requirements: "handoff/20250928/40_App/api-backend/requirements.txt"

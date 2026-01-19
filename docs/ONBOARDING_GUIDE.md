@@ -1449,7 +1449,7 @@ MorningAI's orchestrator uses **LangGraph as the sole execution engine** (100% r
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ LangGraph StateGraph (12 nodes)                              │
+│ LangGraph StateGraph (22 nodes)                              │
 │                                                              │
 │   planner_node → executor_node → ci_monitor_node            │
 │        ↓              ↓               ↓                      │
