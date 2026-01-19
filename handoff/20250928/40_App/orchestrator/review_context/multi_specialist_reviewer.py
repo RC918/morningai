@@ -47,6 +47,12 @@ logger = logging.getLogger(__name__)
 ReviewSpecialist = SpecialistType
 
 
+# Default confidence threshold for filtering low-confidence findings
+# Findings below this threshold will be filtered out before posting
+# Issue #4253: B-18 Confidence Scoring for Multi-Specialist Review
+DEFAULT_CONFIDENCE_THRESHOLD = 0.7
+
+
 @dataclass
 class SpecialistFinding:
     """
@@ -60,6 +66,7 @@ class SpecialistFinding:
         file_path: Optional file path where issue was found
         line_number: Optional line number where issue was found
         suggestion: Optional text suggestion for fixing (NOT code)
+        confidence: Confidence score (0.0-1.0) for this finding (B-18)
     """
     specialist: ReviewSpecialist
     severity: str
@@ -68,6 +75,7 @@ class SpecialistFinding:
     file_path: Optional[str] = None
     line_number: Optional[int] = None
     suggestion: Optional[str] = None
+    confidence: float = 0.8  # Default confidence if not provided by LLM
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -79,6 +87,7 @@ class SpecialistFinding:
             "file_path": self.file_path,
             "line_number": self.line_number,
             "suggestion": self.suggestion,
+            "confidence": self.confidence,
         }
 
 
@@ -406,6 +415,54 @@ def filter_findings_by_priority(
     return result.filtered_findings
 
 
+def filter_findings_by_confidence(
+    findings: List[SpecialistFinding],
+    threshold: float = DEFAULT_CONFIDENCE_THRESHOLD,
+) -> tuple[List[SpecialistFinding], Dict[str, Any]]:
+    """
+    Filter findings based on confidence score.
+
+    Issue #4253: B-18 Confidence Scoring for Multi-Specialist Review
+
+    This function filters out low-confidence findings to reduce noise
+    and improve the signal-to-noise ratio of code review comments.
+
+    Args:
+        findings: List of SpecialistFinding from multi-specialist review
+        threshold: Minimum confidence score to keep (default: 0.7)
+
+    Returns:
+        Tuple of (filtered_findings, stats_dict)
+    """
+    if not findings:
+        return [], {
+            "original_count": 0,
+            "filtered_count": 0,
+            "removed_count": 0,
+            "threshold": threshold,
+        }
+
+    filtered = [f for f in findings if f.confidence >= threshold]
+    removed = [f for f in findings if f.confidence < threshold]
+
+    stats = {
+        "original_count": len(findings),
+        "filtered_count": len(filtered),
+        "removed_count": len(removed),
+        "threshold": threshold,
+        "removed_findings": [
+            {
+                "specialist": f.specialist.value,
+                "confidence": f.confidence,
+                "message": f.message[:100],  # Truncate for logging
+            }
+            for f in removed
+        ],
+    }
+
+    return filtered, stats
+
+
 # Specialist-specific system prompts
 # Each prompt focuses the LLM on specific review aspects
 SPECIALIST_PROMPTS: Dict[ReviewSpecialist, str] = {
@@ -435,20 +492,30 @@ For each issue found, provide:
 2. Category: The type of security issue
 3. Message: Clear description of the vulnerability
 4. Suggestion: Concrete code fix that can be directly applied (include actual code snippet)
+5. Confidence: Your confidence score (0.0-1.0) that this is a real issue
 
 IMPORTANT - Code Suggestion Format (for EPIC D-5 Coder Agent Integration):
-The "suggestion" field MUST contain a concrete, copy-pasteable code fix. Example:
+The "suggestion" field MUST contain a concrete, copy-pasteable code fix.
+
+IMPORTANT - Confidence Score (B-18):
+- 0.9-1.0: Certain - clear evidence in the diff
+- 0.7-0.9: High confidence - strong indicators
+- 0.5-0.7: Medium confidence - possible issue but uncertain
+- 0.0-0.5: Low confidence - speculative
+
+Example:
 {
   "severity": "high",
   "category": "SQL Injection",
   "message": "User input is directly concatenated into SQL query",
   "file_path": "src/db.py",
   "line_number": 42,
-  "suggestion": "cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))"
+  "suggestion": "cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))",
+  "confidence": 0.95
 }
 
 Output your findings as a JSON array of objects with keys:
-severity, category, message, file_path (if applicable), line_number (if applicable), suggestion
+severity, category, message, file_path (if applicable), line_number (if applicable), suggestion, confidence
 
 If no security issues are found, return an empty array: []""",
 
@@ -479,20 +546,30 @@ For each issue found, provide:
 2. Category: The type of performance issue
 3. Message: Clear description of the inefficiency
 4. Suggestion: Concrete code fix that can be directly applied (include actual code snippet)
+5. Confidence: Your confidence score (0.0-1.0) that this is a real issue
 
 IMPORTANT - Code Suggestion Format (for EPIC D-5 Coder Agent Integration):
-The "suggestion" field MUST contain a concrete, copy-pasteable code fix. Example:
+The "suggestion" field MUST contain a concrete, copy-pasteable code fix.
+
+IMPORTANT - Confidence Score (B-18):
+- 0.9-1.0: Certain - clear evidence in the diff
+- 0.7-0.9: High confidence - strong indicators
+- 0.5-0.7: Medium confidence - possible issue but uncertain
+- 0.0-0.5: Low confidence - speculative
+
+Example:
 {
   "severity": "medium",
   "category": "N+1 Query",
   "message": "Loop executes separate query for each item",
   "file_path": "src/api.py",
   "line_number": 85,
-  "suggestion": "users = User.objects.filter(id__in=user_ids).prefetch_related('orders')"
+  "suggestion": "users = User.objects.filter(id__in=user_ids).prefetch_related('orders')",
+  "confidence": 0.85
 }
 
 Output your findings as a JSON array of objects with keys:
-severity, category, message, file_path (if applicable), line_number (if applicable), suggestion
+severity, category, message, file_path (if applicable), line_number (if applicable), suggestion, confidence
 
 If no performance issues are found, return an empty array: []""",
 
@@ -524,20 +601,30 @@ For each issue found, provide:
 2. Category: The type of architectural issue
 3. Message: Clear description of the design problem
 4. Suggestion: Concrete code fix that can be directly applied (include actual code snippet)
+5. Confidence: Your confidence score (0.0-1.0) that this is a real issue
 
 IMPORTANT - Code Suggestion Format (for EPIC D-5 Coder Agent Integration):
-The "suggestion" field MUST contain a concrete, copy-pasteable code fix. Example:
+The "suggestion" field MUST contain a concrete, copy-pasteable code fix.
+
+IMPORTANT - Confidence Score (B-18):
+- 0.9-1.0: Certain - clear evidence in the diff
+- 0.7-0.9: High confidence - strong indicators
+- 0.5-0.7: Medium confidence - possible issue but uncertain
+- 0.0-0.5: Low confidence - speculative
+
+Example:
 {
   "severity": "medium",
   "category": "God Class",
   "message": "Class has too many responsibilities",
   "file_path": "src/service.py",
   "line_number": 15,
-  "suggestion": "class UserService:\\n    def __init__(self, user_repo: UserRepository):\\n        self._repo = user_repo"
+  "suggestion": "class UserService:\\n    def __init__(self, user_repo: UserRepository):\\n        self._repo = user_repo",
+  "confidence": 0.80
 }
 
 Output your findings as a JSON array of objects with keys:
-severity, category, message, file_path (if applicable), line_number (if applicable), suggestion
+severity, category, message, file_path (if applicable), line_number (if applicable), suggestion, confidence
 
 If no architectural issues are found, return an empty array: []""",
 
@@ -573,20 +660,30 @@ For each issue found, provide:
 2. Category: The type of correctness issue
 3. Message: Clear description of the logic bug
 4. Suggestion: Concrete code fix that can be directly applied (include actual code snippet)
+5. Confidence: Your confidence score (0.0-1.0) that this is a real issue
 
 IMPORTANT - Code Suggestion Format (for EPIC D-5 Coder Agent Integration):
-The "suggestion" field MUST contain a concrete, copy-pasteable code fix. Example:
+The "suggestion" field MUST contain a concrete, copy-pasteable code fix.
+
+IMPORTANT - Confidence Score (B-18):
+- 0.9-1.0: Certain - clear evidence in the diff
+- 0.7-0.9: High confidence - strong indicators
+- 0.5-0.7: Medium confidence - possible issue but uncertain
+- 0.0-0.5: Low confidence - speculative
+
+Example:
 {
   "severity": "high",
   "category": "Silent Failure",
   "message": "Git error returns empty list instead of raising exception, causing silent bypass",
   "file_path": "scripts/ci/check.py",
   "line_number": 45,
-  "suggestion": "if result.returncode != 0:\\n    raise GitError(f'Git command failed: {result.stderr}')"
+  "suggestion": "if result.returncode != 0:\\n    raise GitError(f'Git command failed: {result.stderr}')",
+  "confidence": 0.90
 }
 
 Output your findings as a JSON array of objects with keys:
-severity, category, message, file_path (if applicable), line_number (if applicable), suggestion
+severity, category, message, file_path (if applicable), line_number (if applicable), suggestion, confidence
 
 If no correctness issues are found, return an empty array: []""",
 
@@ -754,6 +851,27 @@ class MultiSpecialistReviewer:
                 f"removed {self_critique_stats['removed_count']} false positives"
             )
 
+        # Issue #4253 B-18: Confidence-based filtering (if enabled)
+        confidence_stats: Optional[Dict[str, Any]] = None
+        if getattr(settings, 'enable_confidence_filtering', True) and deduplicated_findings:
+            deduplicated_findings, confidence_stats = filter_findings_by_confidence(
+                deduplicated_findings,
+                threshold=getattr(settings, 'confidence_threshold', DEFAULT_CONFIDENCE_THRESHOLD),
+            )
+            if confidence_stats['removed_count'] > 0:
+                specialist_summaries["confidence_filter"] = (
+                    f"Filtered {confidence_stats['removed_count']} low-confidence findings "
+                    f"(threshold: {confidence_stats['threshold']:.1%})"
+                )
+                logger.info(
+                    "[MultiSpecialistReviewer] B-18: Confidence filtering applied",
+                    extra={
+                        "operation": "confidence_filter",
+                        "trace_id": self.trace_id,
+                        **confidence_stats,
+                    }
+                )
+
         overall_severity = self._calculate_overall_severity(deduplicated_findings)
 
         review_time_ms = (time.time() - start_time) * 1000
@@ -768,6 +886,8 @@ class MultiSpecialistReviewer:
                 "review_time_ms": review_time_ms,
                 "self_critique_enabled": settings.enable_self_critique,
                 "self_critique_stats": self_critique_stats,
+                "confidence_filtering_enabled": getattr(settings, 'enable_confidence_filtering', True),
+                "confidence_stats": confidence_stats,
             }
         )
 
@@ -996,6 +1116,15 @@ Return your findings as a JSON array."""
 
             for item in parsed:
                 if isinstance(item, dict):
+                    # Parse confidence score (B-18)
+                    # Default to 0.8 if not provided, clamp to [0.0, 1.0]
+                    raw_confidence = item.get("confidence", 0.8)
+                    try:
+                        confidence = float(raw_confidence)
+                        confidence = max(0.0, min(1.0, confidence))
+                    except (TypeError, ValueError):
+                        confidence = 0.8
+
                     findings.append(SpecialistFinding(
                         specialist=specialist,
                         severity=item.get("severity", "medium"),
@@ -1004,6 +1133,7 @@ Return your findings as a JSON array."""
                         file_path=item.get("file_path"),
                         line_number=item.get("line_number"),
                         suggestion=item.get("suggestion"),
+                        confidence=confidence,
                     ))
         except json.JSONDecodeError as e:
             logger.warning(
