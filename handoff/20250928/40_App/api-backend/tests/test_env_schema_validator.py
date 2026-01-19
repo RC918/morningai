@@ -192,7 +192,11 @@ class TestEnvSchemaValidatorEdgeCases:
     """Edge case tests for env_schema_validator - Issue #4229"""
 
     def test_whitespace_only_required_var(self, clean_env, monkeypatch):
-        """Test validation fails when required var contains only whitespace"""
+        """Test validation behavior when required var contains only whitespace.
+
+        Note: Currently whitespace-only values pass validation (treated as truthy).
+        This documents the current behavior. See issue for potential fix.
+        """
         monkeypatch.setenv('DATABASE_URL', '   ')
         monkeypatch.setenv('APP_VERSION', '1.0.0')
 
