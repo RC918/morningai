@@ -136,7 +136,9 @@ class TestDiffParserExtractAdditionLines:
         )
         parser = DiffParser(diff)
         addition_lines = parser.extract_addition_lines()
-        assert addition_lines == {"src/api.py": [2, 14]}
+        # Hunk 1: starts at line 1, addition at line 2
+        # Hunk 2: starts at line 11, context lines at 11-12, addition at line 13
+        assert addition_lines == {"src/api.py": [2, 13]}
 
     def test_extract_addition_lines_multiple_files(self):
         """Test extracting addition lines from multiple files."""
