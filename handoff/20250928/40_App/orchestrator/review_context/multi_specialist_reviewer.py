@@ -227,6 +227,182 @@ def get_weighted_findings(
     return sorted(weighted, key=lambda w: w.effective_priority, reverse=True)
 
 
+@dataclass
+class ForceApproveResult:
+    """
+    Result of force-approve evaluation.
+
+    Issue #3918: B-9.5 Priority-based Filtering + Approval Threshold
+
+    Attributes:
+        should_approve: Whether findings can be force-approved
+        reason: Human-readable reason for the decision
+        blocked_by: List of specialist types that are blocking approval
+        filtered_findings: Findings that remain after filtering (non-blocking)
+    """
+    should_approve: bool
+    reason: str
+    blocked_by: List[str] = field(default_factory=list)
+    filtered_findings: List["SpecialistFinding"] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization and telemetry."""
+        return {
+            "should_approve": self.should_approve,
+            "reason": self.reason,
+            "blocked_by": self.blocked_by,
+            "filtered_findings_count": len(self.filtered_findings),
+        }
+
+
+def should_force_approve(
+    findings: List[SpecialistFinding],
+    retry_count: int,
+) -> ForceApproveResult:
+    """
+    Determine if findings can be force-approved based on priority and retry count.
+
+    Issue #3918: B-9.5 Priority-based Filtering + Approval Threshold
+
+    This function implements the priority-based filtering strategy to prevent
+    Coder Agent from entering infinite loops when specialists have conflicting
+    opinions (e.g., Security says add checks, Performance says remove checks).
+
+    Priority Rules:
+    - Security findings (high/critical): ALWAYS blocking - never force-approve
+    - Performance findings: Require 3+ retries before force-approve
+    - Architecture/CORRECTNESS findings: Can be force-approved after 2 retries
+
+    Blueprint Alignment:
+    - Section 3.1 (Planner v3 Self-refinement): Self-correction with limits
+    - Section 3.3 (Judge Agent): Arbitration for conflicting opinions
+
+    Args:
+        findings: List of SpecialistFinding from multi-specialist review
+        retry_count: Number of fix attempts already made
+
+    Returns:
+        ForceApproveResult with decision, reason, and filtered findings
+    """
+    if not findings:
+        return ForceApproveResult(
+            should_approve=False,
+            reason="No findings to evaluate",
+            blocked_by=[],
+            filtered_findings=[],
+        )
+
+    # Categorize findings by specialist type
+    security_blockers: List[SpecialistFinding] = []
+    performance_issues: List[SpecialistFinding] = []
+    architecture_issues: List[SpecialistFinding] = []
+    correctness_issues: List[SpecialistFinding] = []
+    other_issues: List[SpecialistFinding] = []
+
+    for f in findings:
+        specialist_name = f.specialist.value.lower()
+        if specialist_name == "security":
+            # Only high/critical security findings are blocking
+            if f.severity in ("high", "critical"):
+                security_blockers.append(f)
+            else:
+                other_issues.append(f)
+        elif specialist_name == "performance":
+            performance_issues.append(f)
+        elif specialist_name == "architecture":
+            architecture_issues.append(f)
+        elif specialist_name == "correctness":
+            correctness_issues.append(f)
+        else:
+            other_issues.append(f)
+
+    blocked_by: List[str] = []
+
+    # Rule 1: Security must always pass - never force-approve high/critical
+    if security_blockers:
+        return ForceApproveResult(
+            should_approve=False,
+            reason=f"Security blockers ({len(security_blockers)} high/critical findings) must be addressed",
+            blocked_by=["SECURITY"],
+            filtered_findings=findings,  # All findings remain
+        )
+
+    # Rule 2: Performance findings require 3+ retries
+    if performance_issues and retry_count < 3:
+        blocked_by.append("PERFORMANCE")
+
+    # Rule 3: Architecture/CORRECTNESS findings can be force-approved after 2 retries
+    # (they are NOT blocking if retry_count >= 2)
+
+    # Determine filtered findings (what remains after applying retry thresholds)
+    filtered: List[SpecialistFinding] = []
+
+    # Security blockers always remain (but we already returned if any exist)
+    filtered.extend(security_blockers)
+
+    # Performance issues remain if retry_count < 3
+    if retry_count < 3:
+        filtered.extend(performance_issues)
+
+    # Architecture/CORRECTNESS issues remain if retry_count < 2
+    if retry_count < 2:
+        filtered.extend(architecture_issues)
+        filtered.extend(correctness_issues)
+
+    # Other issues (low severity security, etc.) remain if retry_count < 2
+    if retry_count < 2:
+        filtered.extend(other_issues)
+
+    # Decision logic
+    if blocked_by:
+        return ForceApproveResult(
+            should_approve=False,
+            reason=f"Blocked by {', '.join(blocked_by)} (retry_count={retry_count}, need 3+ for PERFORMANCE)",
+            blocked_by=blocked_by,
+            filtered_findings=filtered,
+        )
+
+    # If retry_count >= 2 and no security blockers, we can force-approve
+    if retry_count >= 2:
+        return ForceApproveResult(
+            should_approve=True,
+            reason=f"Force-approved after {retry_count} retries (no security blockers)",
+            blocked_by=[],
+            filtered_findings=filtered,
+        )
+
+    # Default: not enough retries yet
+    return ForceApproveResult(
+        should_approve=False,
+        reason=f"Need more retries (current={retry_count}, need 2+ for Architecture/CORRECTNESS, 3+ for PERFORMANCE)",
+        blocked_by=["RETRY_THRESHOLD"],
+        filtered_findings=filtered,
+    )
+
+
+def filter_findings_by_priority(
+    findings: List[SpecialistFinding],
+    retry_count: int,
+) -> List[SpecialistFinding]:
+    """
+    Filter findings based on priority and retry count.
+
+    Issue #3918: B-9.5 Priority-based Filtering
+
+    This is a convenience function that returns only the findings that
+    should still be addressed based on the current retry count.
+
+    Args:
+        findings: List of SpecialistFinding from multi-specialist review
+        retry_count: Number of fix attempts already made
+
+    Returns:
+        List of findings that should still be addressed
+    """
+    result = should_force_approve(findings, retry_count)
+    return result.filtered_findings
+
+
 # Specialist-specific system prompts
 # Each prompt focuses the LLM on specific review aspects
 SPECIALIST_PROMPTS: Dict[ReviewSpecialist, str] = {
