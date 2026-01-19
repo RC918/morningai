@@ -23,7 +23,7 @@ Features:
 import os
 import sys
 import warnings
-from typing import Optional, Literal, Tuple
+from typing import Optional, Literal, Tuple, List, TypedDict
 from pydantic import Field, field_validator, model_validator, ConfigDict, SecretStr, AliasChoices
 from pydantic_settings import BaseSettings
 
@@ -57,6 +57,7 @@ Used for:
 # Deprecation Registry - Centralized Tracking for Tech Debt Management
 # =============================================================================
 # Issue #4223: Implement deprecation milestone tracking system
+# Issue #4237: Add TypedDict for type-safe registry entries
 #
 # This registry tracks all deprecated environment variables with their:
 # - old_env: The deprecated environment variable name
@@ -72,7 +73,32 @@ Used for:
 # - Section 4.6: Evidence Ledger - Track deprecation decisions and enforcement
 # =============================================================================
 
-DEPRECATION_REGISTRY = [
+
+class DeprecationEntry(TypedDict):
+    """Type definition for deprecation registry entries.
+
+    Issue #4237: TypedDict provides compile-time validation and IDE support
+    for DEPRECATION_REGISTRY entries.
+
+    Attributes:
+        old_env: The deprecated environment variable name
+        new_env: The replacement environment variable name
+        old_field: The deprecated field name in Settings (None for env-only checks)
+        new_field: The replacement field name in Settings (None for env-only checks)
+        removal_date: The date after which support will be removed (YYYY-MM-DD format)
+        issue_ref: Reference to the GitHub issue tracking this deprecation (e.g., "#4219")
+        check_type: "field" for field-based checks, "env" for env-var-only checks
+    """
+    old_env: str
+    new_env: str
+    old_field: Optional[str]
+    new_field: Optional[str]
+    removal_date: str  # YYYY-MM-DD format
+    issue_ref: Optional[str]
+    check_type: Literal["field", "env"]
+
+
+DEPRECATION_REGISTRY: List[DeprecationEntry] = [
     {
         "old_env": "STRIPE_WEBHOOK_SECRET",
         "new_env": "STRIPE_WEBHOOK_SECRET_KEY",
