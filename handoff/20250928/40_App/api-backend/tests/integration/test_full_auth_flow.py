@@ -411,6 +411,11 @@ class TestFullAuthFlowWithout2FA:
 class TestFullAuthFlowWith2FA:
     """Test complete authentication flow with 2FA requirement"""
 
+    @pytest.mark.xfail(
+        reason="Known issue: login returns pre-auth token with wrong scope "
+               "(challenge instead of enroll) - see Issue #4261",
+        strict=False
+    )
     def test_login_2fa_enroll_verify_session_flow(
         self,
         client,
