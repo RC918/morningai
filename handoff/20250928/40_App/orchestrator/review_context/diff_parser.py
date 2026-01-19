@@ -31,9 +31,8 @@ HUNK_HEADER_PATTERN = re.compile(r'^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@')
 # Pattern to match diff --git headers: diff --git a/path b/path
 # Issue #4214: Handle quoted file paths with spaces
 # Git quotes paths containing spaces: diff --git "a/path with spaces" "b/path with spaces"
-DIFF_GIT_HEADER_PATTERN = re.compile(
-    r'^diff --git (?:"?a/(.+?)"?|a/(.+?)) (?:"?b/\1"?|b/\2)$'
-)
+# Note: We use separate simple patterns instead of a complex combined pattern
+# to avoid ReDoS vulnerabilities from nested quantifiers and backreferences.
 
 # Simpler pattern for unquoted paths (most common case)
 DIFF_GIT_HEADER_SIMPLE = re.compile(r'^diff --git a/(.+?) b/\1$')
@@ -43,7 +42,8 @@ DIFF_GIT_HEADER_QUOTED = re.compile(r'^diff --git "a/(.+?)" "b/\1"$')
 
 # Pattern for +++ headers (fallback)
 # Issue #4214: Handle quoted paths: +++ "b/path with spaces"
-PLUS_HEADER_PATTERN = re.compile(r'^\+\+\+ (?:"?b/(.+?)"?|b/(.+))$')
+# Note: We use separate simple patterns instead of a complex combined pattern
+# to avoid ReDoS vulnerabilities from nested quantifiers and backreferences.
 PLUS_HEADER_SIMPLE = re.compile(r'^\+\+\+ b/(.+)$')
 PLUS_HEADER_QUOTED = re.compile(r'^\+\+\+ "b/(.+)"$')
 
@@ -223,7 +223,8 @@ class DiffParser:
         if not lines:
             return ""
 
-        sorted_lines = sorted(lines)
+        # Remove duplicates and sort
+        sorted_lines = sorted(set(lines))
         ranges: List[str] = []
         range_start = sorted_lines[0]
         range_end = sorted_lines[0]
