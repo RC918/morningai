@@ -605,11 +605,11 @@ class TestGetNormalizerErrorPaths:
         import src.routes.webhooks as webhooks_module
 
         original_normalizer = webhooks_module._normalizer
+        try:
+            mock_normalizer = MagicMock()
+            webhooks_module._normalizer = mock_normalizer
 
-        mock_normalizer = MagicMock()
-        webhooks_module._normalizer = mock_normalizer
-
-        result = webhooks_module.get_normalizer()
-        assert result is mock_normalizer
-
-        webhooks_module._normalizer = original_normalizer
+            result = webhooks_module.get_normalizer()
+            assert result is mock_normalizer
+        finally:
+            webhooks_module._normalizer = original_normalizer
