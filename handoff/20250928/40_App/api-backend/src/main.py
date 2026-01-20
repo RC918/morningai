@@ -94,14 +94,14 @@ try:
     repo_root_str = str(repo_root)
     if repo_root_str not in sys.path:
         sys.path.append(repo_root_str)
-    from phase4_meta_agent_api import (
+    from src.phases.phase4_meta_agent import (
         api_meta_agent_ooda_cycle,
         api_create_langgraph_workflow,
         api_execute_workflow,
         api_governance_status,
         api_create_governance_policy,
     )
-    from phase5_data_intelligence_api import (
+    from src.phases.phase5_data_intelligence import (
         api_create_quicksight_dashboard,
         api_get_dashboard_insights,
         api_generate_automated_report,
@@ -110,7 +110,7 @@ try:
         api_generate_marketing_content,
         api_get_business_intelligence,
     )
-    from phase6_security_governance_api import (
+    from src.phases.phase6_security_governance import (
         api_evaluate_access_request,
         api_review_security_event,
         api_submit_hitl_review,
@@ -219,17 +219,17 @@ def get_health_payload():
             "services": {
                 "phase4_apis": (
                     "available"
-                    if "phase4_meta_agent_api" in sys.modules
+                    if "src.phases.phase4_meta_agent" in sys.modules
                     else "unavailable"
                 ),
                 "phase5_apis": (
                     "available"
-                    if "phase5_data_intelligence_api" in sys.modules
+                    if "src.phases.phase5_data_intelligence" in sys.modules
                     else "unavailable"
                 ),
                 "phase6_apis": (
                     "available"
-                    if "phase6_security_governance_api" in sys.modules
+                    if "src.phases.phase6_security_governance" in sys.modules
                     else "unavailable"
                 ),
                 "security_manager": (
