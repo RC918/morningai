@@ -15,7 +15,7 @@ Security Features:
 import os
 import uuid
 import logging
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, Literal
 import jwt
 import redis.exceptions
@@ -89,7 +89,7 @@ class PreAuthTokenManager:
             JWT token string
         """
         jti = str(uuid.uuid4())
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         expiry = now + timedelta(minutes=PRE_AUTH_TOKEN_EXPIRY_MINUTES)
 
         payload = {
@@ -217,7 +217,7 @@ class PreAuthTokenManager:
             return False
 
         self.redis_client.hset(redis_key, "consumed", "True")
-        self.redis_client.hset(redis_key, "consumed_at", datetime.now(UTC).isoformat())
+        self.redis_client.hset(redis_key, "consumed_at", datetime.now(timezone.utc).isoformat())
 
         logger.info(f"Token jti {jti} consumed successfully")
         return True
@@ -238,7 +238,7 @@ class PreAuthTokenManager:
             True if successfully consumed (first use), False if already consumed or not found
         """
         redis_key = f"{REDIS_KEY_PREFIX}:pre_auth:jti:{jti}"
-        now_iso = datetime.now(UTC).isoformat()
+        now_iso = datetime.now(timezone.utc).isoformat()
 
         for attempt in range(max_retries):
             pipeline = self.redis_client.pipeline()
