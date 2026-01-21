@@ -393,7 +393,9 @@ class DataIntelligencePlatform:
             'net_promoter_score': 67
         }
     
-    async def _generate_business_insights(self, user_metrics: Dict, revenue_metrics: Dict, growth_metrics: Dict) -> List[Dict[str, Any]]:
+    async def _generate_business_insights(
+        self, user_metrics: Dict, revenue_metrics: Dict, growth_metrics: Dict
+    ) -> List[Dict[str, Any]]:
         """生成商業洞察"""
         insights = []
         

@@ -23,7 +23,6 @@ from dataclasses import dataclass, asdict
 from enum import Enum
 import logging
 import hashlib
-import uuid
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
