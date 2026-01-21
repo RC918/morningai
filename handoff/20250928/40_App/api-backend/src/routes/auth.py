@@ -63,7 +63,7 @@ def login():
             'user_id': user_data['id'],
             'username': username,
             'role': user_data['role'],
-            'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=24)
+            'exp': datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=24)
         }, jwt_secret, algorithm='HS256')
         
         user_info = {

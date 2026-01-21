@@ -404,8 +404,8 @@ def generate_jwt_token(user_data, expires_hours=24):
         'user_id': user_data.get('id'),
         'username': user_data.get('username'),
         'role': normalized_role,
-        'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=expires_hours),
-        'iat': datetime.datetime.now(datetime.UTC)
+        'exp': datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=expires_hours),
+        'iat': datetime.datetime.now(datetime.timezone.utc)
     }
 
     # Issue #4220: Use centralized TokenService for JWT operations
@@ -564,8 +564,8 @@ def create_platform_admin_token(user_id=0, username='platform_admin'):
         'username': username,
         'role': 'admin',
         'is_platform_admin': True,
-        'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=24),
-        'iat': datetime.datetime.now(datetime.UTC)
+        'exp': datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=24),
+        'iat': datetime.datetime.now(datetime.timezone.utc)
     }
 
     # Issue #4220: Use centralized TokenService for JWT operations

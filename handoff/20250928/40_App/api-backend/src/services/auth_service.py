@@ -339,7 +339,7 @@ def generate_access_token(user_id: str, email: str, role: str) -> Tuple[str, int
     Returns:
         Tuple of (token, expiry_timestamp_ms)
     """
-    now = datetime.datetime.now(datetime.UTC)
+    now = datetime.datetime.now(datetime.timezone.utc)
     expiry = now + datetime.timedelta(minutes=get_access_token_expiry_minutes())
     expiry_timestamp = int(expiry.timestamp() * 1000)  # milliseconds
     
@@ -365,7 +365,7 @@ def generate_refresh_token(user_id: str, email: str) -> str:
         Refresh token string
     """
     import uuid
-    now = datetime.datetime.now(datetime.UTC)
+    now = datetime.datetime.now(datetime.timezone.utc)
     expiry = now + datetime.timedelta(days=REFRESH_TOKEN_EXPIRY_DAYS)
     
     payload = {
