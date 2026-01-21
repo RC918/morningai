@@ -620,8 +620,16 @@ class LLMClient:
                     timeout=remaining_timeout,
                     **retry_kwargs
                 )
-        except ImportError:
-            pass  # Drift retry not available, continue normally
+        except ImportError as e:
+            logger.warning(
+                "[LLMClient] Drift retry module not available (ImportError), "
+                "skipping retry. Ensure governance.drift_retry is deployed.",
+                extra={
+                    "provider": self._provider_name,
+                    "model": self.model,
+                    "error": str(e)
+                }
+            )
         except Exception as e:
             # Log retry errors but don't block - return original response
             logger.warning(
