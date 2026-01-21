@@ -27,10 +27,25 @@ Usage:
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from common.config.settings import settings
+
+
+def _calculate_expires_at(ttl_seconds: int) -> str:
+    """
+    Calculate expires_at timestamp based on TTL.
+
+    Args:
+        ttl_seconds: Time-to-live in seconds
+
+    Returns:
+        ISO format timestamp string for expiration
+    """
+    expires = datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
+    return expires.isoformat()
+
 
 if TYPE_CHECKING:
     from .memory_v2 import MemoryV2
@@ -131,6 +146,7 @@ def save_flow_state(
             layer=MemoryLayer.SHORT_TERM,
             scope=MemoryScope.WORKFLOW,
             trace_id=trace_id,
+            expires_at=_calculate_expires_at(settings.memory_v2_short_term_ttl),
             metadata={
                 "plan_id": plan_id,
                 "current_stage": current_stage,
@@ -313,6 +329,7 @@ def save_debate_result(
             layer=MemoryLayer.AGENT_INTERACTION,
             scope=MemoryScope.WORKFLOW,
             trace_id=trace_id,
+            expires_at=_calculate_expires_at(settings.memory_v2_agent_interaction_ttl),
             metadata={
                 "debate_id": debate_id,
                 "topic": topic,
