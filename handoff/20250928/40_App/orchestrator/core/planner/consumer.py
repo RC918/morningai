@@ -43,6 +43,7 @@ class TaskResult:
         started_at: When execution started
         completed_at: When execution completed
         actual_duration_minutes: Actual time taken
+        metadata: Optional metadata (e.g., safety check results)
     """
     task_id: str
     status: ExecutionStatus
@@ -51,10 +52,11 @@ class TaskResult:
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     actual_duration_minutes: int = 0
+    metadata: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
-        return {
+        result = {
             "task_id": self.task_id,
             "status": self.status.value,
             "outputs": self.outputs,
@@ -63,6 +65,9 @@ class TaskResult:
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,
             "actual_duration_minutes": self.actual_duration_minutes,
         }
+        if self.metadata:
+            result["metadata"] = self.metadata
+        return result
 
 
 @dataclass
