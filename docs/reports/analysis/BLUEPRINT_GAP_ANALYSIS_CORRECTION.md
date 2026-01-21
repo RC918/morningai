@@ -12,7 +12,7 @@ This report corrects inaccuracies found in a previous gap analysis. After deep i
 |----------|-------------|---------------------|---------------|
 | **P0** | AIP v2 Implementation | **INCORRECT** | Fully implemented |
 | **P1** | BrowserNode Self-Heal Engine | **CORRECT** | Not implemented |
-| **P1** | Capability Token Implementation | **MOSTLY INCORRECT** | Well implemented |
+| **P1** | Capability Token Implementation | **MOSTLY INCORRECT** | Substantially implemented |
 | **P2** | Autonomous Provisioning Auto-Degradation | **INCORRECT** | Fully implemented (EPIC I-4) |
 | **P2** | Regression CI Enforcement | **PARTIALLY CORRECT** | Partial implementation |
 
@@ -26,7 +26,7 @@ This report corrects inaccuracies found in a previous gap analysis. After deep i
 
 **Previous Claim**: "No dedicated implementation file (possibly implicit in graph.py)"
 
-**Reality**: AIP v2 is **fully implemented** in `/orchestrator/meta_agent/aip_v2/`:
+**Reality**: AIP v2 is **fully implemented** in `handoff/20250928/40_App/orchestrator/meta_agent/aip_v2/`:
 
 | File | Purpose | Blueprint Alignment |
 |------|---------|---------------------|
@@ -53,7 +53,7 @@ This report corrects inaccuracies found in a previous gap analysis. After deep i
 
 **Previous Claim**: "Has reference but complete Self-Heal Engine not found"
 
-**Reality**: This gap is **confirmed**. Current implementation (`/orchestrator/mcp/tools/browser_tool.py`, 59 lines) is a basic Playwright wrapper.
+**Reality**: This gap is **confirmed**. Current implementation (`handoff/20250928/40_App/orchestrator/mcp/tools/browser_tool.py`, 59 lines) is a basic Playwright wrapper.
 
 **Missing Components per Blueprint Section 3.4**:
 1. Failure Detection - DOM snapshot + error string + screenshot archival
@@ -70,7 +70,7 @@ This report corrects inaccuracies found in a previous gap analysis. After deep i
 
 **Previous Claim**: "Has principal_context.py providing permission concepts" but incomplete
 
-**Reality**: Implementation is **substantially complete** in `/orchestrator/governance/principal_context.py` (478 lines):
+**Reality**: Implementation is **substantially complete** in `handoff/20250928/40_App/orchestrator/governance/principal_context.py` (478 lines):
 
 **Implemented Features**:
 - `CapabilityType` enum with 17 capability types:
@@ -105,7 +105,7 @@ This report corrects inaccuracies found in a previous gap analysis. After deep i
 
 **Previous Claim**: "Has Drift monitoring, auto-degradation/upgrade logic pending"
 
-**Reality**: Auto-degradation is **fully implemented** as EPIC I-4 in `/orchestrator/governance/degradation_advisor.py` (833 lines):
+**Reality**: Auto-degradation is **fully implemented** as EPIC I-4 in `handoff/20250928/40_App/orchestrator/governance/degradation_advisor.py` (833 lines):
 
 **Implemented Features**:
 - `DegradationPolicy` class with threshold-based severity calculation:
@@ -150,13 +150,13 @@ This report corrects inaccuracies found in a previous gap analysis. After deep i
 | 3.1 Planner v3 | Planner | COMPLETE | `planner_types.py`, `llm_planner_adapter.py` |
 | 3.2 Flow Controller v3 | Flow | COMPLETE | `flow_controller.py` |
 | 3.3 Agent Catalog v2 | Agents | COMPLETE | `principal_context.py` (AgentType Enum) |
-| 3.4 BrowserNode v2 | Browser | **PARTIAL** | Basic wrapper only, no Self-Heal |
+| 3.4 BrowserNode v2 | Browser | **PARTIAL** | `browser_tool.py` (basic wrapper only) |
 | 3.5 Diagnostic Agent | Diagnostic | COMPLETE | `diagnostic_agent_node.py` |
 | 4.1 Safety Governor v2 | Safety | COMPLETE | `content_safety_scanner.py` |
 | 4.2 Compliance Radar v2 | Compliance | COMPLETE | `pii_scanner.py` |
 | 4.3 Model Governance v2 | Governance | COMPLETE | `routing_policy_evolver.py` |
 | 4.4 Autonomous Provisioning v2 | Provisioning | COMPLETE | `degradation_advisor.py` (EPIC I-4) |
-| 4.5 AIP v2 | Protocol | COMPLETE | `/meta_agent/aip_v2/` (8 files) |
+| 4.5 AIP v2 | Protocol | COMPLETE | `meta_agent/aip_v2/` (8 files) |
 | 4.6 Evidence Ledger | Audit | COMPLETE | `evidence_ledger.py` |
 | 4.7 Capability-Based Security | Security | COMPLETE | `principal_context.py` |
 | 5.1 Memory v2 | Memory | COMPLETE | `memory_v2.py` |
@@ -178,7 +178,7 @@ This report corrects inaccuracies found in a previous gap analysis. After deep i
 
 ### AIP v2 Implementation
 ```
-/orchestrator/meta_agent/aip_v2/
+handoff/20250928/40_App/orchestrator/meta_agent/aip_v2/
 ├── __init__.py
 ├── capabilities.py
 ├── context.py
@@ -192,7 +192,7 @@ This report corrects inaccuracies found in a previous gap analysis. After deep i
 
 ### Capability-Based Security
 ```
-/orchestrator/governance/principal_context.py
+handoff/20250928/40_App/orchestrator/governance/principal_context.py
 - CapabilityType enum (17 types)
 - DEFAULT_CAPABILITIES (4 permission levels)
 - PrincipalContext dataclass
@@ -201,7 +201,7 @@ This report corrects inaccuracies found in a previous gap analysis. After deep i
 
 ### Auto-Degradation (EPIC I-4)
 ```
-/orchestrator/governance/degradation_advisor.py
+handoff/20250928/40_App/orchestrator/governance/degradation_advisor.py
 - DegradationPolicy class
 - DegradationAdvisor class
 - Phase A/B operational modes
