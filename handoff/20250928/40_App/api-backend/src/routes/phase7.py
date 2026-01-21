@@ -73,7 +73,7 @@ def init_phase7_routes(backend_services_available):
 def phase7_status():
     """Phase 7 system status endpoint"""
     try:
-        from phase7_startup import Phase7System
+        from src.phases.phase7_startup import Phase7System
 
         system = Phase7System()
 
