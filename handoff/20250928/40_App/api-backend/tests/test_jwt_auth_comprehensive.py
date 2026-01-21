@@ -2,7 +2,7 @@
 import pytest
 import jwt
 import os
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
 from flask import Flask
 from unittest.mock import patch, Mock, AsyncMock
 from src.routes.faq import bp as faq_bp
@@ -35,8 +35,8 @@ def expired_token():
         'user_id': 1,
         'username': 'test_user',
         'role': 'user',
-        'exp': datetime.now(UTC) - timedelta(hours=1),  # Expired 1 hour ago
-        'iat': datetime.now(UTC) - timedelta(hours=2)
+        'exp': datetime.now(timezone.utc) - timedelta(hours=1),  # Expired 1 hour ago
+        'iat': datetime.now(timezone.utc) - timedelta(hours=2)
     }
     return jwt.encode(payload, jwt_secret, algorithm='HS256')
 
@@ -48,8 +48,8 @@ def invalid_token():
         'user_id': 1,
         'username': 'test_user',
         'role': 'user',
-        'exp': datetime.now(UTC) + timedelta(hours=1),
-        'iat': datetime.now(UTC)
+        'exp': datetime.now(timezone.utc) + timedelta(hours=1),
+        'iat': datetime.now(timezone.utc)
     }
     return jwt.encode(payload, 'wrong-secret', algorithm='HS256')
 
@@ -198,8 +198,8 @@ class TestTokenPayloadHandling:
             'sub': 'user-123',  # Using 'sub' instead of 'user_id'
             'username': 'test_user',
             'role': 'user',
-            'exp': datetime.now(UTC) + timedelta(hours=1),
-            'iat': datetime.now(UTC)
+            'exp': datetime.now(timezone.utc) + timedelta(hours=1),
+            'iat': datetime.now(timezone.utc)
         }
         token = jwt.encode(payload, jwt_secret, algorithm='HS256')
         
@@ -215,8 +215,8 @@ class TestTokenPayloadHandling:
             'user_id': 1,
             'email': 'test@example.com',  # Using 'email' instead of 'username'
             'role': 'user',
-            'exp': datetime.now(UTC) + timedelta(hours=1),
-            'iat': datetime.now(UTC)
+            'exp': datetime.now(timezone.utc) + timedelta(hours=1),
+            'iat': datetime.now(timezone.utc)
         }
         token = jwt.encode(payload, jwt_secret, algorithm='HS256')
         
@@ -231,8 +231,8 @@ class TestTokenPayloadHandling:
         payload = {
             'user_id': 1,
             'username': 'test_user',
-            'exp': datetime.now(UTC) + timedelta(hours=1),
-            'iat': datetime.now(UTC)
+            'exp': datetime.now(timezone.utc) + timedelta(hours=1),
+            'iat': datetime.now(timezone.utc)
         }
         token = jwt.encode(payload, jwt_secret, algorithm='HS256')
         
@@ -253,8 +253,8 @@ class TestChineseRoleNames:
             'user_id': 1,
             'username': 'admin_cn',
             'role': '超級管理員',
-            'exp': datetime.now(UTC) + timedelta(hours=1),
-            'iat': datetime.now(UTC)
+            'exp': datetime.now(timezone.utc) + timedelta(hours=1),
+            'iat': datetime.now(timezone.utc)
         }
         token = jwt.encode(payload, jwt_secret, algorithm='HS256')
         
@@ -271,8 +271,8 @@ class TestChineseRoleNames:
             'user_id': 2,
             'username': 'analyst_cn',
             'role': '分析師',
-            'exp': datetime.now(UTC) + timedelta(hours=1),
-            'iat': datetime.now(UTC)
+            'exp': datetime.now(timezone.utc) + timedelta(hours=1),
+            'iat': datetime.now(timezone.utc)
         }
         token = jwt.encode(payload, jwt_secret, algorithm='HS256')
         

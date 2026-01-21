@@ -14,7 +14,7 @@ complementing the integration tests in test_auth_2fa_preauth.py.
 
 import pytest
 import jwt
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from src.utils.pre_auth_token import (

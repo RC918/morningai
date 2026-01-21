@@ -5,7 +5,7 @@ Focus on improving coverage for exception handling and edge cases
 import pytest
 import jwt
 import os
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
 from flask import Flask
 from src.middleware.auth_middleware import (
     jwt_required,
@@ -118,8 +118,8 @@ class TestAdminRequiredExceptions:
             'user_id': 1,
             'username': 'admin',
             'role': 'admin',
-            'exp': datetime.now(UTC) - timedelta(hours=1),
-            'iat': datetime.now(UTC) - timedelta(hours=2)
+            'exp': datetime.now(timezone.utc) - timedelta(hours=1),
+            'iat': datetime.now(timezone.utc) - timedelta(hours=2)
         }
         expired_token = jwt.encode(expired_payload, jwt_secret, algorithm='HS256')
         
@@ -170,8 +170,8 @@ class TestAnalystRequiredExceptions:
             'user_id': 2,
             'username': 'analyst',
             'role': 'analyst',
-            'exp': datetime.now(UTC) - timedelta(hours=1),
-            'iat': datetime.now(UTC) - timedelta(hours=2)
+            'exp': datetime.now(timezone.utc) - timedelta(hours=1),
+            'iat': datetime.now(timezone.utc) - timedelta(hours=2)
         }
         expired_token = jwt.encode(expired_payload, jwt_secret, algorithm='HS256')
         
@@ -244,8 +244,8 @@ class TestRolesRequiredExceptions:
             'user_id': 1,
             'username': 'admin',
             'role': 'admin',
-            'exp': datetime.now(UTC) - timedelta(hours=1),
-            'iat': datetime.now(UTC) - timedelta(hours=2)
+            'exp': datetime.now(timezone.utc) - timedelta(hours=1),
+            'iat': datetime.now(timezone.utc) - timedelta(hours=2)
         }
         expired_token = jwt.encode(expired_payload, jwt_secret, algorithm='HS256')
         
@@ -358,8 +358,8 @@ class TestTokenGeneration:
         jwt_secret = os.environ.get('JWT_SECRET_KEY', 'test-secret-key-for-testing')
         payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
         
-        exp_time = datetime.fromtimestamp(payload['exp'], UTC)
-        now = datetime.now(UTC)
+        exp_time = datetime.fromtimestamp(payload['exp'], timezone.utc)
+        now = datetime.now(timezone.utc)
         time_diff = (exp_time - now).total_seconds()
         
         assert 3500 < time_diff < 3700  # ~1 hour (with some tolerance)
@@ -589,8 +589,8 @@ class TestP1RecommendedTests:
             'user_id': 999,
             'username': 'super_admin',
             'role': '超級管理員',  # Chinese role name in token
-            'exp': datetime.now(UTC) + timedelta(hours=1),
-            'iat': datetime.now(UTC)
+            'exp': datetime.now(timezone.utc) + timedelta(hours=1),
+            'iat': datetime.now(timezone.utc)
         }
         super_admin_token = jwt.encode(payload, jwt_secret, algorithm='HS256')
         
@@ -617,8 +617,8 @@ class TestP1RecommendedTests:
             'user_id': 888,
             'username': 'chinese_analyst',
             'role': '分析師',  # Chinese role name in token
-            'exp': datetime.now(UTC) + timedelta(hours=1),
-            'iat': datetime.now(UTC)
+            'exp': datetime.now(timezone.utc) + timedelta(hours=1),
+            'iat': datetime.now(timezone.utc)
         }
         analyst_token = jwt.encode(payload, jwt_secret, algorithm='HS256')
         
@@ -649,8 +649,8 @@ class TestP1RecommendedTests:
             'user_id': 999,
             'username': 'super_admin',
             'role': '超級管理員',  # Chinese super admin role
-            'exp': datetime.now(UTC) + timedelta(hours=1),
-            'iat': datetime.now(UTC)
+            'exp': datetime.now(timezone.utc) + timedelta(hours=1),
+            'iat': datetime.now(timezone.utc)
         }
         super_admin_token = jwt.encode(payload, jwt_secret, algorithm='HS256')
         
@@ -686,8 +686,8 @@ class TestP0SecurityEnhancements:
             'user_id': 1,
             'username': 'test',
             'role': 'admin',
-            'exp': datetime.now(UTC) + timedelta(hours=1),
-            'iat': datetime.now(UTC)
+            'exp': datetime.now(timezone.utc) + timedelta(hours=1),
+            'iat': datetime.now(timezone.utc)
         }
         
         rs256_token = jwt.encode(payload, private_key, algorithm='RS256')
@@ -708,8 +708,8 @@ class TestP0SecurityEnhancements:
             'user_id': 1,
             'username': 'test',
             'role': 'admin',
-            'exp': datetime.now(UTC) + timedelta(hours=1),
-            'iat': datetime.now(UTC)
+            'exp': datetime.now(timezone.utc) + timedelta(hours=1),
+            'iat': datetime.now(timezone.utc)
         }
         
         try:
@@ -733,8 +733,8 @@ class TestP0SecurityEnhancements:
             'user_id': 1,
             'username': 'test',
             'role': 'admin',
-            'exp': datetime.now(UTC) + timedelta(hours=1),
-            'iat': datetime.now(UTC)
+            'exp': datetime.now(timezone.utc) + timedelta(hours=1),
+            'iat': datetime.now(timezone.utc)
         }
         
         hs512_token = jwt.encode(payload, jwt_secret, algorithm='HS512')
@@ -765,8 +765,8 @@ class TestP0SecurityEnhancements:
             'user_id': 1,
             'username': 'test',
             'role': 'admin',
-            'exp': datetime.now(UTC) + timedelta(hours=1),
-            'iat': datetime.now(UTC)
+            'exp': datetime.now(timezone.utc) + timedelta(hours=1),
+            'iat': datetime.now(timezone.utc)
         }
         token = jwt.encode(payload, temp_secret, algorithm='HS256')
         
@@ -790,8 +790,8 @@ class TestP1SecurityEnhancements:
             'user_id': 1,
             'username': 'admin',
             'role': 'admin',
-            'exp': datetime.now(UTC) + timedelta(hours=1),
-            'iat': datetime.now(UTC)
+            'exp': datetime.now(timezone.utc) + timedelta(hours=1),
+            'iat': datetime.now(timezone.utc)
         }
         admin_token = jwt.encode(payload, jwt_secret, algorithm='HS256')
         

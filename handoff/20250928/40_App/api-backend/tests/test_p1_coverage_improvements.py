@@ -10,7 +10,7 @@ Target: Improve coverage to 70% for:
 import pytest
 import os
 import jwt
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock, patch
 from flask import Flask
 
@@ -56,8 +56,8 @@ class TestAuthMiddlewareFallbackPaths:
             'user_id': 1,
             'username': 'test',
             'role': 'user',
-            'exp': datetime.now(UTC) + timedelta(hours=1),
-            'iat': datetime.now(UTC)
+            'exp': datetime.now(timezone.utc) + timedelta(hours=1),
+            'iat': datetime.now(timezone.utc)
         }
         token = jwt.encode(payload, jwt_secret, algorithm='HS256')
 
@@ -78,8 +78,8 @@ class TestAuthMiddlewareFallbackPaths:
             'user_id': 2,
             'username': 'cookie_user',
             'role': 'user',
-            'exp': datetime.now(UTC) + timedelta(hours=1),
-            'iat': datetime.now(UTC)
+            'exp': datetime.now(timezone.utc) + timedelta(hours=1),
+            'iat': datetime.now(timezone.utc)
         }
         token = jwt.encode(payload, jwt_secret, algorithm='HS256')
 
@@ -99,8 +99,8 @@ class TestAuthMiddlewareFallbackPaths:
             'user_id': 3,
             'username': 'fallback_user',
             'role': 'admin',
-            'exp': datetime.now(UTC) + timedelta(hours=1),
-            'iat': datetime.now(UTC)
+            'exp': datetime.now(timezone.utc) + timedelta(hours=1),
+            'iat': datetime.now(timezone.utc)
         }
         valid_token = jwt.encode(payload, jwt_secret, algorithm='HS256')
 
@@ -122,15 +122,15 @@ class TestAuthMiddlewareFallbackPaths:
             'user_id': 4,
             'username': 'cookie_fallback',
             'role': 'user',
-            'exp': datetime.now(UTC) + timedelta(hours=1),
-            'iat': datetime.now(UTC)
+            'exp': datetime.now(timezone.utc) + timedelta(hours=1),
+            'iat': datetime.now(timezone.utc)
         }
         valid_token = jwt.encode(payload, jwt_secret, algorithm='HS256')
 
         expired_token = jwt.encode({
             'user_id': 99,
             'role': 'user',
-            'exp': datetime.now(UTC) - timedelta(hours=1)
+            'exp': datetime.now(timezone.utc) - timedelta(hours=1)
         }, jwt_secret, algorithm='HS256')
 
         client.set_cookie('access_token', valid_token, domain='localhost')
@@ -149,7 +149,7 @@ class TestAuthMiddlewareFallbackPaths:
         expired_token = jwt.encode({
             'user_id': 99,
             'role': 'user',
-            'exp': datetime.now(UTC) - timedelta(hours=1)
+            'exp': datetime.now(timezone.utc) - timedelta(hours=1)
         }, jwt_secret, algorithm='HS256')
 
         client.set_cookie('access_token', expired_token, domain='localhost')

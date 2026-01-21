@@ -137,16 +137,24 @@ redis_retry = RedisRetry(
     retries=5,
     supported_errors=(RedisConnectionError, TimeoutError, ReadOnlyError)
 )
+
+keepalive_opts = {}
+if hasattr(socket, 'TCP_KEEPINTVL'):
+    keepalive_opts[socket.TCP_KEEPINTVL] = 10
+if hasattr(socket, 'TCP_KEEPCNT'):
+    keepalive_opts[socket.TCP_KEEPCNT] = 6
+if hasattr(socket, 'TCP_KEEPIDLE'):
+    keepalive_opts[socket.TCP_KEEPIDLE] = 30
+elif sys.platform == 'darwin' and hasattr(socket, 'TCP_KEEPALIVE'):
+     # macOS uses TCP_KEEPALIVE for idle time in seconds
+    keepalive_opts[socket.TCP_KEEPALIVE] = 30
+
 redis = Redis.from_url(
     redis_url, 
     decode_responses=True,
     socket_connect_timeout=10,
     socket_keepalive=True,
-    socket_keepalive_options={
-        socket.TCP_KEEPIDLE: 30,
-        socket.TCP_KEEPINTVL: 10,
-        socket.TCP_KEEPCNT: 6
-    },
+    socket_keepalive_options=keepalive_opts,
     retry=redis_retry,
     retry_on_timeout=True
 )
@@ -155,11 +163,7 @@ redis_client_rq = Redis.from_url(
     decode_responses=False,
     socket_connect_timeout=10,
     socket_keepalive=True,
-    socket_keepalive_options={
-        socket.TCP_KEEPIDLE: 30,
-        socket.TCP_KEEPINTVL: 10,
-        socket.TCP_KEEPCNT: 6
-    },
+    socket_keepalive_options=keepalive_opts,
     retry=redis_retry,
     retry_on_timeout=True
 )

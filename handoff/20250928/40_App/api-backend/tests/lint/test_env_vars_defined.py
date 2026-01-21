@@ -11,7 +11,7 @@ Usage:
 import ast
 import sys
 from pathlib import Path
-from typing import Set, Dict, List, Tuple
+from typing import Set, Dict, List, Tuple, Optional
 import difflib
 
 import yaml
@@ -112,7 +112,7 @@ class EnvVarVisitor(ast.NodeVisitor):
         
         return False
     
-    def _extract_string_arg(self, call_node: ast.Call, arg_index: int) -> str | None:
+    def _extract_string_arg(self, call_node: ast.Call, arg_index: int) -> Optional[str]:
         """Extract string literal from call argument. Returns None if not found, empty string if dynamic."""
         if len(call_node.args) > arg_index:
             arg = call_node.args[arg_index]
@@ -122,7 +122,7 @@ class EnvVarVisitor(ast.NodeVisitor):
                 return ""  # Dynamic key
         return None
     
-    def _extract_subscript_key(self, subscript_node: ast.Subscript) -> str | None:
+    def _extract_subscript_key(self, subscript_node: ast.Subscript) -> Optional[str]:
         """Extract string literal from subscript. Returns None if not found, empty string if dynamic."""
         if isinstance(subscript_node.slice, ast.Constant) and isinstance(subscript_node.slice.value, str):
             return subscript_node.slice.value

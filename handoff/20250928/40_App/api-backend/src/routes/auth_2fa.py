@@ -233,10 +233,10 @@ def verify_enroll_2fa():
             )
             return jsonify({"error": "Invalid TOTP code"}), 401
 
-        from datetime import datetime, UTC
+        from datetime import datetime, timezone
 
         supabase.table("user_2fa").update(
-            {"enabled": True, "verified_at": datetime.now(UTC).isoformat()}
+            {"enabled": True, "verified_at": datetime.now(timezone.utc).isoformat()}
         ).eq("user_id", user_id).execute()
 
         backup_manager = get_backup_manager()
@@ -400,7 +400,7 @@ def challenge_2fa():
                 {
                     "used": True,
                     "used_at": __import__("datetime")
-                    .datetime.now(__import__("datetime").UTC)
+                    .datetime.now(__import__("datetime").timezone.utc)
                     .isoformat(),
                 }
             ).eq("id", valid_code_id).execute()
