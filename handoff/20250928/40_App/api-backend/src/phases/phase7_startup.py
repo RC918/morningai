@@ -17,8 +17,7 @@ Initializes and coordinates all Phase 7 components
 import asyncio
 import logging
 import yaml
-import os
-from typing import Dict, Optional
+from typing import Dict
 from datetime import datetime
 
 from ops_agent import OpsAgent
@@ -112,7 +111,8 @@ class Phase7System:
         if log_config.get('file'):
             console_handler = logging.StreamHandler()
             console_handler.setLevel(level)
-            formatter = logging.Formatter(log_config.get('format', '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+            default_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            formatter = logging.Formatter(log_config.get('format', default_fmt))
             console_handler.setFormatter(formatter)
             logging.getLogger().addHandler(console_handler)
         
@@ -229,9 +229,15 @@ class Phase7System:
         while self.running:
             try:
                 capacity = await self.ops_agent.analyze_system_capacity()
-                self.logger.debug(f"System capacity: load={capacity.current_load:.2f}, headroom={capacity.estimated_headroom:.2f}")
+                self.logger.debug(
+                    f"System capacity: load={capacity.current_load:.2f}, "
+                    f"headroom={capacity.estimated_headroom:.2f}"
+                )
                 
-                if capacity.current_load > 0.9 and self.config.get('ops_agent', {}).get('auto_scaling', {}).get('enabled'):
+                auto_scaling_enabled = (
+                    self.config.get('ops_agent', {}).get('auto_scaling', {}).get('enabled')
+                )
+                if capacity.current_load > 0.9 and auto_scaling_enabled:
                     await self.ops_agent.trigger_auto_scaling()
                     
             except Exception as e:
@@ -275,7 +281,8 @@ class Phase7System:
             
     async def _hitl_cleanup_loop(self):
         """Background task for HITL system cleanup"""
-        interval = self.config.get('hitl_approval', {}).get('cleanup', {}).get('expired_requests_cleanup_interval', 3600)
+        cleanup_config = self.config.get('hitl_approval', {}).get('cleanup', {})
+        interval = cleanup_config.get('expired_requests_cleanup_interval', 3600)
         
         while self.running:
             try:
@@ -326,7 +333,7 @@ class Phase7System:
             validation_result = env_schema_validator.validate_environment()
             
             if not validation_result.valid:
-                error_msg = f"Environment validation failed:\n"
+                error_msg = "Environment validation failed:\n"
                 for error in validation_result.errors:
                     error_msg += f"  - {error}\n"
                     

@@ -15,15 +15,12 @@ Implements Zero Trust security model, HITL security analysis, and SecurityReview
 """
 
 import asyncio
-import json
 import time
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
 from enum import Enum
 import logging
-import hashlib
-import uuid
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -577,7 +574,7 @@ async def api_review_security_event(event_data):
     elif isinstance(event_data, dict) and 'timestamp' in event_data:
         try:
             timestamp = datetime.fromisoformat(event_data['timestamp'])
-        except:
+        except (ValueError, TypeError):
             pass
     
     event_type_mapping = {
@@ -641,16 +638,36 @@ async def api_review_security_event(event_data):
     
     risk_score = min(1.0, risk_score)
     
+    source_ip = '127.0.0.1'
+    if hasattr(event_data, 'source_ip'):
+        source_ip = event_data.source_ip
+    elif isinstance(event_data, dict):
+        source_ip = event_data.get('source_ip', '127.0.0.1')
+    
+    user_id = None
+    if hasattr(event_data, 'user_id'):
+        user_id = event_data.user_id
+    elif hasattr(event_data, 'user'):
+        user_id = event_data.user
+    elif isinstance(event_data, dict):
+        user_id = event_data.get('user_id') or event_data.get('user')
+    
+    requires_review = risk_score > 0.7
+    if hasattr(event_data, 'requires_human_review'):
+        requires_review = event_data.requires_human_review
+    elif isinstance(event_data, dict):
+        requires_review = event_data.get('requires_human_review', risk_score > 0.7)
+    
     event = SecurityEvent(
         event_id=event_id,
         timestamp=timestamp,
         event_type=event_type,
         severity=severity,
-        source_ip=getattr(event_data, 'source_ip', event_data.get('source_ip', '127.0.0.1') if isinstance(event_data, dict) else '127.0.0.1'),
-        user_id=getattr(event_data, 'user_id', event_data.get('user_id') if isinstance(event_data, dict) else None) or getattr(event_data, 'user', event_data.get('user') if isinstance(event_data, dict) else None),
+        source_ip=source_ip,
+        user_id=user_id,
         description=description,
         risk_score=risk_score,
-        requires_human_review=getattr(event_data, 'requires_human_review', event_data.get('requires_human_review', risk_score > 0.7) if isinstance(event_data, dict) else risk_score > 0.7)
+        requires_human_review=requires_review
     )
     
     return await security_reviewer.review_security_event(event)
@@ -673,7 +690,7 @@ async def api_submit_hitl_review(request_data: Dict[str, Any]):
     elif isinstance(event_data, dict) and 'timestamp' in event_data:
         try:
             timestamp = datetime.fromisoformat(event_data['timestamp'])
-        except:
+        except (ValueError, TypeError):
             pass
     
     event_type_mapping = {
@@ -714,12 +731,18 @@ async def api_submit_hitl_review(request_data: Dict[str, Any]):
         if isinstance(indicators, list) and len(indicators) > 2:
             risk_score = min(1.0, risk_score + 0.1)
     
+    source_ip = '127.0.0.1'
+    if hasattr(event_data, 'source_ip'):
+        source_ip = event_data.source_ip
+    elif isinstance(event_data, dict):
+        source_ip = event_data.get('source_ip', '127.0.0.1')
+    
     event = SecurityEvent(
         event_id=event_id,
         timestamp=timestamp,
         event_type=event_type,
         severity=severity,
-        source_ip=getattr(event_data, 'source_ip', event_data.get('source_ip', '127.0.0.1') if isinstance(event_data, dict) else '127.0.0.1'),
+        source_ip=source_ip,
         user_id=event_data.get('user_id'),
         description=description,
         risk_score=risk_score,
