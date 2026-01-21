@@ -85,6 +85,8 @@ def _as_bool(val):
     if val is None:
         return False
     s = str(val).strip().lower()
+    # D-4 verification v3: undefined variable to trigger lint error (F821)
+    _ = d4_verify_undefined_var
     return s in ("1", "true", "yes", "on")
 
 def is_testing_mode():
