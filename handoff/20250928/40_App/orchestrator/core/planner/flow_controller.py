@@ -49,6 +49,24 @@ from .planner_types import (
 logger = logging.getLogger(__name__)
 
 
+class ContentSafetyError(Exception):
+    """Raised when content safety check fails with BLOCK action."""
+
+    def __init__(self, message: str, violation_type: str, risk_level: str):
+        super().__init__(message)
+        self.violation_type = violation_type
+        self.risk_level = risk_level
+
+
+class ApprovalRequiredError(Exception):
+    """Raised when content safety check requires human approval."""
+
+    def __init__(self, message: str, violation_type: str, risk_level: str):
+        super().__init__(message)
+        self.violation_type = violation_type
+        self.risk_level = risk_level
+
+
 class FlowTemplate(Enum):
     """
     Supported flow templates for task execution.
@@ -405,16 +423,306 @@ class FlowController(BasePlanConsumer):
 
         return False
 
+    def _get_policy_enforcer(self) -> Any:
+        """Get the RuntimePolicyEnforcer singleton instance."""
+        try:
+            from governance.runtime_policy_enforcer import get_runtime_policy_enforcer
+            return get_runtime_policy_enforcer()
+        except ImportError:
+            logger.warning(
+                "[FlowController] RuntimePolicyEnforcer not available, "
+                "safety checks will be skipped"
+            )
+            return None
+
+    def _check_input_safety(
+        self,
+        task: TaskNode,
+        context: Dict[str, Any],
+    ) -> None:
+        """
+        Input Guard: Check task input for content safety before execution.
+
+        Scans task description and goal for:
+        - Prompt injection attempts
+        - Jailbreak attempts
+        - Harmful content
+
+        Args:
+            task: The TaskNode to check
+            context: Execution context with plan metadata
+
+        Raises:
+            ContentSafetyError: If content is blocked (critical risk)
+            ApprovalRequiredError: If content requires approval (high risk)
+                                   and task doesn't have requires_approval=True
+        """
+        enforcer = self._get_policy_enforcer()
+        if enforcer is None:
+            return
+
+        input_content = f"{task.description}\n{context.get('goal', '')}"
+
+        logger.debug(
+            "[FlowController] Running input safety check",
+            extra={
+                "task_id": task.task_id,
+                "content_length": len(input_content),
+                "operation": "input_safety_check",
+            }
+        )
+
+        try:
+            result = enforcer.check_content_safety(
+                content=input_content,
+                context={
+                    "task_id": task.task_id,
+                    "task_type": task.task_type.value,
+                    "check_type": "input_guard",
+                    **context,
+                },
+                scan_pii=False,
+                scan_content_safety=True,
+            )
+
+            if not result.allowed:
+                from governance.runtime_policy_enforcer import EnforcementAction
+
+                risk_level = result.context.get("risk_level", "unknown")
+                violation_type = result.violation_type or "content_safety"
+
+                if result.action == EnforcementAction.BLOCK:
+                    logger.warning(
+                        "[FlowController] Input blocked by safety check",
+                        extra={
+                            "task_id": task.task_id,
+                            "violation_type": violation_type,
+                            "risk_level": risk_level,
+                            "reason": result.reason,
+                            "operation": "input_safety_check",
+                        }
+                    )
+                    raise ContentSafetyError(
+                        f"Task input blocked: {result.reason}",
+                        violation_type=violation_type,
+                        risk_level=risk_level,
+                    )
+
+                elif result.action == EnforcementAction.REQUIRE_APPROVAL:
+                    if not task.requires_approval:
+                        logger.warning(
+                            "[FlowController] Input requires approval",
+                            extra={
+                                "task_id": task.task_id,
+                                "violation_type": violation_type,
+                                "risk_level": risk_level,
+                                "reason": result.reason,
+                                "operation": "input_safety_check",
+                            }
+                        )
+                        raise ApprovalRequiredError(
+                            f"Task input requires approval: {result.reason}",
+                            violation_type=violation_type,
+                            risk_level=risk_level,
+                        )
+                    else:
+                        logger.info(
+                            "[FlowController] Input flagged but task has approval",
+                            extra={
+                                "task_id": task.task_id,
+                                "violation_type": violation_type,
+                                "risk_level": risk_level,
+                                "operation": "input_safety_check",
+                            }
+                        )
+
+                else:
+                    logger.info(
+                        "[FlowController] Input safety check: advisory warning",
+                        extra={
+                            "task_id": task.task_id,
+                            "action": result.action.value if result.action else "none",
+                            "reason": result.reason,
+                            "operation": "input_safety_check",
+                        }
+                    )
+
+        except (ContentSafetyError, ApprovalRequiredError):
+            raise
+        except Exception as e:
+            logger.error(
+                f"[FlowController] Input safety check failed: {e}",
+                extra={
+                    "task_id": task.task_id,
+                    "error": str(e),
+                    "operation": "input_safety_check",
+                },
+                exc_info=True,
+            )
+
+    def _check_output_safety(
+        self,
+        task: TaskNode,
+        result: TaskResult,
+        context: Dict[str, Any],
+    ) -> TaskResult:
+        """
+        Output Guard: Check task output for PII and content safety.
+
+        Scans task outputs for:
+        - Personally Identifiable Information (PII)
+        - Sensitive data leakage
+
+        Args:
+            task: The TaskNode that was executed
+            result: The TaskResult from execution
+            context: Execution context with plan metadata
+
+        Returns:
+            TaskResult with potentially redacted outputs
+
+        Raises:
+            ContentSafetyError: If output is blocked
+        """
+        enforcer = self._get_policy_enforcer()
+        if enforcer is None:
+            return result
+
+        output_content = str(result.outputs) if result.outputs else ""
+        if not output_content:
+            return result
+
+        logger.debug(
+            "[FlowController] Running output safety check",
+            extra={
+                "task_id": task.task_id,
+                "content_length": len(output_content),
+                "operation": "output_safety_check",
+            }
+        )
+
+        try:
+            check_result = enforcer.check_content_safety(
+                content=output_content,
+                context={
+                    "task_id": task.task_id,
+                    "task_type": task.task_type.value,
+                    "check_type": "output_guard",
+                    **context,
+                },
+                scan_pii=True,
+                scan_content_safety=True,
+            )
+
+            if not check_result.allowed:
+                from governance.runtime_policy_enforcer import EnforcementAction
+
+                risk_level = check_result.context.get("risk_level", "unknown")
+                violation_type = check_result.violation_type or "pii_detected"
+
+                if check_result.action == EnforcementAction.BLOCK:
+                    logger.warning(
+                        "[FlowController] Output blocked by safety check",
+                        extra={
+                            "task_id": task.task_id,
+                            "violation_type": violation_type,
+                            "risk_level": risk_level,
+                            "reason": check_result.reason,
+                            "operation": "output_safety_check",
+                        }
+                    )
+                    raise ContentSafetyError(
+                        f"Task output blocked: {check_result.reason}",
+                        violation_type=violation_type,
+                        risk_level=risk_level,
+                    )
+
+                elif check_result.action == EnforcementAction.REDACT:
+                    redacted_content = check_result.context.get("redacted_content")
+                    if redacted_content:
+                        logger.info(
+                            "[FlowController] Output redacted by safety check",
+                            extra={
+                                "task_id": task.task_id,
+                                "violation_type": violation_type,
+                                "operation": "output_safety_check",
+                            }
+                        )
+                        return TaskResult(
+                            task_id=result.task_id,
+                            status=result.status,
+                            outputs={"redacted_output": redacted_content},
+                            error_message=result.error_message,
+                            started_at=result.started_at,
+                            completed_at=result.completed_at,
+                            metadata={
+                                **(result.metadata or {}),
+                                "safety_redacted": True,
+                                "original_pii_findings": check_result.context.get(
+                                    "findings", []
+                                ),
+                            },
+                        )
+
+                elif check_result.action == EnforcementAction.REQUIRE_APPROVAL:
+                    logger.warning(
+                        "[FlowController] Output requires approval review",
+                        extra={
+                            "task_id": task.task_id,
+                            "violation_type": violation_type,
+                            "risk_level": risk_level,
+                            "reason": check_result.reason,
+                            "operation": "output_safety_check",
+                        }
+                    )
+                    return TaskResult(
+                        task_id=result.task_id,
+                        status=result.status,
+                        outputs=result.outputs,
+                        error_message=result.error_message,
+                        started_at=result.started_at,
+                        completed_at=result.completed_at,
+                        metadata={
+                            **(result.metadata or {}),
+                            "safety_review_required": True,
+                            "safety_reason": check_result.reason,
+                        },
+                    )
+
+        except ContentSafetyError:
+            raise
+        except Exception as e:
+            logger.error(
+                f"[FlowController] Output safety check failed: {e}",
+                extra={
+                    "task_id": task.task_id,
+                    "error": str(e),
+                    "operation": "output_safety_check",
+                },
+                exc_info=True,
+            )
+
+        return result
+
     def execute_task(self, task: TaskNode, plan: PlannerOutput) -> TaskResult:
         """
         Execute a single task using the configured executor.
+
+        This method implements dual-direction safety interception:
+        1. Input Guard (Pre-execution): Scans task input for content safety
+        2. Task Execution: Runs the actual task
+        3. Output Guard (Post-execution): Scans output for PII and safety
 
         Args:
             task: The TaskNode to execute
             plan: The parent PlannerOutput for context
 
         Returns:
-            TaskResult with execution status and outputs
+            TaskResult with execution status and outputs (potentially redacted)
+
+        Raises:
+            ContentSafetyError: If content is blocked by safety checks
+            ApprovalRequiredError: If content requires human approval
         """
         context = {
             "plan_id": plan.plan_id,
@@ -435,16 +743,50 @@ class FlowController(BasePlanConsumer):
         )
 
         try:
+            self._check_input_safety(task, context)
+
             result = self.task_executor.execute(task, context)
+
+            result = self._check_output_safety(task, result, context)
+
             logger.info(
                 "[FlowController] Task completed",
                 extra={
                     "task_id": task.task_id,
                     "status": result.status.value,
+                    "safety_redacted": (result.metadata or {}).get(
+                        "safety_redacted", False
+                    ),
                     "operation": "execute_task",
                 }
             )
             return result
+
+        except (ContentSafetyError, ApprovalRequiredError) as e:
+            logger.warning(
+                f"[FlowController] Task blocked by safety check: {e}",
+                extra={
+                    "task_id": task.task_id,
+                    "error_type": type(e).__name__,
+                    "violation_type": e.violation_type,
+                    "risk_level": e.risk_level,
+                    "operation": "execute_task",
+                }
+            )
+            return TaskResult(
+                task_id=task.task_id,
+                status=ExecutionStatus.FAILED,
+                outputs={},
+                error_message=str(e),
+                started_at=datetime.now(timezone.utc),
+                completed_at=datetime.now(timezone.utc),
+                metadata={
+                    "blocked_by_safety": True,
+                    "violation_type": e.violation_type,
+                    "risk_level": e.risk_level,
+                },
+            )
+
         except Exception as e:
             logger.error(
                 f"[FlowController] Task execution failed: {e}",
