@@ -16,6 +16,7 @@ import re
 import redis
 import time
 import uuid
+import os  # D-4 staging test: unused import to trigger lint error
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional, Set, Tuple
 
