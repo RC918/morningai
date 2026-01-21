@@ -10,9 +10,9 @@ import json
 from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime
 
-from phase4_meta_agent_api import MetaAgentDecisionHub, LangGraphWorkflowEngine, AIGovernanceConsole
-from phase5_data_intelligence_api import QuickSightIntegration, GrowthMarketingEngine, DataIntelligencePlatform
-from phase6_security_governance_api import (
+from src.phases.phase4_meta_agent_api import MetaAgentDecisionHub, LangGraphWorkflowEngine, AIGovernanceConsole
+from src.phases.phase5_data_intelligence_api import QuickSightIntegration, GrowthMarketingEngine, DataIntelligencePlatform
+from src.phases.phase6_security_governance_api import (
     ZeroTrustSecurityModel, SecurityReviewerAgent, HITLSecurityAnalysis,
     SecurityEvent, ThreatType, SecurityLevel
 )
@@ -159,7 +159,7 @@ class TestSyncFunctionWrappers:
     
     def test_security_reviewer_sync_wrapper(self):
         """Test Security Reviewer with sync wrapper"""
-        from phase6_security_governance_api import SecurityEvent, ThreatType, SecurityLevel
+        from src.phases.phase6_security_governance_api import SecurityEvent, ThreatType, SecurityLevel
         from datetime import datetime
         
         agent = SecurityReviewerAgent()
@@ -288,7 +288,7 @@ class TestAsyncErrorHandling:
 
 def test_all_async_functions_work():
     """Integration test to verify all async functions work with asyncio.run"""
-    from phase6_security_governance_api import SecurityEvent, ThreatType, SecurityLevel
+    from src.phases.phase6_security_governance_api import SecurityEvent, ThreatType, SecurityLevel
     from datetime import datetime
     
     hub = MetaAgentDecisionHub()

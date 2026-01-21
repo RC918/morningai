@@ -12,20 +12,20 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, AsyncMock, MagicMock
 from dataclasses import asdict
 
-from phase4_meta_agent_api import (
+from src.phases.phase4_meta_agent_api import (
     MetaAgentDecisionHub, LangGraphWorkflowEngine, AIGovernanceConsole,
     DecisionPriority, AgentRole, OODAContext, DecisionResult,
     api_meta_agent_ooda_cycle, api_create_langgraph_workflow, api_execute_workflow,
     api_governance_status, api_create_governance_policy
 )
-from phase5_data_intelligence_api import (
+from src.phases.phase5_data_intelligence_api import (
     QuickSightIntegration, GrowthMarketingEngine, DataIntelligencePlatform,
     DataInsight, GrowthMetric,
     api_create_quicksight_dashboard, api_get_dashboard_insights, api_generate_automated_report,
     api_create_referral_program, api_get_referral_analytics, api_generate_marketing_content,
     api_get_business_intelligence
 )
-from phase6_security_governance_api import (
+from src.phases.phase6_security_governance_api import (
     ZeroTrustSecurityModel, SecurityReviewerAgent, HITLSecurityAnalysis, SecurityAuditSystem,
     SecurityLevel, ThreatType, SecurityEvent, ZeroTrustPolicy,
     api_evaluate_access_request, api_review_security_event, api_submit_hitl_review,
@@ -381,7 +381,7 @@ class TestPhase6AdvancedCoverage:
         ]
         
         for request in review_requests:
-            from phase6_security_governance_api import SecurityEvent, SecurityLevel, ThreatType
+            from src.phases.phase6_security_governance_api import SecurityEvent, SecurityLevel, ThreatType
             security_event = SecurityEvent(
                 event_id=request['event_id'],
                 timestamp=datetime.now(),

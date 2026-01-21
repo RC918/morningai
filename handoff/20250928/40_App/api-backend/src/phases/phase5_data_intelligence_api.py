@@ -15,10 +15,9 @@ Implements QuickSight integration, data dashboards, and growth marketing modules
 """
 
 import asyncio
-import json
 import time
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
+from datetime import datetime
+from typing import Dict, List, Any
 from dataclasses import dataclass, asdict
 import logging
 import random
@@ -288,7 +287,10 @@ Morning AI Team
             },
             'social_media': {
                 'platform': 'linkedin',
-                'post': f"🤖 AI正在改變{target_audience}的工作方式！Morning AI讓您的業務流程更智能、更高效。#AI #自動化 #效率提升",
+                'post': (
+                    f"🤖 AI正在改變{target_audience}的工作方式！"
+                    "Morning AI讓您的業務流程更智能、更高效。#AI #自動化 #效率提升"
+                ),
                 'hashtags': ['#AI', '#自動化', '#效率提升', '#MorningAI'],
                 'image_suggestion': 'AI dashboard screenshot with growth metrics'
             },
@@ -393,7 +395,9 @@ class DataIntelligencePlatform:
             'net_promoter_score': 67
         }
     
-    async def _generate_business_insights(self, user_metrics: Dict, revenue_metrics: Dict, growth_metrics: Dict) -> List[Dict[str, Any]]:
+    async def _generate_business_insights(
+        self, user_metrics: Dict, revenue_metrics: Dict, growth_metrics: Dict
+    ) -> List[Dict[str, Any]]:
         """生成商業洞察"""
         insights = []
         

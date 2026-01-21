@@ -765,9 +765,11 @@ class TestPhaseAPIModules:
         assert 'main.py does NOT directly import Phase API modules' in result.stdout
 
     def test_main_py_with_phase_imports_fails(self, temp_repo: Path):
-        """Test failure when main.py directly imports phase modules."""
+        """Test failure when main.py directly imports phase modules (old-style)."""
         # Setup base files so script can run past React check
         setup_base_package_files(temp_repo)
+        # Test OLD-STYLE direct imports (e.g., 'from phase4_meta_agent_api import router')
+        # which should be flagged as incorrect. New-style imports via src.phases are OK.
         (api_backend_dir(temp_repo) / 'src' / 'main.py').write_text(
             'from phase4_meta_agent_api import router\n'
             'from fastapi import FastAPI\n'

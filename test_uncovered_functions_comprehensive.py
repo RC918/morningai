@@ -12,9 +12,9 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, AsyncMock, MagicMock
 from dataclasses import asdict
 
-from phase4_meta_agent_api import MetaAgentDecisionHub, LangGraphWorkflowEngine, AIGovernanceConsole
-from phase5_data_intelligence_api import QuickSightIntegration, GrowthMarketingEngine, DataIntelligencePlatform
-from phase6_security_governance_api import (
+from src.phases.phase4_meta_agent_api import MetaAgentDecisionHub, LangGraphWorkflowEngine, AIGovernanceConsole
+from src.phases.phase5_data_intelligence_api import QuickSightIntegration, GrowthMarketingEngine, DataIntelligencePlatform
+from src.phases.phase6_security_governance_api import (
     ZeroTrustSecurityModel, SecurityReviewerAgent, HITLSecurityAnalysis, SecurityAuditSystem,
     SecurityLevel, ThreatType, SecurityEvent
 )
@@ -462,7 +462,7 @@ class TestUncoveredPhase6Functions:
             'automated_analysis': {'confidence': 0.95}
         }
         
-        from phase6_security_governance_api import SecurityEvent, SecurityLevel, ThreatType
+        from src.phases.phase6_security_governance_api import SecurityEvent, SecurityLevel, ThreatType
         security_event = SecurityEvent(
             event_id='test_event',
             timestamp=datetime.now(),
@@ -527,7 +527,7 @@ class TestEnumAndConstantCoverage:
     
     def test_decision_priority_enum(self):
         """Test DecisionPriority enum usage"""
-        from phase4_meta_agent_api import DecisionPriority
+        from src.phases.phase4_meta_agent_api import DecisionPriority
         
         priorities = [DecisionPriority.CRITICAL, DecisionPriority.HIGH, DecisionPriority.MEDIUM, DecisionPriority.LOW]
         for priority in priorities:
@@ -535,7 +535,7 @@ class TestEnumAndConstantCoverage:
     
     def test_agent_role_enum(self):
         """Test AgentRole enum usage"""
-        from phase4_meta_agent_api import AgentRole
+        from src.phases.phase4_meta_agent_api import AgentRole
         
         roles = [
             AgentRole.META_AGENT, AgentRole.OPS_AGENT, AgentRole.DEV_AGENT,

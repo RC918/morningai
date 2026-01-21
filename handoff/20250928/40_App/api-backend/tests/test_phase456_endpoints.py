@@ -359,3 +359,21 @@ class TestPhase456Settings:
         response = client.get('/settings')
         
         assert response.status_code in [200, 404]
+
+
+class TestPhase456RoutesModule:
+    """Test phase456 routes module directly for improved coverage"""
+
+    def test_get_main_returns_module(self):
+        """Test _get_main returns src.main module"""
+        from src.routes.phase456 import _get_main
+        main = _get_main()
+        assert hasattr(main, 'PHASE_456_AVAILABLE')
+
+    def test_init_phase456_routes_logs_availability(self):
+        """Test init_phase456_routes logs correctly"""
+        from src.routes.phase456 import init_phase456_routes
+        with patch('src.routes.phase456.logger') as mock_logger:
+            init_phase456_routes(True, {})
+            mock_logger.info.assert_called_once()
+            assert 'available=True' in str(mock_logger.info.call_args)

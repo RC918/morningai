@@ -11,15 +11,15 @@ import time
 from datetime import datetime
 from unittest.mock import Mock, patch, MagicMock
 
-from phase4_meta_agent_api import (
+from src.phases.phase4_meta_agent_api import (
     MetaAgentDecisionHub, LangGraphWorkflowEngine, AIGovernanceConsole,
     DecisionPriority, AgentRole, OODAContext, DecisionResult
 )
-from phase5_data_intelligence_api import (
+from src.phases.phase5_data_intelligence_api import (
     QuickSightIntegration, GrowthMarketingEngine, DataIntelligencePlatform,
     DataInsight, GrowthMetric
 )
-from phase6_security_governance_api import (
+from src.phases.phase6_security_governance_api import (
     ZeroTrustSecurityModel, SecurityReviewerAgent, HITLSecurityAnalysis,
     SecurityAuditSystem, SecurityEvent, ZeroTrustPolicy, SecurityLevel, ThreatType
 )
