@@ -2,8 +2,8 @@
 
 **Issue**: [#3489](https://github.com/RC918/morningai/issues/3489)  
 **Blueprint Reference**: Section 4.1 (Safety Governor v2) + Section 4.2 (Compliance Radar v2)  
-**Status**: Phase E-3/E-4 Completed, E-5 Planning  
-**Last Updated**: 2026-01-16
+**Status**: Phase E-3/E-4/E-5 Completed  
+**Last Updated**: 2026-01-21
 
 ## Executive Summary
 
@@ -39,7 +39,7 @@ EPIC E transforms MorningAI's safety infrastructure from a "gatekeeping" model t
 | E-2 | Risk Scan + Override Framework | **Partial** | `runtime_policy_enforcer.py:666-792` check_content_safety() |
 | E-3 | Content Safety MVP | **Completed** | `content_safety_scanner.py` (785 lines) |
 | E-4 | Compliance Radar v2 MVP (PII Scanner) | **Completed** | `pii_scanner.py` (774 lines) |
-| E-5 | Observability & Ops Readiness | Planning | - |
+| E-5 | Observability & Ops Readiness | **Completed** | `safety_metrics.py` (674 lines), `routes/governance.py` (Safety API endpoints) |
 
 ---
 
@@ -404,9 +404,9 @@ class ComplianceCheckResult:
    - Policy update procedure
 
 **Acceptance Criteria**:
-- [ ] Owner Console shows safety decisions
-- [ ] Metrics exported to monitoring system
-- [ ] Alerts configured for anomalies
+- [x] Owner Console shows safety decisions (via `/api/governance/safety/decisions` endpoint)
+- [x] Metrics exported to monitoring system (via `/api/governance/safety/metrics` endpoint)
+- [x] Alerts configured for anomalies (high block rate alerting in `safety_metrics.py`)
 - [ ] Test coverage > 80%
 - [ ] Runbook documented and reviewed
 
