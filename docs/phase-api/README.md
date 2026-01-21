@@ -13,7 +13,7 @@ The MorningAI backend includes several "phase" API modules located in the root d
 These files have been **migrated** from the root directory to `handoff/20250928/40_App/api-backend/src/phases/` per Blueprint's modular structure requirements.
 
 **Migration Date**: January 2026  
-**Migration PR**: Phase API Migration to src/phases/
+**Migration PR**: [Phase API Migration to src/phases/](https://github.com/RC918/morningai/pull/4287)
 
 ---
 
