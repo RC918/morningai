@@ -179,6 +179,10 @@ services:
         value: "true"
       - key: ENABLE_MEMORY_V2
         value: "true"
+      - key: ENABLE_MEMORY_V2_DEBATE
+        value: "true"
+      - key: ENABLE_MEMORY_V2_GOVERNANCE
+        value: "true"
       - key: ENABLE_REVIEW_FEEDBACK_LOOP
         value: "true"
       - key: ENABLE_REVIEW_PATTERN_RETRIEVAL
