@@ -13,15 +13,15 @@ import os
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timedelta
 
-from phase4_meta_agent_api import (
+from src.phases.phase4_meta_agent_api import (
     MetaAgentDecisionHub, DecisionPriority, AgentRole,
     test_phase4_functionality
 )
-from phase5_data_intelligence_api import (
+from src.phases.phase5_data_intelligence_api import (
     QuickSightIntegration, GrowthMarketingEngine,
     test_phase5_functionality
 )
-from phase6_security_governance_api import (
+from src.phases.phase6_security_governance_api import (
     SecurityEvent, ZeroTrustPolicy, ZeroTrustSecurityModel,
     SecurityReviewerAgent, HITLSecurityAnalysis, ThreatType,
     test_phase6_functionality

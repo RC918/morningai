@@ -5,14 +5,15 @@
 The MorningAI backend includes several "phase" API modules located in the root directory. These modules provide production endpoints for different phases of the system's evolution and are imported by the main FastAPI backend.
 
 **Status**: PRODUCTION  
-**Location**: Root directory (imported by backend)  
+**Location**: `handoff/20250928/40_App/api-backend/src/phases/` (migrated from root directory)  
 **Related**: ADR-003 (Backend of Record)
 
-## Why in Root Directory?
+## Module Location
 
-These files are in the root directory for **historical reasons**. They were created during the initial development phases and are imported by the backend at `handoff/20250928/40_App/api-backend/src/main.py`.
+These files have been **migrated** from the root directory to `handoff/20250928/40_App/api-backend/src/phases/` per Blueprint's modular structure requirements.
 
-**Future Plan**: Move to `handoff/20250928/40_App/api-backend/src/phases/` directory (see long-term refactoring roadmap).
+**Migration Date**: January 2026  
+**Migration PR**: Phase API Migration to src/phases/
 
 ---
 
@@ -371,8 +372,8 @@ shutdown = await api_shutdown_gracefully()
 **File**: `handoff/20250928/40_App/api-backend/src/main.py`
 
 ```python
-# Phase API imports
-from phase4_meta_agent_api import (
+# Phase API imports (migrated to src/phases/ per Blueprint modular structure)
+from src.phases.phase4_meta_agent_api import (
     api_meta_agent_ooda_cycle,
     api_create_langgraph_workflow,
     api_execute_workflow,
@@ -380,7 +381,7 @@ from phase4_meta_agent_api import (
     api_create_governance_policy
 )
 
-from phase5_data_intelligence_api import (
+from src.phases.phase5_data_intelligence_api import (
     api_create_quicksight_dashboard,
     api_get_dashboard_insights,
     api_generate_automated_report,
@@ -390,7 +391,7 @@ from phase5_data_intelligence_api import (
     api_get_business_intelligence
 )
 
-from phase6_security_governance_api import (
+from src.phases.phase6_security_governance_api import (
     api_get_security_status,
     api_scan_vulnerabilities,
     api_respond_to_incident,
