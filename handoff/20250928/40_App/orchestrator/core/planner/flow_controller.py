@@ -754,9 +754,9 @@ class FlowController(BasePlanConsumer):
                 extra={
                     "task_id": task.task_id,
                     "status": result.status.value,
-                    "safety_redacted": result.metadata.get("safety_redacted", False)
-                    if result.metadata
-                    else False,
+                    "safety_redacted": (result.metadata or {}).get(
+                        "safety_redacted", False
+                    ),
                     "operation": "execute_task",
                 }
             )
