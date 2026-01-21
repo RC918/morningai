@@ -21,6 +21,25 @@ Each entry follows this structure:
 
 ## 2026-01
 
+### 2026-01-21: Enable Memory v2 Sub-features for Agent Interaction Memory
+
+| Field | Value |
+|-------|-------|
+| Date | 2026-01-21 |
+| Variable(s) | `ENABLE_MEMORY_V2_DEBATE`, `ENABLE_MEMORY_V2_GOVERNANCE` |
+| Change Type | Added to render.yaml |
+| Old Value | Not in IaC (default=false) |
+| New Value | "true" |
+| Rationale | Enable Agent Interaction Memory data pipeline. Memory Consolidation was running but finding 0 expiring memories because debate results were not being persisted. |
+| Approver | @RC918 |
+| Related Issue/PR | P2 Memory Consolidation observation period |
+
+**Impact:**
+- `ENABLE_MEMORY_V2_DEBATE=true`: Enables `save_debate_result()` to persist debate outcomes to Agent Interaction Memory
+- `ENABLE_MEMORY_V2_GOVERNANCE=true`: Enables governance event persistence for safety patterns and routing decisions
+
+---
+
 ### 2026-01-19: SMTP, CLOUD_ENV, and Referral Configuration
 
 | Field | Value |
