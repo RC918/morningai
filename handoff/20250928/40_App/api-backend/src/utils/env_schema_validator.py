@@ -24,7 +24,7 @@ def validate_environment() -> Dict[str, Any]:
     
     for var_name, var_type in REQUIRED_ENV_VARS.items():
         value = os.environ.get(var_name)
-        if not value:
+        if not value or not value.strip():
             errors.append(f"Missing required environment variable: {var_name}")
         elif var_type is str and not isinstance(value, str):
             errors.append(f"Invalid type for {var_name}: expected {var_type.__name__}")
