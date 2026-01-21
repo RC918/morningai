@@ -23,7 +23,7 @@ When developing features or fixing bugs, you must check for "modernization" oppo
 2.  **Relevance**: Query issues matching the current file paths or modules.
 3.  **Priority & Scope**:
     - **Focus**: Prioritize `label:modernization-p1`.
-    - **Secondary**: Handle `P2/P3` ONLY if the changes are within the *exact same file* you are already editing.
+    - **Secondary**: Handle issues with `label:modernization-p2` or `label:modernization-p3` ONLY if the changes are within the *exact same file* you are already editing.
     - **Limit**: Max **1** modernization issue per PR.
     - **Time Cap**: If the fix takes >30 mins, DO NOT include it. Create a follow-up issue instead.
 4.  **Submission**:
