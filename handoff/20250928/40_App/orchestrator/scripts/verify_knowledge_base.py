@@ -166,7 +166,8 @@ def main():
                 logger.info("  [OK] All entries have pr_number and repo")
 
             # Check 3: Verdict should be valid
-            valid_verdicts = {"APPROVE", "REQUEST_CHANGES", "COMMENT"}
+            # Valid verdicts per memory_integration.py:903 (lowercase)
+            valid_verdicts = {"approve", "request_changes", "comment", "blocked", "unknown"}
             invalid_verdicts = [v for v in verdicts.keys() if v not in valid_verdicts]
             if invalid_verdicts:
                 logger.warning(f"  [WARN] Invalid verdicts found: {invalid_verdicts}")
