@@ -201,6 +201,8 @@ services:
         value: "true"
       - key: USE_DEBATE_ENGINE
         value: "true"
+      - key: USE_DEBATE_HOOK
+        value: "true"
       - key: USE_DEPENDENCY_ANALYSIS
         value: "true"
       - key: USE_MULTI_SPECIALIST_REVIEW
