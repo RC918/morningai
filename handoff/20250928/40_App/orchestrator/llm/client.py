@@ -424,16 +424,24 @@ class LLMClient:
                 f"Check API key configuration."
             )
 
-        # Issue #3653: Resolve timeout with priority:
+        # Issue #3653, #4112: Resolve timeout with priority:
         # 1. Per-call timeout parameter
         # 2. Instance-level timeout (from __init__)
-        # 3. Provider-specific default from DEFAULT_TIMEOUTS
+        # 3. Global LLM_REQUEST_TIMEOUT from settings (Issue #4112)
+        # 4. Provider-specific default from DEFAULT_TIMEOUTS
         # Note: Use explicit `is not None` checks to preserve timeout=0 if specified
+        global_timeout = getattr(settings, 'llm_request_timeout', None)
         user_specified_timeout = timeout is not None or self._timeout is not None
         if timeout is not None:
             effective_timeout = timeout
         elif self._timeout is not None:
             effective_timeout = self._timeout
+        elif global_timeout is not None:
+            effective_timeout = global_timeout
+            logger.debug(
+                f"[LLMClient] Using global LLM_REQUEST_TIMEOUT={global_timeout}s",
+                extra={"provider": self._provider_name}
+            )
         else:
             effective_timeout = self.DEFAULT_TIMEOUTS.get(self._provider_name, 60)
 
