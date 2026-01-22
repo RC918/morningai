@@ -1061,7 +1061,7 @@ def list_review_feedback(
         return []
 
     try:
-        kb_memory = memory._knowledge_base
+        kb_memory = memory.knowledge_base
         entries = kb_memory.list_by_metadata_type(
             metadata_type="review_feedback",
             limit=limit,
