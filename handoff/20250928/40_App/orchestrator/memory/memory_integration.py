@@ -163,6 +163,7 @@ def save_flow_state(
                     "plan_id": plan_id,
                     "trace_id": trace_id,
                     "current_stage": current_stage,
+                    "expires_at": entry.expires_at,
                     "operation": "save_flow_state",
                 }
             )
@@ -353,6 +354,7 @@ def save_debate_result(
                     "trace_id": trace_id,
                     "outcome": outcome,
                     "rounds_completed": rounds_completed,
+                    "expires_at": entry.expires_at,
                     "operation": "save_debate_result",
                 }
             )
