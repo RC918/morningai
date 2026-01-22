@@ -8,6 +8,9 @@ This script directly calls DebateEngine.debate() to:
 3. Create an AGENT_INTERACTION memory entry for consolidation to process
 
 Usage:
+    cd ~/repos/morningai
+    source .venv/bin/activate
+    export PYTHONPATH="$PWD:$PWD/handoff/20250928/40_App/orchestrator:$PYTHONPATH"
     cd handoff/20250928/40_App/orchestrator
     python scripts/test_debate_trigger.py
 
