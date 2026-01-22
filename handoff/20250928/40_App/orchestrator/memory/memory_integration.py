@@ -1032,6 +1032,83 @@ def save_review_feedback(
         return False
 
 
+def list_review_feedback(
+    limit: int = 100,
+    trace_id: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """
+    List all review feedback entries without vector similarity search.
+
+    Issue #4305: Direct query method for debugging and verification.
+    This bypasses vector similarity search and queries by metadata type directly.
+
+    EPIC B Phase B-13: Real-time Feedback Loop
+    Blueprint: Retrieve past review patterns for verification and debugging.
+
+    Args:
+        limit: Maximum number of entries to return (default 100)
+        trace_id: Optional workflow trace ID for logging
+
+    Returns:
+        List of review feedback entries with their content and metadata
+    """
+    if not _is_review_pattern_retrieval_enabled():
+        logger.debug("[MemoryIntegration] Review pattern retrieval disabled")
+        return []
+
+    memory = _get_memory_v2()
+    if memory is None:
+        return []
+
+    try:
+        kb_memory = memory.knowledge_base
+        entries = kb_memory.list_by_metadata_type(
+            metadata_type="review_feedback",
+            limit=limit,
+        )
+
+        results = []
+        for entry in entries:
+            try:
+                content = json.loads(entry.content)
+                results.append({
+                    "key": entry.key,
+                    "created_at": entry.created_at,
+                    "verdict": content.get("verdict"),
+                    "severity": content.get("severity"),
+                    "summary": content.get("summary"),
+                    "review_comments": content.get("review_comments", []),
+                    "file_paths": content.get("file_paths", []),
+                    "pr_number": content.get("pr_number"),
+                    "repo": content.get("repo"),
+                    "blocker_count": content.get("blocker_count", 0),
+                    "saved_at": content.get("saved_at"),
+                })
+            except (json.JSONDecodeError, TypeError):
+                continue
+
+        logger.info(
+            "[MemoryIntegration] Listed %d review feedback entries",
+            len(results),
+            extra={
+                "trace_id": trace_id,
+                "operation": "list_review_feedback",
+            }
+        )
+
+        return results
+
+    except Exception as e:
+        logger.warning(
+            f"[MemoryIntegration] Failed to list review feedback: {e}",
+            extra={
+                "trace_id": trace_id,
+                "operation": "list_review_feedback",
+            }
+        )
+        return []
+
+
 def search_review_patterns(
     query: str,
     file_paths: Optional[List[str]] = None,

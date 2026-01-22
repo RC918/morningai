@@ -909,6 +909,51 @@ class KnowledgeBaseMemory(SupabaseMemoryStore):
             logger.warning(f"[Memory:KnowledgeBase] Failed to clear: {e}")
             return 0
 
+    def list_by_metadata_type(
+        self,
+        metadata_type: str,
+        limit: int = 100,
+        scope: Optional[MemoryScope] = None,
+    ) -> List[MemoryEntry]:
+        """
+        List entries by metadata type without vector similarity search.
+
+        Issue #4305: Direct query method for debugging and verification.
+        This bypasses vector similarity search and queries by metadata type directly.
+
+        Args:
+            metadata_type: The type value in metadata (e.g., "review_feedback", "debate_result")
+            limit: Maximum number of entries to return
+            scope: Optional scope filter
+
+        Returns:
+            List of MemoryEntry objects matching the metadata type
+        """
+        try:
+            client = self._get_client()
+            if client is None:
+                return []
+
+            q = client.table(self.TABLE).select("*")
+
+            if scope:
+                q = q.eq("scope", scope.value)
+
+            q = q.contains("metadata", {"type": metadata_type})
+            q = q.order("created_at", desc=True).limit(limit)
+
+            result = q.execute()
+
+            entries = [self._row_to_entry(row) for row in result.data or []]
+            logger.info(
+                f"[Memory:KnowledgeBase] Listed {len(entries)} entries with type={metadata_type}"
+            )
+            return entries
+
+        except Exception as e:
+            logger.warning(f"[Memory:KnowledgeBase] Failed to list by metadata type: {e}")
+            return []
+
     def _row_to_entry(self, row: Dict[str, Any]) -> MemoryEntry:
         """Convert database row to MemoryEntry"""
         metadata = row.get("metadata", {})
