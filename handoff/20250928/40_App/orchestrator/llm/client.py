@@ -431,7 +431,9 @@ class LLMClient:
         # 4. Provider-specific default from DEFAULT_TIMEOUTS
         # Note: Use explicit `is not None` checks to preserve timeout=0 if specified
         global_timeout = getattr(settings, 'llm_request_timeout', None)
-        user_specified_timeout = (
+        # Track if any timeout is configured (for Gemini warning below)
+        # Includes per-call, instance-level, and global settings
+        timeout_configured = (
             timeout is not None
             or self._timeout is not None
             or global_timeout is not None
@@ -452,7 +454,7 @@ class LLMClient:
         # Issue #3653: Gemini provider compatibility warning
         # GeminiProvider uses google-genai SDK which doesn't support timeout parameter
         # in the same way as OpenAI-compatible providers. Log warning for transparency.
-        if self._provider_name == "gemini" and user_specified_timeout:
+        if self._provider_name == "gemini" and timeout_configured:
             logger.warning(
                 f"[LLMClient] Gemini provider does not enforce timeout parameter. "
                 f"Specified timeout={effective_timeout}s will be passed but may not be honored. "
