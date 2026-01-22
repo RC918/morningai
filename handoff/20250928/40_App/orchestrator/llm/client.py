@@ -431,7 +431,11 @@ class LLMClient:
         # 4. Provider-specific default from DEFAULT_TIMEOUTS
         # Note: Use explicit `is not None` checks to preserve timeout=0 if specified
         global_timeout = getattr(settings, 'llm_request_timeout', None)
-        user_specified_timeout = timeout is not None or self._timeout is not None
+        user_specified_timeout = (
+            timeout is not None
+            or self._timeout is not None
+            or global_timeout is not None
+        )
         if timeout is not None:
             effective_timeout = timeout
         elif self._timeout is not None:
