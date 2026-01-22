@@ -24,10 +24,8 @@ For Render environment:
 Blueprint Reference: B-13 Review Feedback Loop verification
 """
 
-import json
 import logging
 import sys
-from datetime import datetime
 
 # Configure logging
 logging.basicConfig(
@@ -47,8 +45,7 @@ def main():
 
     # Import here to ensure proper path setup
     try:
-        from memory.memory_integration import search_review_patterns
-        from memory.memory_v2 import MemoryLayer, MemoryV2
+        from memory.memory_integration import list_review_feedback, search_review_patterns
 
         logger.info("Successfully imported memory modules")
     except ImportError as e:
@@ -56,10 +53,35 @@ def main():
         logger.error("Make sure PYTHONPATH includes the orchestrator directory")
         sys.exit(1)
 
-    # Method 1: Use search_review_patterns with a broad query
+    # Method 1: Use list_review_feedback (direct query, no vector similarity)
+    # Issue #4305: This is the recommended method for verification
     logger.info("-" * 50)
-    logger.info("Method 1: Using search_review_patterns()")
+    logger.info("Method 1: Using list_review_feedback() [RECOMMENDED]")
     logger.info("-" * 50)
+    logger.info("This method queries by metadata type directly, bypassing vector similarity.")
+
+    feedback_entries = list_review_feedback(limit=50)
+
+    if feedback_entries:
+        logger.info(f"Found {len(feedback_entries)} review feedback entries:")
+        for i, entry in enumerate(feedback_entries, 1):
+            logger.info(f"\n  [{i}] Key: {entry.get('key', 'N/A')}")
+            logger.info(f"      PR: {entry.get('repo', 'N/A')}#{entry.get('pr_number', 'N/A')}")
+            logger.info(f"      Verdict: {entry.get('verdict', 'N/A')}")
+            logger.info(f"      Severity: {entry.get('severity', 'N/A')}")
+            logger.info(f"      Blocker Count: {entry.get('blocker_count', 0)}")
+            logger.info(f"      Files: {len(entry.get('file_paths', []))}")
+            logger.info(f"      Comments: {len(entry.get('review_comments', []))}")
+            logger.info(f"      Created At: {entry.get('created_at', 'N/A')}")
+            logger.info(f"      Saved At: {entry.get('saved_at', 'N/A')}")
+    else:
+        logger.info("No review feedback found via list_review_feedback()")
+
+    # Method 2: Use search_review_patterns with a broad query (vector similarity)
+    logger.info("-" * 50)
+    logger.info("Method 2: Using search_review_patterns() [Vector Similarity]")
+    logger.info("-" * 50)
+    logger.info("This method uses vector similarity search with threshold 0.7.")
 
     # Use a generic query to find any review patterns
     patterns = search_review_patterns(
@@ -83,108 +105,82 @@ def main():
     else:
         logger.info("No review patterns found via search_review_patterns()")
 
-    # Method 2: Direct KNOWLEDGE_BASE query
+    # Method 3: Quality Summary (using data from Method 1)
+    # This section provides quality metrics and checks based on the direct query results
     logger.info("-" * 50)
-    logger.info("Method 2: Direct KNOWLEDGE_BASE query")
+    logger.info("Method 3: Quality Summary and Checks")
     logger.info("-" * 50)
 
-    try:
-        memory = MemoryV2()
-        
-        # Search for all review_feedback entries
-        entries = memory.search(
-            query="review feedback verdict",
-            layers=[MemoryLayer.KNOWLEDGE_BASE],
-            limit=50,
-        )
+    if feedback_entries:
+        # Quality metrics
+        verdicts = {}
+        severities = {}
+        total_blockers = 0
+        repos = set()
 
-        review_entries = [e for e in entries if e.metadata.get("type") == "review_feedback"]
+        for entry in feedback_entries:
+            verdict = entry.get("verdict", "unknown")
+            severity = entry.get("severity", "unknown")
 
-        if review_entries:
-            logger.info(f"Found {len(review_entries)} review_feedback entries:")
-            
-            # Quality metrics
-            verdicts = {}
-            severities = {}
-            total_blockers = 0
-            repos = set()
+            verdicts[verdict] = verdicts.get(verdict, 0) + 1
+            severities[severity] = severities.get(severity, 0) + 1
+            total_blockers += entry.get("blocker_count", 0)
 
-            for entry in review_entries:
-                meta = entry.metadata
-                verdict = meta.get("verdict", "unknown")
-                severity = meta.get("severity", "unknown")
-                
-                verdicts[verdict] = verdicts.get(verdict, 0) + 1
-                severities[severity] = severities.get(severity, 0) + 1
-                total_blockers += meta.get("blocker_count", 0)
-                
-                repo = meta.get("repo")
-                if repo:
-                    repos.add(repo)
+            repo = entry.get("repo")
+            if repo:
+                repos.add(repo)
 
-                logger.info(f"\n  Entry: {entry.key}")
-                logger.info(f"    PR: {meta.get('repo', 'N/A')}#{meta.get('pr_number', 'N/A')}")
-                logger.info(f"    Verdict: {verdict}")
-                logger.info(f"    Severity: {severity}")
-                logger.info(f"    Blockers: {meta.get('blocker_count', 0)}")
-                logger.info(f"    Files: {meta.get('file_count', 0)}")
-                logger.info(f"    Comments: {meta.get('comment_count', 0)}")
-                logger.info(f"    Has expires_at: {entry.expires_at is not None}")
+        # Summary statistics
+        logger.info("=" * 50)
+        logger.info("QUALITY SUMMARY")
+        logger.info("=" * 50)
+        logger.info(f"Total entries: {len(feedback_entries)}")
+        logger.info(f"Unique repos: {len(repos)}")
+        logger.info(f"Total blockers: {total_blockers}")
+        logger.info(f"Verdict distribution: {verdicts}")
+        logger.info(f"Severity distribution: {severities}")
 
-            # Summary statistics
-            logger.info("\n" + "=" * 50)
-            logger.info("QUALITY SUMMARY")
-            logger.info("=" * 50)
-            logger.info(f"Total entries: {len(review_entries)}")
-            logger.info(f"Unique repos: {len(repos)}")
-            logger.info(f"Total blockers: {total_blockers}")
-            logger.info(f"Verdict distribution: {verdicts}")
-            logger.info(f"Severity distribution: {severities}")
+        # Quality checks
+        logger.info("\n" + "-" * 50)
+        logger.info("QUALITY CHECKS")
+        logger.info("-" * 50)
 
-            # Quality checks
-            logger.info("\n" + "-" * 50)
-            logger.info("QUALITY CHECKS")
-            logger.info("-" * 50)
+        # Check 1: All entries should have required metadata
+        missing_metadata = []
+        for entry in feedback_entries:
+            if not entry.get("pr_number") or not entry.get("repo"):
+                missing_metadata.append(entry.get("key", "unknown"))
 
-            # Check 1: All entries should NOT have expires_at (permanent storage)
-            entries_with_expiry = [e for e in review_entries if e.expires_at is not None]
-            if entries_with_expiry:
-                logger.warning(f"  [WARN] {len(entries_with_expiry)} entries have expires_at (should be None for KNOWLEDGE_BASE)")
-            else:
-                logger.info("  [OK] All entries have no expires_at (permanent storage)")
-
-            # Check 2: All entries should have required metadata
-            missing_metadata = []
-            for entry in review_entries:
-                meta = entry.metadata
-                if not meta.get("pr_number") or not meta.get("repo"):
-                    missing_metadata.append(entry.key)
-            
-            if missing_metadata:
-                logger.warning(f"  [WARN] {len(missing_metadata)} entries missing pr_number or repo")
-            else:
-                logger.info("  [OK] All entries have pr_number and repo")
-
-            # Check 3: Verdict should be valid
-            # Valid verdicts per memory_integration.py:903 (lowercase)
-            valid_verdicts = {"approve", "request_changes", "comment", "blocked", "unknown"}
-            invalid_verdicts = [v for v in verdicts.keys() if v not in valid_verdicts]
-            if invalid_verdicts:
-                logger.warning(f"  [WARN] Invalid verdicts found: {invalid_verdicts}")
-            else:
-                logger.info("  [OK] All verdicts are valid")
-
+        if missing_metadata:
+            logger.warning(f"  [WARN] {len(missing_metadata)} entries missing pr_number or repo")
         else:
-            logger.info("No review_feedback entries found in KNOWLEDGE_BASE")
-            logger.info("\nThis could mean:")
-            logger.info("  1. No PRs have been reviewed yet")
-            logger.info("  2. REVIEW_FEEDBACK_ENABLED is not set to true")
-            logger.info("  3. Memory v2 is not properly configured")
+            logger.info("  [OK] All entries have pr_number and repo")
 
-    except Exception as e:
-        logger.error(f"Failed to query KNOWLEDGE_BASE: {e}")
-        import traceback
-        traceback.print_exc()
+        # Check 2: Verdict should be valid
+        # Valid verdicts per memory_integration.py:903 (lowercase)
+        valid_verdicts = {"approve", "request_changes", "comment", "blocked", "unknown"}
+        invalid_verdicts = [v for v in verdicts.keys() if v not in valid_verdicts]
+        if invalid_verdicts:
+            logger.warning(f"  [WARN] Invalid verdicts found: {invalid_verdicts}")
+        else:
+            logger.info("  [OK] All verdicts are valid")
+
+        # Check 3: Compare Method 1 vs Method 2 results
+        logger.info("\n" + "-" * 50)
+        logger.info("METHOD COMPARISON")
+        logger.info("-" * 50)
+        logger.info(f"  Method 1 (Direct Query): {len(feedback_entries)} entries")
+        logger.info(f"  Method 2 (Vector Search): {len(patterns)} entries")
+        if len(feedback_entries) > len(patterns):
+            logger.info("  [INFO] Direct query found more entries than vector search.")
+            logger.info("         This is expected - vector search requires similarity threshold.")
+
+    else:
+        logger.info("No review_feedback entries found in KNOWLEDGE_BASE")
+        logger.info("\nThis could mean:")
+        logger.info("  1. No PRs have been reviewed yet")
+        logger.info("  2. REVIEW_FEEDBACK_ENABLED is not set to true")
+        logger.info("  3. Memory v2 is not properly configured")
 
     logger.info("\n" + "=" * 70)
     logger.info("Verification complete")
