@@ -353,9 +353,8 @@ Format your response as JSON with these fields:
         )
 
         response = client.generate(
+            prompt=user_prompt,
             system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            trace_id=self.trace_id,
         )
 
         return self._parse_argument_response(response, round_number)
@@ -563,9 +562,8 @@ Format your response as JSON with these fields:
         user_prompt = self._build_evaluation_prompt(topic, arguments)
 
         response = client.generate(
+            prompt=user_prompt,
             system_prompt=self.SYSTEM_PROMPT,
-            user_prompt=user_prompt,
-            trace_id=self.trace_id,
         )
 
         return self._parse_decision_response(response)
