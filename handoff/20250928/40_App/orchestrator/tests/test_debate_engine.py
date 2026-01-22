@@ -10,6 +10,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'core', 'planner'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'llm', 'providers'))
 
 from debate_engine import (
     DebateRole,
@@ -895,7 +896,9 @@ class TestLLMIntegration:
     def test_debate_agent_llm_success(self, mock_get_client):
         """Test successful LLM-based argument generation."""
         mock_client = MagicMock()
-        mock_client.generate.return_value = '''
+        # LLMClient.generate() returns LLMResponse object with .content attribute
+        mock_response = MagicMock()
+        mock_response.content = '''
         {
             "position": "LLM position",
             "reasoning": "LLM reasoning",
@@ -904,6 +907,7 @@ class TestLLMIntegration:
             "confidence": 0.9
         }
         '''
+        mock_client.generate.return_value = mock_response
         mock_get_client.return_value = mock_client
 
         agent = DebateAgent(
@@ -942,7 +946,9 @@ class TestLLMIntegration:
     def test_judge_agent_llm_success(self, mock_get_client):
         """Test successful LLM-based judge decision."""
         mock_client = MagicMock()
-        mock_client.generate.return_value = '''
+        # LLMClient.generate() returns LLMResponse object with .content attribute
+        mock_response = MagicMock()
+        mock_response.content = '''
         {
             "outcome": "synthesis",
             "winning_position": "Combined approach",
@@ -956,6 +962,7 @@ class TestLLMIntegration:
             "action_items": []
         }
         '''
+        mock_client.generate.return_value = mock_response
         mock_get_client.return_value = mock_client
 
         judge = JudgeAgent(trace_id="test-123", enable_llm=True)

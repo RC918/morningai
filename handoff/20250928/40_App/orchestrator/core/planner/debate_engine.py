@@ -357,7 +357,7 @@ Format your response as JSON with these fields:
             system_prompt=system_prompt,
         )
 
-        return self._parse_argument_response(response, round_number)
+        return self._parse_argument_response(response.content, round_number)
 
     def _build_user_prompt(
         self,
@@ -566,7 +566,7 @@ Format your response as JSON with these fields:
             system_prompt=self.SYSTEM_PROMPT,
         )
 
-        return self._parse_decision_response(response)
+        return self._parse_decision_response(response.content)
 
     def _build_evaluation_prompt(
         self,
