@@ -824,6 +824,18 @@ class Settings(BaseSettings):
         description="Comma-separated task types eligible for retry (EPIC I-2b)"
     )
 
+    # Issue #4112: LLM Request Timeout for Cross-Provider Fallback
+    llm_request_timeout: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=600,
+        alias="LLM_REQUEST_TIMEOUT",
+        description="Global timeout in seconds for LLM API requests. "
+                    "When set, overrides provider-specific defaults (gemini=60, alicloud=60, openai=30). "
+                    "Shorter timeouts allow cross-provider fallback to complete within RQ job timeout. "
+                    "Recommended: 60 seconds for production with cross-provider fallback enabled."
+    )
+
     # EPIC I-2: Provider Health Scoring (Blueprint 4.3 - Model Governance Framework v2)
     provider_health_enabled: bool = Field(
         default=True,

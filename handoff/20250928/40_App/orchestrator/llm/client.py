@@ -424,23 +424,37 @@ class LLMClient:
                 f"Check API key configuration."
             )
 
-        # Issue #3653: Resolve timeout with priority:
+        # Issue #3653, #4112: Resolve timeout with priority:
         # 1. Per-call timeout parameter
         # 2. Instance-level timeout (from __init__)
-        # 3. Provider-specific default from DEFAULT_TIMEOUTS
+        # 3. Global LLM_REQUEST_TIMEOUT from settings (Issue #4112)
+        # 4. Provider-specific default from DEFAULT_TIMEOUTS
         # Note: Use explicit `is not None` checks to preserve timeout=0 if specified
-        user_specified_timeout = timeout is not None or self._timeout is not None
+        global_timeout = getattr(settings, 'llm_request_timeout', None)
+        # Track if any timeout is configured (for Gemini warning below)
+        # Includes per-call, instance-level, and global settings
+        timeout_configured = (
+            timeout is not None
+            or self._timeout is not None
+            or global_timeout is not None
+        )
         if timeout is not None:
             effective_timeout = timeout
         elif self._timeout is not None:
             effective_timeout = self._timeout
+        elif global_timeout is not None:
+            effective_timeout = global_timeout
+            logger.debug(
+                f"[LLMClient] Using global LLM_REQUEST_TIMEOUT={global_timeout}s",
+                extra={"provider": self._provider_name}
+            )
         else:
             effective_timeout = self.DEFAULT_TIMEOUTS.get(self._provider_name, 60)
 
         # Issue #3653: Gemini provider compatibility warning
         # GeminiProvider uses google-genai SDK which doesn't support timeout parameter
         # in the same way as OpenAI-compatible providers. Log warning for transparency.
-        if self._provider_name == "gemini" and user_specified_timeout:
+        if self._provider_name == "gemini" and timeout_configured:
             logger.warning(
                 f"[LLMClient] Gemini provider does not enforce timeout parameter. "
                 f"Specified timeout={effective_timeout}s will be passed but may not be honored. "
