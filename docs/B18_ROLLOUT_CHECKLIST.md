@@ -137,13 +137,15 @@ grep "Patterns to AVOID" /var/log/orchestrator.log
 
 ### Metrics to Track
 
-| Metric | Description | Target |
-|--------|-------------|--------|
-| `review_feedback_captured_total` | Total feedback signals captured | Increasing |
-| `review_feedback_by_classification` | Breakdown by ACCEPTED/REJECTED/etc | Balanced |
-| `negative_patterns_retrieved_total` | Patterns retrieved per review | 0-5 per review |
-| `negative_pattern_retrieval_latency_ms` | Retrieval latency | <100ms P99 |
-| `repeat_false_positive_rate` | Same false positive after rejection | <5% |
+| Metric | Description | Unit | Target |
+|--------|-------------|------|--------|
+| `review_feedback_captured_total` | Total feedback signals captured | count | Increasing |
+| `review_feedback_by_classification` | Breakdown by ACCEPTED/REJECTED/etc | count | Balanced |
+| `negative_patterns_retrieved_total` | Patterns retrieved per review | count | 0-5 per review |
+| `negative_pattern_retrieval_latency_ms` | Retrieval latency (milliseconds) | ms | <100ms P99 |
+| `repeat_false_positive_rate` | Same false positive after rejection | % | <5% |
+
+**Note on Units**: All latency metrics in MorningAI telemetry use milliseconds (ms) as the standard unit. The `_ms` suffix in metric names explicitly indicates this. When configuring dashboards or alerts, ensure the unit matches (e.g., Grafana should display as "ms", not "s").
 
 ---
 
