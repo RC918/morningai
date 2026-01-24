@@ -1174,16 +1174,21 @@ def search_negative_patterns(
                 continue
 
             # Only include REVIEW_REJECTED entries (negative examples)
+            # Note: MemoryType.REVIEW_REJECTED.value is "review_rejected" (lowercase)
             entry_type = entry.metadata.get("type", "")
-            if entry_type != "REVIEW_REJECTED":
+            if entry_type != "review_rejected":
                 continue
 
             # Optional file path filtering
             if file_paths:
                 entry_path = entry.metadata.get("comment_path", "")
-                if entry_path and entry_path not in file_paths:
-                    # Check if any file path matches
-                    if not any(fp in entry_path or entry_path in fp for fp in file_paths):
+                if entry_path:
+                    # Check for exact match or partial path match
+                    is_match = (
+                        entry_path in file_paths
+                        or any(fp in entry_path or entry_path in fp for fp in file_paths)
+                    )
+                    if not is_match:
                         continue
 
             # Build result from metadata (content is natural language for embedding)

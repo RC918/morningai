@@ -415,10 +415,10 @@ class ReviewFeedbackLoop:
         Returns:
             List of NegativePattern objects sorted by similarity
         """
-        if not self._enabled:
-            logger.debug("[ReviewFeedbackLoop] Feedback loop disabled")
-            return []
-
+        # Note: B-18.3 does NOT depend on self._enabled (B-13 flag)
+        # It only requires enable_negative_pattern_retrieval (B-18.3 flag)
+        # The memory_integration layer checks the full dependency chain:
+        # ENABLE_MEMORY_V2 + ENABLE_REVIEW_COMMENT_FEEDBACK + ENABLE_NEGATIVE_PATTERN_RETRIEVAL
         if not settings.enable_negative_pattern_retrieval:
             logger.debug("[ReviewFeedbackLoop] Negative pattern retrieval disabled")
             return []
@@ -574,8 +574,10 @@ class ReviewFeedbackLoop:
 
             for i, np in enumerate(negative_patterns, 1):
                 # Truncate suggestion text for prompt
-                suggestion_preview = np.suggestion_text[:200] if np.suggestion_text else "N/A"
-                if len(np.suggestion_text) > 200:
+                # Guard against None to avoid TypeError on len()
+                suggestion_text = np.suggestion_text or ""
+                suggestion_preview = suggestion_text[:200] if suggestion_text else "N/A"
+                if len(suggestion_text) > 200:
                     suggestion_preview += "..."
 
                 context_lines.append(
