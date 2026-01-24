@@ -149,6 +149,13 @@ GITHUB_EVENT_MAP: Dict[str, Dict[str, WebhookEventType]] = {
         "resolved": WebhookEventType.REVIEW_THREAD_RESOLVED,
         "unresolved": WebhookEventType.REVIEW_THREAD_UNRESOLVED,
     },
+    # B-18.1.2: Reaction events on PR review comments
+    # pull_request_review_comment_reaction events capture thumbs up/down reactions
+    # These provide explicit feedback signals on AI review comments
+    "pull_request_review_comment_reaction": {
+        "created": WebhookEventType.REVIEW_COMMENT_REACTION_CREATED,
+        "deleted": WebhookEventType.REVIEW_COMMENT_REACTION_DELETED,
+    },
 }
 
 
@@ -525,6 +532,33 @@ class GitHubWebhookHandler(BaseWebhookHandler):
             labels = [label.get("name") for label in pr.get("labels", [])]
             assignees = [a.get("login") for a in pr.get("assignees", [])]
 
+        # B-18.1.2: Handle pull_request_review_comment_reaction events
+        # This captures thumbs up/down reactions on AI review comments
+        elif github_event == "pull_request_review_comment_reaction":
+            comment = payload.get("comment", {})
+            reaction = payload.get("reaction", {})
+            pr = payload.get("pull_request", {})
+            action = payload.get("action", "")
+
+            # Extract PR info
+            pr_number = pr.get("number")
+            resource_id = str(pr_number) if pr_number is not None else None
+            resource_type = "review_comment_reaction"
+            resource_url = pr.get("html_url")
+            url = comment.get("html_url", "")
+
+            # Extract reaction info
+            reaction_content = reaction.get("content", "")  # "+1", "-1", "laugh", etc.
+            comment_body = comment.get("body", "")
+            comment_path = comment.get("path", "")
+
+            title = f"Reaction {action.capitalize()}: {reaction_content} on {comment_path}"
+            description = f"Reaction '{reaction_content}' {action} on comment: {comment_body[:100]}..."
+
+            # Store PR labels and assignees
+            labels = [label.get("name") for label in pr.get("labels", [])]
+            assignees = [a.get("login") for a in pr.get("assignees", [])]
+
         # Build metadata
         metadata: Dict[str, Any] = {
             "github_event": github_event,
@@ -618,6 +652,52 @@ class GitHubWebhookHandler(BaseWebhookHandler):
                 payload.get("action"),
                 thread.get("id"),
                 first_comment.get("id"),
+                metadata.get("comment_ai_source", "human"),
+            )
+
+        # B-18.1.2: Add reaction metadata for feedback processing
+        if github_event == "pull_request_review_comment_reaction":
+            comment = payload.get("comment", {})
+            reaction = payload.get("reaction", {})
+
+            # Comment identification
+            metadata["comment_id"] = comment.get("id")
+            metadata["comment_node_id"] = comment.get("node_id", "")
+            metadata["comment_body"] = comment.get("body", "")
+            metadata["comment_path"] = comment.get("path", "")
+            metadata["comment_line"] = comment.get("line") or comment.get("original_line")
+
+            # Reaction details
+            metadata["reaction_id"] = reaction.get("id")
+            metadata["reaction_content"] = reaction.get("content", "")  # "+1", "-1", etc.
+            metadata["reaction_user"] = reaction.get("user", {}).get("login", "")
+
+            # Check if the comment author is an AI reviewer
+            comment_author = comment.get("user", {}).get("login", "")
+            if ai_source := AI_REVIEWER_BOTS.get(comment_author):
+                metadata["comment_author_is_ai"] = True
+                metadata["comment_ai_source"] = ai_source
+            else:
+                metadata["comment_author_is_ai"] = False
+
+            # Determine if this is a positive or negative reaction
+            # GitHub reaction content values: "+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"
+            positive_reactions = {"+1", "heart", "hooray", "rocket"}
+            negative_reactions = {"-1", "confused"}
+            reaction_content = reaction.get("content", "")
+            if reaction_content in positive_reactions:
+                metadata["reaction_sentiment"] = "positive"
+            elif reaction_content in negative_reactions:
+                metadata["reaction_sentiment"] = "negative"
+            else:
+                metadata["reaction_sentiment"] = "neutral"
+
+            logger.info(
+                "[GitHubWebhookHandler] Review comment reaction %s: comment_id=%s, reaction=%s, sentiment=%s, ai_source=%s",
+                payload.get("action"),
+                comment.get("id"),
+                reaction_content,
+                metadata.get("reaction_sentiment"),
                 metadata.get("comment_ai_source", "human"),
             )
 

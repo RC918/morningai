@@ -393,6 +393,126 @@ def create_feedback_from_webhook(
     return feedback
 
 
+def create_feedback_from_reaction(
+    event_metadata: Dict[str, Any],
+    pr_number: int,
+    repo: str,
+    action: str,
+) -> Optional[ReviewCommentFeedback]:
+    """
+    Create a ReviewCommentFeedback from a reaction webhook event.
+
+    B-18.1.2: Reaction events on PR review comments (thumbs up/down)
+
+    Args:
+        event_metadata: Metadata from the parsed webhook event
+        pr_number: Pull request number
+        repo: Repository in owner/repo format
+        action: The webhook action ("created" or "deleted")
+
+    Returns:
+        ReviewCommentFeedback or None if feedback cannot be created
+
+    Event Codes (greppable):
+        [FEEDBACK_REACTION_CREATED] - Feedback object created from reaction
+        [FEEDBACK_REACTION_SKIPPED] - Feedback creation skipped
+    """
+    if not settings.enable_review_comment_feedback:
+        logger.debug("[FEEDBACK_REACTION_SKIPPED] Feature flag disabled")
+        return None
+
+    comment_id = event_metadata.get("comment_id")
+    reaction_content = event_metadata.get("reaction_content", "")
+    reaction_sentiment = event_metadata.get("reaction_sentiment", "neutral")
+
+    if not comment_id:
+        logger.warning(
+            "[FEEDBACK_REACTION_SKIPPED] Missing comment_id in metadata"
+        )
+        return None
+
+    # Only process feedback for AI reviewer comments
+    is_ai_comment = event_metadata.get("comment_author_is_ai", False)
+    if not is_ai_comment:
+        logger.debug(
+            "[FEEDBACK_REACTION_SKIPPED] Comment is not from AI reviewer: comment_id=%s",
+            comment_id,
+        )
+        return None
+
+    # Classify based on reaction sentiment
+    # For "created" action: positive reaction = ACCEPTED, negative = REJECTED
+    # For "deleted" action: we record but with lower confidence (user changed mind)
+    if action == "created":
+        if reaction_sentiment == "positive":
+            classification = FeedbackClassification.ACCEPTED
+            confidence = 0.7  # Lower than explicit "good catch" reply
+        elif reaction_sentiment == "negative":
+            classification = FeedbackClassification.REJECTED
+            confidence = 0.9  # Thumbs down is a strong rejection signal
+        else:
+            classification = FeedbackClassification.UNKNOWN
+            confidence = 0.3
+    elif action == "deleted":
+        # Reaction was removed - user changed their mind
+        # We still record this but with lower confidence
+        classification = FeedbackClassification.UNKNOWN
+        confidence = 0.2
+    else:
+        classification = FeedbackClassification.UNKNOWN
+        confidence = 0.0
+
+    logger.info(
+        "[FEEDBACK_REACTION_CLASSIFIED] Reaction %s: content=%s, sentiment=%s -> %s (confidence=%.2f)",
+        action,
+        reaction_content,
+        reaction_sentiment,
+        classification.value,
+        confidence,
+    )
+
+    feedback = ReviewCommentFeedback(
+        comment_id=comment_id,
+        thread_id=0,  # Reactions don't have thread context
+        pr_number=pr_number,
+        repo=repo,
+        classification=classification,
+        confidence=confidence,
+        signal_source=f"reaction:{action}:{reaction_content}",
+        comment_body=event_metadata.get("comment_body", ""),
+        comment_path=event_metadata.get("comment_path"),
+        comment_line=event_metadata.get("comment_line"),
+        is_ai_comment=True,
+        ai_source=event_metadata.get("comment_ai_source"),
+        code_changed=False,
+        metadata={
+            "reaction_id": event_metadata.get("reaction_id"),
+            "reaction_content": reaction_content,
+            "reaction_sentiment": reaction_sentiment,
+            "reaction_user": event_metadata.get("reaction_user"),
+            "comment_node_id": event_metadata.get("comment_node_id"),
+        },
+    )
+
+    logger.info(
+        "[FEEDBACK_REACTION_CREATED] Created feedback from reaction: comment_id=%s, reaction=%s, classification=%s",
+        comment_id,
+        reaction_content,
+        classification.value,
+        extra={
+            "comment_id": comment_id,
+            "pr_number": pr_number,
+            "repo": repo,
+            "reaction_content": reaction_content,
+            "classification": classification.value,
+            "confidence": confidence,
+            "ai_source": feedback.ai_source,
+        }
+    )
+
+    return feedback
+
+
 class ReviewCommentFeedbackCollector:
     """
     Collects and processes review comment feedback.
@@ -401,8 +521,9 @@ class ReviewCommentFeedbackCollector:
 
     This class provides:
     1. process_thread_event(): Process thread resolved/unresolved events
-    2. process_reply(): Process reply text for feedback signals
-    3. get_stats(): Get collection statistics
+    2. process_reaction_event(): Process reaction events (B-18.1.2)
+    3. process_reply(): Process reply text for feedback signals
+    4. get_stats(): Get collection statistics
     """
 
     def __init__(self, trace_id: Optional[str] = None):
@@ -417,6 +538,7 @@ class ReviewCommentFeedbackCollector:
         self._feedbacks_collected = 0
         self._ai_comments_processed = 0
         self._human_comments_skipped = 0
+        self._reactions_processed = 0
 
     @property
     def is_enabled(self) -> bool:
@@ -463,6 +585,46 @@ class ReviewCommentFeedbackCollector:
 
         return feedback
 
+    def process_reaction_event(
+        self,
+        event_metadata: Dict[str, Any],
+        pr_number: int,
+        repo: str,
+        action: str,
+    ) -> Optional[ReviewCommentFeedback]:
+        """
+        Process a reaction event on a review comment.
+
+        B-18.1.2: Reaction events on PR review comments (thumbs up/down)
+
+        Args:
+            event_metadata: Metadata from the parsed webhook event
+            pr_number: Pull request number
+            repo: Repository in owner/repo format
+            action: The webhook action ("created" or "deleted")
+
+        Returns:
+            ReviewCommentFeedback or None if not applicable
+        """
+        if not self._enabled:
+            return None
+
+        feedback = create_feedback_from_reaction(
+            event_metadata=event_metadata,
+            pr_number=pr_number,
+            repo=repo,
+            action=action,
+        )
+
+        if feedback:
+            self._feedbacks_collected += 1
+            self._reactions_processed += 1
+            self._ai_comments_processed += 1
+        elif event_metadata.get("comment_author_is_ai", False) is False:
+            self._human_comments_skipped += 1
+
+        return feedback
+
     def get_stats(self) -> Dict[str, Any]:
         """Get feedback collection statistics."""
         return {
@@ -470,6 +632,7 @@ class ReviewCommentFeedbackCollector:
             "feedbacks_collected": self._feedbacks_collected,
             "ai_comments_processed": self._ai_comments_processed,
             "human_comments_skipped": self._human_comments_skipped,
+            "reactions_processed": self._reactions_processed,
             "trace_id": self.trace_id,
         }
 

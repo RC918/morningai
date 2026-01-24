@@ -58,6 +58,9 @@ class WebhookEventType(Enum):
     # These events capture human feedback signals on AI review comments
     REVIEW_THREAD_RESOLVED = "review_thread_resolved"
     REVIEW_THREAD_UNRESOLVED = "review_thread_unresolved"
+    # B-18.1.2: Reaction events on PR review comments (thumbs up/down)
+    REVIEW_COMMENT_REACTION_CREATED = "review_comment_reaction_created"
+    REVIEW_COMMENT_REACTION_DELETED = "review_comment_reaction_deleted"
 
     # Message events (Slack)
     MESSAGE_RECEIVED = "message_received"
