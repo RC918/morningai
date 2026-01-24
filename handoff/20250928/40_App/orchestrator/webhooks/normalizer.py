@@ -2060,6 +2060,7 @@ class EventNormalizer:
         Handle CI_CHECK_COMPLETED events for CI failure reflex.
 
         This method implements the CI failure reflex logic:
+        0. Skip if AUTO_FIX_ENABLED is false (feature flag)
         1. Skip if conclusion is not "failure"
         2. Skip if no PR is associated (non-PR CI)
         3. Skip orchestrator/* and devin/* branches
@@ -2079,6 +2080,22 @@ class EventNormalizer:
             event.metadata = {}
         metadata = event.metadata
         repo = f"{event.repo_owner}/{event.repo_name}" if event.repo_owner and event.repo_name else "unknown"
+
+        # Issue #4322: P-1 (highest priority): Skip if AUTO_FIX_ENABLED is false
+        # This ensures the environment variable controls CI failure auto-fix behavior
+        # Previously, this check was only in AutoFixPolicy.check() for comment-triggered auto-fix
+        auto_fix_enabled = getattr(settings, 'auto_fix_enabled', False) if settings else False
+        if not auto_fix_enabled:
+            logger.info(
+                "[EventNormalizer] CI failure skipped - AUTO_FIX_ENABLED is false",
+                extra={
+                    "operation": "ci_failure_skip_disabled",
+                    "event_id": event.event_id,
+                    "repo": repo,
+                    "auto_fix_enabled": auto_fix_enabled,
+                }
+            )
+            return False
 
         # Extract CI-specific metadata
         conclusion = metadata.get("ci_conclusion", "")

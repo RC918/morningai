@@ -28,6 +28,19 @@ def normalizer():
 
 
 @pytest.fixture
+def mock_auto_fix_enabled():
+    """Mock settings.auto_fix_enabled = True for CI failure tests.
+
+    Issue #4322: The AUTO_FIX_ENABLED check was added to _handle_ci_check_completed,
+    so tests that expect CI failure events to be actionable need this mock.
+    """
+    mock_settings = MagicMock()
+    mock_settings.auto_fix_enabled = True
+    with patch('orchestrator.webhooks.normalizer.settings', mock_settings):
+        yield mock_settings
+
+
+@pytest.fixture
 def mock_check_suite_headers():
     """Create mock headers for a check_suite event"""
     return {
@@ -146,7 +159,7 @@ class TestCheckSuiteEventParsing:
 class TestCIFailureReflex:
     """Tests for CI failure reflex in EventNormalizer"""
 
-    def test_ci_failure_is_actionable(self, normalizer):
+    def test_ci_failure_is_actionable(self, normalizer, mock_auto_fix_enabled):
         """Test that CI failure events are actionable"""
         event = WebhookEvent(
             event_id="test-ci-123",
@@ -196,7 +209,7 @@ class TestCIFailureReflex:
 
         assert normalizer.is_actionable(event) is False
 
-    def test_ci_cancelled_is_actionable(self, normalizer):
+    def test_ci_cancelled_is_actionable(self, normalizer, mock_auto_fix_enabled):
         """Test that CI cancelled events are actionable.
 
         Issue #3633/#3644: Expanded failure_conclusions to include 'cancelled'
@@ -222,7 +235,7 @@ class TestCIFailureReflex:
 
         assert normalizer.is_actionable(event) is True
 
-    def test_ci_timed_out_is_actionable(self, normalizer):
+    def test_ci_timed_out_is_actionable(self, normalizer, mock_auto_fix_enabled):
         """Test that CI timed_out events are actionable.
 
         Issue #3633/#3644: Expanded failure_conclusions to include 'timed_out'
@@ -247,7 +260,7 @@ class TestCIFailureReflex:
 
         assert normalizer.is_actionable(event) is True
 
-    def test_ci_startup_failure_is_actionable(self, normalizer):
+    def test_ci_startup_failure_is_actionable(self, normalizer, mock_auto_fix_enabled):
         """Test that CI startup_failure events are actionable.
 
         Issue #3633/#3644: Expanded failure_conclusions to include 'startup_failure'
@@ -272,7 +285,7 @@ class TestCIFailureReflex:
 
         assert normalizer.is_actionable(event) is True
 
-    def test_ci_action_required_is_actionable(self, normalizer):
+    def test_ci_action_required_is_actionable(self, normalizer, mock_auto_fix_enabled):
         """Test that CI action_required events are actionable.
 
         Issue #3633/#3644: Expanded failure_conclusions to include 'action_required'
@@ -361,7 +374,7 @@ class TestCIFailureReflex:
 
         assert normalizer.is_actionable(event) is False
 
-    def test_ci_failure_dedup_same_pr_sha(self, normalizer):
+    def test_ci_failure_dedup_same_pr_sha(self, normalizer, mock_auto_fix_enabled):
         """Test that duplicate CI failures (same PR + SHA) are deduplicated"""
         event1 = WebhookEvent(
             event_id="test-ci-first",
@@ -409,7 +422,7 @@ class TestCIFailureReflex:
             # Second event with same PR + SHA should be deduplicated
             assert normalizer.is_actionable(event2) is False
 
-    def test_ci_failure_different_sha_is_actionable(self, normalizer):
+    def test_ci_failure_different_sha_is_actionable(self, normalizer, mock_auto_fix_enabled):
         """Test that CI failures with different SHA are both actionable"""
         event1 = WebhookEvent(
             event_id="test-ci-sha1",
@@ -478,7 +491,7 @@ class TestCIFailureReflexIntegration:
     """Integration tests for CI failure reflex workflow"""
 
     def test_full_ci_failure_workflow(
-        self, github_handler, normalizer, mock_check_suite_headers
+        self, github_handler, normalizer, mock_check_suite_headers, mock_auto_fix_enabled
     ):
         """Test complete workflow: parse -> should_process -> is_actionable"""
         # Create a CI failure payload
