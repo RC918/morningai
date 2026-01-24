@@ -784,8 +784,9 @@ ReviewOutcome {                        │
 > **Type**: New Capability
 > **Issue**: TBD
 > **Effort**: High (9-14 days)
-> **Status**: Planning
+> **Status**: Implementation Complete - Ready for Rollout
 > **Detailed Spec**: [EPIC_B18_REVIEW_COMMENT_FEEDBACK.md](./EPIC_B18_REVIEW_COMMENT_FEEDBACK.md)
+> **Rollout Checklist**: [B18_ROLLOUT_CHECKLIST.md](./B18_ROLLOUT_CHECKLIST.md)
 
 **Problem**: Reviewer Agent produces false positives (e.g., suggesting error handling for Python regex matches where capture groups are guaranteed). The system accumulates positive experience but has no mechanism to learn "what NOT to suggest."
 
