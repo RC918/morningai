@@ -6753,6 +6753,11 @@ def fixer_node(state: AgentState) -> AgentState:
                 state["messages"] = state.get("messages", []) + [
                     AIMessage(content="AutoFixer skipped - identical CI failure already processed within 24h")
                 ]
+                # Issue #4318: Set loop_protection_triggered to prevent infinite loop
+                # Without this flag, should_proceed_after_fixer routes to ci_monitor,
+                # which sees CI still failing and routes back to fixer, causing recursion
+                # until the LangGraph recursion limit (100) is reached.
+                state["loop_protection_triggered"] = True
                 latency_ms = (time.time() - start_time) * 1000
                 metrics.record_fixer_attempt(trace_id, retry_count, success=False)
                 metrics.record_node_complete("fixer", trace_id, success=False, latency_ms=latency_ms)
