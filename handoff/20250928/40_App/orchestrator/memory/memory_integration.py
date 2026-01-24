@@ -1109,6 +1109,127 @@ def list_review_feedback(
         return []
 
 
+def _is_negative_pattern_retrieval_enabled() -> bool:
+    """Check if negative pattern retrieval is enabled (B-18.3)."""
+    return (
+        _is_memory_v2_enabled()
+        and settings.enable_review_comment_feedback
+        and settings.enable_negative_pattern_retrieval
+    )
+
+
+def search_negative_patterns(
+    query: str,
+    file_paths: Optional[List[str]] = None,
+    limit: Optional[int] = None,
+    min_similarity: Optional[float] = None,
+    trace_id: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Search for past rejected review suggestions (negative patterns).
+
+    EPIC B-18 Phase B-18.3: Negative Pattern Retrieval
+    Blueprint: Retrieve negative examples to avoid repeating false positives.
+
+    This enables the Reviewer to learn from past rejections and avoid
+    suggesting the same false positives again.
+
+    Args:
+        query: Search query (typically code snippet or diff content)
+        file_paths: Optional list of file paths to filter by
+        limit: Maximum number of patterns to return (default from settings)
+        min_similarity: Minimum similarity threshold (default from settings)
+        trace_id: Optional workflow trace ID
+
+    Returns:
+        List of past rejected suggestions with similarity scores
+    """
+    if not _is_negative_pattern_retrieval_enabled():
+        logger.debug("[MemoryIntegration] Negative pattern retrieval disabled")
+        return []
+
+    memory = _get_memory_v2()
+    if memory is None:
+        return []
+
+    if limit is None:
+        limit = settings.negative_pattern_max_results
+    if min_similarity is None:
+        min_similarity = settings.negative_pattern_similarity_threshold
+
+    try:
+        from .memory_v2 import MemoryLayer
+
+        # Search Knowledge Base for REVIEW_REJECTED entries
+        entries = memory.search(
+            query=query,
+            layers=[MemoryLayer.KNOWLEDGE_BASE],
+            limit=limit * 2,  # Fetch extra to filter
+            trace_id=trace_id,
+        )
+
+        results = []
+        for entry in entries:
+            if entry.similarity is None or entry.similarity < min_similarity:
+                continue
+
+            # Only include REVIEW_REJECTED entries (negative examples)
+            entry_type = entry.metadata.get("type", "")
+            if entry_type != "REVIEW_REJECTED":
+                continue
+
+            # Optional file path filtering
+            if file_paths:
+                entry_path = entry.metadata.get("comment_path", "")
+                if entry_path and entry_path not in file_paths:
+                    # Check if any file path matches
+                    if not any(fp in entry_path or entry_path in fp for fp in file_paths):
+                        continue
+
+            # Build result from metadata (content is natural language for embedding)
+            results.append({
+                "key": entry.key,
+                "similarity": entry.similarity,
+                "classification": entry.metadata.get("classification", "rejected"),
+                "confidence": entry.metadata.get("confidence", 0.0),
+                "importance": entry.metadata.get("importance", 0.0),
+                "suggestion_text": entry.metadata.get("suggestion_text", ""),
+                "comment_path": entry.metadata.get("comment_path"),
+                "comment_line": entry.metadata.get("comment_line"),
+                "ai_source": entry.metadata.get("ai_source"),
+                "repo": entry.metadata.get("repo"),
+                "pr_number": entry.metadata.get("pr_number"),
+                "recorded_at": entry.metadata.get("recorded_at"),
+                "content": entry.content,  # Natural language description
+            })
+
+            if len(results) >= limit:
+                break
+
+        logger.info(
+            "[MemoryIntegration] Found %d negative patterns",
+            len(results),
+            extra={
+                "query_length": len(query),
+                "file_count": len(file_paths) if file_paths else 0,
+                "trace_id": trace_id,
+                "operation": "search_negative_patterns",
+            }
+        )
+
+        return results
+
+    except Exception as e:
+        logger.warning(
+            f"[MemoryIntegration] Failed to search negative patterns: {e}",
+            extra={
+                "trace_id": trace_id,
+                "operation": "search_negative_patterns",
+            }
+        )
+        return []
+
+
 def search_review_patterns(
     query: str,
     file_paths: Optional[List[str]] = None,

@@ -2488,6 +2488,38 @@ class Settings(BaseSettings):
         )
     )
 
+    enable_negative_pattern_retrieval: bool = Field(
+        default=False,
+        alias="ENABLE_NEGATIVE_PATTERN_RETRIEVAL",
+        description=(
+            "Enable B-18.3 Negative Pattern Retrieval: retrieves past rejected suggestions during review "
+            "to avoid repeating false positives. Requires ENABLE_REVIEW_COMMENT_FEEDBACK=true. "
+            "When enabled, the LLM reviewer prompt includes 'Patterns to AVOID' section with past rejections."
+        )
+    )
+
+    negative_pattern_max_results: int = Field(
+        default=5,
+        alias="NEGATIVE_PATTERN_MAX_RESULTS",
+        ge=1,
+        le=20,
+        description=(
+            "Maximum number of negative patterns to retrieve during review (B-18.3). "
+            "Higher values provide more context but increase prompt size. Default: 5."
+        )
+    )
+
+    negative_pattern_similarity_threshold: float = Field(
+        default=0.6,
+        alias="NEGATIVE_PATTERN_SIMILARITY_THRESHOLD",
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Minimum similarity threshold for negative pattern retrieval (B-18.3). "
+            "Lower than positive patterns (0.7) to catch more potential false positives. Default: 0.6."
+        )
+    )
+
     senior_coder_strict_schema_validation: bool = Field(
         default=False,
         alias="SENIOR_CODER_STRICT_SCHEMA_VALIDATION",

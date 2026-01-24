@@ -104,6 +104,70 @@ class ReviewPattern:
 
 
 @dataclass
+class NegativePattern:
+    """
+    A past rejected review suggestion (negative example) from Memory v2.
+
+    EPIC B-18.3: Negative Pattern Retrieval
+    These patterns represent suggestions that were rejected by humans,
+    helping the reviewer avoid repeating false positives.
+
+    Attributes:
+        similarity: Similarity score to current code (0.0 to 1.0)
+        suggestion_text: The original suggestion that was rejected
+        comment_path: File path where the suggestion was made
+        comment_line: Line number where the suggestion was made
+        confidence: Confidence of the rejection classification
+        importance: Importance score for retrieval priority
+        ai_source: AI reviewer that made the suggestion
+        repo: Repository where rejection occurred
+        pr_number: PR number where rejection occurred
+        recorded_at: Unix timestamp when rejection was recorded
+    """
+    similarity: float
+    suggestion_text: str
+    comment_path: Optional[str] = None
+    comment_line: Optional[int] = None
+    confidence: float = 0.0
+    importance: float = 0.0
+    ai_source: Optional[str] = None
+    repo: Optional[str] = None
+    pr_number: Optional[int] = None
+    recorded_at: Optional[int] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization"""
+        return {
+            "similarity": self.similarity,
+            "suggestion_text": self.suggestion_text,
+            "comment_path": self.comment_path,
+            "comment_line": self.comment_line,
+            "confidence": self.confidence,
+            "importance": self.importance,
+            "ai_source": self.ai_source,
+            "repo": self.repo,
+            "pr_number": self.pr_number,
+            "recorded_at": self.recorded_at,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "NegativePattern":
+        """Create NegativePattern from dictionary"""
+        return cls(
+            similarity=data.get("similarity", 0.0),
+            suggestion_text=data.get("suggestion_text", ""),
+            comment_path=data.get("comment_path"),
+            comment_line=data.get("comment_line"),
+            confidence=data.get("confidence", 0.0),
+            importance=data.get("importance", 0.0),
+            ai_source=data.get("ai_source"),
+            repo=data.get("repo"),
+            pr_number=data.get("pr_number"),
+            recorded_at=data.get("recorded_at"),
+        )
+
+
+@dataclass
 class FeedbackLoopStats:
     """Statistics for the feedback loop"""
     patterns_retrieved: int = 0
@@ -329,13 +393,89 @@ class ReviewFeedbackLoop:
             )
             return []
 
+    def get_negative_patterns(
+        self,
+        diff_snippet: str,
+        file_paths: Optional[List[str]] = None,
+        limit: Optional[int] = None,
+        min_similarity: Optional[float] = None,
+    ) -> List[NegativePattern]:
+        """
+        Retrieve past rejected suggestions (negative patterns) similar to current code.
+
+        EPIC B-18.3: Negative Pattern Retrieval
+        These patterns help the reviewer avoid repeating false positives.
+
+        Args:
+            diff_snippet: Code diff snippet to search for similar patterns
+            file_paths: Optional list of file paths to filter by
+            limit: Maximum number of patterns to return
+            min_similarity: Minimum similarity threshold
+
+        Returns:
+            List of NegativePattern objects sorted by similarity
+        """
+        if not self._enabled:
+            logger.debug("[ReviewFeedbackLoop] Feedback loop disabled")
+            return []
+
+        if not settings.enable_negative_pattern_retrieval:
+            logger.debug("[ReviewFeedbackLoop] Negative pattern retrieval disabled")
+            return []
+
+        try:
+            from memory.memory_integration import search_negative_patterns
+
+            results = search_negative_patterns(
+                query=diff_snippet,
+                file_paths=file_paths,
+                limit=limit,
+                min_similarity=min_similarity,
+                trace_id=self.trace_id,
+            )
+
+            patterns = [NegativePattern.from_dict(r) for r in results]
+
+            if patterns:
+                logger.info(
+                    "[ReviewFeedbackLoop] Retrieved %d negative patterns",
+                    len(patterns),
+                    extra={
+                        "negative_pattern_count": len(patterns),
+                        "trace_id": self.trace_id,
+                        "operation": "get_negative_patterns",
+                    }
+                )
+
+            return patterns
+
+        except ImportError as e:
+            logger.warning(
+                "[ReviewFeedbackLoop] Memory integration not available: %s",
+                e
+            )
+            return []
+        except Exception as e:
+            logger.warning(
+                "[ReviewFeedbackLoop] Failed to retrieve negative patterns: %s",
+                e,
+                extra={
+                    "trace_id": self.trace_id,
+                    "operation": "get_negative_patterns",
+                }
+            )
+            return []
+
     def enhance_review_context(
         self,
         diff_snippet: str,
         file_paths: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """
-        Enhance review context with past patterns.
+        Enhance review context with past patterns (positive and negative).
+
+        EPIC B-13: Retrieves positive patterns from past reviews.
+        EPIC B-18.3: Also retrieves negative patterns (rejected suggestions).
 
         This method retrieves relevant past patterns and formats them
         for inclusion in the review prompt.
@@ -347,57 +487,118 @@ class ReviewFeedbackLoop:
         Returns:
             Dict with:
             - has_patterns: Whether any patterns were found
-            - pattern_count: Number of patterns found
-            - patterns: List of pattern summaries
+            - pattern_count: Number of positive patterns found
+            - patterns: List of positive pattern summaries
+            - has_negative_patterns: Whether any negative patterns were found
+            - negative_pattern_count: Number of negative patterns found
+            - negative_patterns: List of negative pattern summaries
             - context_text: Formatted text for inclusion in prompt
         """
+        # Retrieve positive patterns (B-13)
         patterns = self.get_relevant_patterns(
             diff_snippet=diff_snippet,
             file_paths=file_paths,
         )
 
-        if not patterns:
+        # Retrieve negative patterns (B-18.3)
+        negative_patterns = self.get_negative_patterns(
+            diff_snippet=diff_snippet,
+            file_paths=file_paths,
+        )
+
+        if not patterns and not negative_patterns:
             return {
                 "has_patterns": False,
                 "pattern_count": 0,
                 "patterns": [],
+                "has_negative_patterns": False,
+                "negative_pattern_count": 0,
+                "negative_patterns": [],
                 "context_text": "",
             }
 
+        context_lines = []
+
+        # Format positive patterns (B-13)
         pattern_summaries = []
-        for p in patterns:
-            pattern_summaries.append({
-                "similarity": p.similarity,
-                "verdict": p.verdict,
-                "severity": p.severity,
-                "summary": p.summary,
-                "blocker_count": p.blocker_count,
-            })
+        if patterns:
+            for p in patterns:
+                pattern_summaries.append({
+                    "similarity": p.similarity,
+                    "verdict": p.verdict,
+                    "severity": p.severity,
+                    "summary": p.summary,
+                    "blocker_count": p.blocker_count,
+                })
 
-        context_lines = [
-            "## Past Review Patterns (B-13 Feedback Loop)",
-            "",
-            f"Found {len(patterns)} similar past reviews:",
-            "",
-        ]
+            context_lines.extend([
+                "## Past Review Patterns (B-13 Feedback Loop)",
+                "",
+                f"Found {len(patterns)} similar past reviews:",
+                "",
+            ])
 
-        for i, p in enumerate(patterns, 1):
+            for i, p in enumerate(patterns, 1):
+                context_lines.append(
+                    f"{i}. [{p.verdict.upper()}] (similarity: {p.similarity:.2f}) "
+                    f"{p.summary}"
+                )
+                if p.blocker_count > 0:
+                    context_lines.append(f"   - {p.blocker_count} blocking issues found")
+
+            context_lines.extend([
+                "",
+                "Consider these past patterns when reviewing similar code.",
+                "",
+            ])
+
+        # Format negative patterns (B-18.3)
+        negative_pattern_summaries = []
+        if negative_patterns:
+            for np in negative_patterns:
+                negative_pattern_summaries.append({
+                    "similarity": np.similarity,
+                    "suggestion_text": np.suggestion_text,
+                    "comment_path": np.comment_path,
+                    "confidence": np.confidence,
+                    "ai_source": np.ai_source,
+                })
+
+            context_lines.extend([
+                "## Patterns to AVOID (B-18 Past False Positives)",
+                "",
+                "IMPORTANT: The following suggestions have been REJECTED by humans in the past.",
+                "DO NOT repeat these suggestions for similar code patterns:",
+                "",
+            ])
+
+            for i, np in enumerate(negative_patterns, 1):
+                # Truncate suggestion text for prompt
+                suggestion_preview = np.suggestion_text[:200] if np.suggestion_text else "N/A"
+                if len(np.suggestion_text) > 200:
+                    suggestion_preview += "..."
+
+                context_lines.append(
+                    f"{i}. [REJECTED] (similarity: {np.similarity:.2f})"
+                )
+                context_lines.append(f"   Suggestion: \"{suggestion_preview}\"")
+                if np.comment_path:
+                    context_lines.append(f"   File: {np.comment_path}")
+                if np.ai_source:
+                    context_lines.append(f"   Source: {np.ai_source}")
+                context_lines.append("")
+
             context_lines.append(
-                f"{i}. [{p.verdict.upper()}] (similarity: {p.similarity:.2f}) "
-                f"{p.summary}"
+                "Avoid making similar suggestions - they were marked as false positives."
             )
-            if p.blocker_count > 0:
-                context_lines.append(f"   - {p.blocker_count} blocking issues found")
-
-        context_lines.append("")
-        context_lines.append(
-            "Consider these past patterns when reviewing similar code."
-        )
 
         return {
-            "has_patterns": True,
+            "has_patterns": len(patterns) > 0,
             "pattern_count": len(patterns),
             "patterns": pattern_summaries,
+            "has_negative_patterns": len(negative_patterns) > 0,
+            "negative_pattern_count": len(negative_patterns),
+            "negative_patterns": negative_pattern_summaries,
             "context_text": "\n".join(context_lines),
         }
 

@@ -50,6 +50,7 @@ from review_context.dependency_analyzer import (
 from review_context.review_feedback_loop import (
     ReviewFeedbackLoop,
     ReviewPattern,
+    NegativePattern,
     FeedbackLoopStats,
     get_feedback_loop,
 )
@@ -93,6 +94,7 @@ __all__ = [
     # B-13: Real-time Feedback Loop
     "ReviewFeedbackLoop",
     "ReviewPattern",
+    "NegativePattern",
     "FeedbackLoopStats",
     "get_feedback_loop",
     # B-18: Review Comment Feedback
