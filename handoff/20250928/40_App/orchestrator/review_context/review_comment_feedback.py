@@ -674,9 +674,9 @@ def calculate_feedback_importance(
 
     Formula (from EPIC B-18 spec):
     importance_score = (
-        rejection_confidence * 0.4 +    # How certain is the rejection?
+        feedback_confidence * 0.4 +     # How certain is the feedback?
         pattern_frequency * 0.3 +       # How often does this pattern appear?
-        impact_severity * 0.3           # How bad was the false positive?
+        impact_severity * 0.3           # How impactful was this suggestion?
     )
 
     Args:
@@ -690,10 +690,10 @@ def calculate_feedback_importance(
     Event Codes (greppable):
         [FEEDBACK_IMPORTANCE_SCORED] - Importance score calculated
     """
-    rejection_confidence = feedback.confidence
+    feedback_confidence = feedback.confidence
 
     importance = (
-        rejection_confidence * 0.4 +
+        feedback_confidence * 0.4 +
         pattern_frequency * 0.3 +
         impact_severity * 0.3
     )
@@ -703,7 +703,7 @@ def calculate_feedback_importance(
         "(confidence=%.2f, frequency=%.2f, severity=%.2f)",
         feedback.comment_id,
         importance,
-        rejection_confidence,
+        feedback_confidence,
         pattern_frequency,
         impact_severity,
     )
@@ -743,11 +743,7 @@ def save_review_comment_feedback(
         return False
 
     # Only save feedback with sufficient confidence
-    threshold = getattr(
-        settings,
-        'review_feedback_confidence_threshold',
-        REVIEW_FEEDBACK_CONFIDENCE_THRESHOLD,
-    )
+    threshold = settings.review_feedback_confidence_threshold
     if feedback.confidence < threshold:
         logger.debug(
             "[FEEDBACK_SAVE_SKIPPED] Confidence %.2f below threshold %.2f",
@@ -797,20 +793,24 @@ def save_review_comment_feedback(
         # Build memory entry key
         key = f"review_feedback:{feedback.repo}:{feedback.pr_number}:{feedback.comment_id}"
 
-        # Build content as JSON for searchability
-        import json
-        content = json.dumps({
-            "suggestion_text": feedback.comment_body[:500] if feedback.comment_body else "",
-            "code_pattern": feedback.comment_path or "",
-            "feedback": feedback.classification.value,
-            "confidence": feedback.confidence,
-            "signal_source": feedback.signal_source,
-            "ai_source": feedback.ai_source,
-            "recorded_at": feedback.recorded_at,
-        })
+        # Build content as natural language for better vector embedding
+        # This enables semantic similarity search in the Knowledge Base
+        suggestion_preview = (
+            feedback.comment_body[:200] if feedback.comment_body else "No suggestion text"
+        )
+        file_path = feedback.comment_path or "unknown file"
+        content = (
+            f"AI review suggestion feedback: The suggestion '{suggestion_preview}' "
+            f"for code at '{file_path}' was {feedback.classification.value}. "
+            f"Confidence: {feedback.confidence:.2f}. "
+            f"Signal source: {feedback.signal_source}. "
+            f"AI source: {feedback.ai_source}."
+        )
 
         # Build metadata for filtering and retrieval
+        # Schema version enables future migrations
         metadata = {
+            "schema_version": "1.0",
             "type": memory_type.value,
             "classification": feedback.classification.value,
             "confidence": feedback.confidence,
@@ -823,6 +823,7 @@ def save_review_comment_feedback(
             "ai_source": feedback.ai_source,
             "signal_source": feedback.signal_source,
             "recorded_at": feedback.recorded_at,
+            "suggestion_text": feedback.comment_body[:500] if feedback.comment_body else "",
         }
 
         # Create memory entry
