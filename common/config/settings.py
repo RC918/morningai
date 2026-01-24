@@ -2464,6 +2464,18 @@ class Settings(BaseSettings):
         )
     )
 
+    # EPIC B-18: Review Comment Feedback (Human-in-the-Loop Learning)
+    # Blueprint: Learn from human feedback on AI review comments
+    enable_review_comment_feedback: bool = Field(
+        default=False,
+        alias="ENABLE_REVIEW_COMMENT_FEEDBACK",
+        description=(
+            "Enable B-18 Review Comment Feedback: captures human feedback signals on AI review comments "
+            "(resolved/unresolved, reactions, reply patterns) and stores them as negative examples "
+            "in Knowledge Base. Requires ENABLE_MEMORY_V2=true and ENABLE_REVIEW_FEEDBACK_LOOP=true."
+        )
+    )
+
     senior_coder_strict_schema_validation: bool = Field(
         default=False,
         alias="SENIOR_CODER_STRICT_SCHEMA_VALIDATION",
