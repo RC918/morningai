@@ -53,6 +53,15 @@ from review_context.review_feedback_loop import (
     FeedbackLoopStats,
     get_feedback_loop,
 )
+from review_context.review_comment_feedback import (
+    FeedbackClassification,
+    ReviewCommentFeedback,
+    ReviewCommentFeedbackCollector,
+    classify_feedback,
+    classify_reply_pattern,
+    create_feedback_from_webhook,
+    get_feedback_collector,
+)
 
 __all__ = [
     # B-9: Multi-Specialist Review
@@ -86,4 +95,12 @@ __all__ = [
     "ReviewPattern",
     "FeedbackLoopStats",
     "get_feedback_loop",
+    # B-18: Review Comment Feedback
+    "FeedbackClassification",
+    "ReviewCommentFeedback",
+    "ReviewCommentFeedbackCollector",
+    "classify_feedback",
+    "classify_reply_pattern",
+    "create_feedback_from_webhook",
+    "get_feedback_collector",
 ]

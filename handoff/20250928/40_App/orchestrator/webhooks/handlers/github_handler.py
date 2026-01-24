@@ -142,6 +142,13 @@ GITHUB_EVENT_MAP: Dict[str, Dict[str, WebhookEventType]] = {
     "check_run": {
         "completed": WebhookEventType.CI_CHECK_COMPLETED,
     },
+    # EPIC B-18: Review Comment Feedback (Human-in-the-Loop Learning)
+    # pull_request_review_thread events are sent when a review thread is resolved/unresolved
+    # This captures human feedback signals on AI review comments
+    "pull_request_review_thread": {
+        "resolved": WebhookEventType.REVIEW_THREAD_RESOLVED,
+        "unresolved": WebhookEventType.REVIEW_THREAD_UNRESOLVED,
+    },
 }
 
 
@@ -490,6 +497,34 @@ class GitHubWebhookHandler(BaseWebhookHandler):
             description = f"Check run '{check_run_name}' completed with conclusion: {conclusion}"
             url = check_run.get("html_url", "")
 
+        # EPIC B-18: Review Comment Feedback (Human-in-the-Loop Learning)
+        # Handle pull_request_review_thread events for resolved/unresolved signals
+        # This captures human feedback on AI review comments
+        elif github_event == "pull_request_review_thread":
+            thread = payload.get("thread", {})
+            pr = payload.get("pull_request", {})
+            action = payload.get("action", "")
+
+            # Extract PR info
+            pr_number = pr.get("number")
+            resource_id = str(pr_number) if pr_number is not None else None
+            resource_type = "review_thread"
+            resource_url = pr.get("html_url")
+            url = thread.get("comments", [{}])[0].get("html_url", "") if thread.get("comments") else ""
+
+            # Get the first comment in the thread (the original review comment)
+            comments = thread.get("comments", [])
+            first_comment = comments[0] if comments else {}
+            comment_body = first_comment.get("body", "")
+            comment_path = first_comment.get("path", "")
+
+            title = f"Review Thread {action.capitalize()}: {comment_path}"
+            description = comment_body[:200] + "..." if len(comment_body) > 200 else comment_body
+
+            # Store PR labels and assignees
+            labels = [label.get("name") for label in pr.get("labels", [])]
+            assignees = [a.get("login") for a in pr.get("assignees", [])]
+
         # Build metadata
         metadata: Dict[str, Any] = {
             "github_event": github_event,
@@ -550,6 +585,41 @@ class GitHubWebhookHandler(BaseWebhookHandler):
             metadata["ci_pr_numbers"] = _extract_pr_numbers(pull_requests)
             # Store check_run name for better logging
             metadata["ci_check_run_name"] = check_run.get("name", "")
+
+        # EPIC B-18: Add review thread metadata for feedback processing
+        if github_event == "pull_request_review_thread":
+            thread = payload.get("thread", {})
+            comments = thread.get("comments", [])
+            first_comment = comments[0] if comments else {}
+
+            # Thread identification
+            metadata["thread_id"] = thread.get("id")
+            metadata["thread_node_id"] = thread.get("node_id", "")
+
+            # Comment details for feedback classification
+            metadata["comment_id"] = first_comment.get("id")
+            metadata["comment_body"] = first_comment.get("body", "")
+            metadata["comment_path"] = first_comment.get("path", "")
+            metadata["comment_line"] = first_comment.get("line") or first_comment.get("original_line")
+
+            # Check if the comment author is an AI reviewer
+            comment_author = first_comment.get("user", {}).get("login", "")
+            if ai_source := AI_REVIEWER_BOTS.get(comment_author):
+                metadata["comment_author_is_ai"] = True
+                metadata["comment_ai_source"] = ai_source
+            else:
+                metadata["comment_author_is_ai"] = False
+
+            # Store all comment IDs in the thread for context
+            metadata["thread_comment_ids"] = [c.get("id") for c in comments if c.get("id")]
+
+            logger.info(
+                "[GitHubWebhookHandler] Review thread %s: thread_id=%s, comment_id=%s, ai_source=%s",
+                payload.get("action"),
+                thread.get("id"),
+                first_comment.get("id"),
+                metadata.get("comment_ai_source", "human"),
+            )
 
         # Create normalized event
         event = WebhookEvent(

@@ -53,6 +53,12 @@ class WebhookEventType(Enum):
     # Issue: #3366 - CI Failure Reflex Integration
     CI_CHECK_COMPLETED = "ci_check_completed"
 
+    # Review Comment Feedback events
+    # EPIC B-18: Review Comment Feedback (Human-in-the-Loop Learning)
+    # These events capture human feedback signals on AI review comments
+    REVIEW_THREAD_RESOLVED = "review_thread_resolved"
+    REVIEW_THREAD_UNRESOLVED = "review_thread_unresolved"
+
     # Message events (Slack)
     MESSAGE_RECEIVED = "message_received"
     COMMAND_RECEIVED = "command_received"
