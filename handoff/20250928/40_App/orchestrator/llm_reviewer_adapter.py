@@ -1212,7 +1212,10 @@ class LLMReviewerAdapter:
             # P1 瘦身計畫 (#3197): Log LLM response bytes for resource profiling
             response_bytes = len(content.encode('utf-8')) if content else 0
             token_count = None
-            if response.usage:
+            # Fix TypeError: ensure response.usage is a dict before calling .get()
+            # This prevents "list indices must be integers or slices, not str" error
+            # when LLM provider returns usage in unexpected format
+            if response.usage and isinstance(response.usage, dict):
                 token_count = response.usage.get('completion_tokens') or response.usage.get('output_tokens')
             log_llm_response_bytes(
                 trace_id=self.trace_id,
