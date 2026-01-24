@@ -2476,6 +2476,18 @@ class Settings(BaseSettings):
         )
     )
 
+    review_feedback_confidence_threshold: float = Field(
+        default=0.7,
+        alias="REVIEW_FEEDBACK_CONFIDENCE_THRESHOLD",
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Minimum confidence threshold for storing review feedback in Knowledge Base (B-18.2). "
+            "Feedback with confidence below this threshold is not persisted. Default: 0.7 (high confidence). "
+            "Range: 0.0-1.0. Lower values store more feedback but may include noise."
+        )
+    )
+
     senior_coder_strict_schema_validation: bool = Field(
         default=False,
         alias="SENIOR_CODER_STRICT_SCHEMA_VALIDATION",

@@ -650,3 +650,228 @@ def get_feedback_collector(
         ReviewCommentFeedbackCollector instance
     """
     return ReviewCommentFeedbackCollector(trace_id=trace_id)
+
+
+# =============================================================================
+# B-18.2: Negative Example Storage
+# =============================================================================
+# These functions save review comment feedback to Memory v2 Knowledge Base
+# for future retrieval during reviews.
+
+# Confidence threshold for storing feedback (from EPIC B-18 spec)
+REVIEW_FEEDBACK_CONFIDENCE_THRESHOLD = 0.7
+
+
+def calculate_feedback_importance(
+    feedback: ReviewCommentFeedback,
+    pattern_frequency: float = 0.5,
+    impact_severity: float = 0.5,
+) -> float:
+    """
+    Calculate importance score for review feedback.
+
+    B-18.2.3: Importance scoring for feedback
+
+    Formula (from EPIC B-18 spec):
+    importance_score = (
+        feedback_confidence * 0.4 +     # How certain is the feedback?
+        pattern_frequency * 0.3 +       # How often does this pattern appear?
+        impact_severity * 0.3           # How impactful was this suggestion?
+    )
+
+    Args:
+        feedback: The ReviewCommentFeedback to score
+        pattern_frequency: How often this code pattern appears (0.0-1.0)
+        impact_severity: Based on original suggestion severity (0.0-1.0)
+
+    Returns:
+        Importance score (0.0 to 1.0)
+
+    Event Codes (greppable):
+        [FEEDBACK_IMPORTANCE_SCORED] - Importance score calculated
+    """
+    feedback_confidence = feedback.confidence
+
+    importance = (
+        feedback_confidence * 0.4 +
+        pattern_frequency * 0.3 +
+        impact_severity * 0.3
+    )
+
+    logger.debug(
+        "[FEEDBACK_IMPORTANCE_SCORED] comment_id=%s, importance=%.2f "
+        "(confidence=%.2f, frequency=%.2f, severity=%.2f)",
+        feedback.comment_id,
+        importance,
+        feedback_confidence,
+        pattern_frequency,
+        impact_severity,
+    )
+
+    return min(1.0, max(0.0, importance))
+
+
+def save_review_comment_feedback(
+    feedback: ReviewCommentFeedback,
+    pattern_frequency: float = 0.5,
+    impact_severity: float = 0.5,
+) -> bool:
+    """
+    Save review comment feedback to Memory v2 Knowledge Base.
+
+    B-18.2.2: Implement save_review_comment_feedback()
+
+    This function stores human feedback on AI review comments as either
+    positive (REVIEW_ACCEPTED) or negative (REVIEW_REJECTED) examples
+    in the Knowledge Base for future retrieval.
+
+    Args:
+        feedback: The ReviewCommentFeedback to save
+        pattern_frequency: How often this code pattern appears (0.0-1.0)
+        impact_severity: Based on original suggestion severity (0.0-1.0)
+
+    Returns:
+        True if saved successfully, False otherwise
+
+    Event Codes (greppable):
+        [FEEDBACK_SAVED] - Feedback saved to Knowledge Base
+        [FEEDBACK_SAVE_SKIPPED] - Feedback not saved (below threshold or disabled)
+        [FEEDBACK_SAVE_FAILED] - Failed to save feedback
+    """
+    if not settings.enable_review_comment_feedback:
+        logger.debug("[FEEDBACK_SAVE_SKIPPED] Feature flag disabled")
+        return False
+
+    # Only save feedback with sufficient confidence
+    threshold = settings.review_feedback_confidence_threshold
+    if feedback.confidence < threshold:
+        logger.debug(
+            "[FEEDBACK_SAVE_SKIPPED] Confidence %.2f below threshold %.2f",
+            feedback.confidence,
+            threshold,
+        )
+        return False
+
+    # Only save ACCEPTED or REJECTED feedback (not UNKNOWN, DISMISSED, CLARIFIED)
+    if feedback.classification not in (
+        FeedbackClassification.ACCEPTED,
+        FeedbackClassification.REJECTED,
+    ):
+        logger.debug(
+            "[FEEDBACK_SAVE_SKIPPED] Classification %s not saveable",
+            feedback.classification.value,
+        )
+        return False
+
+    try:
+        from memory.memory_v2 import (
+            MemoryEntry,
+            MemoryLayer,
+            MemoryScope,
+            get_memory_v2,
+        )
+        from memory.memory_consolidation import MemoryType
+
+        memory = get_memory_v2()
+        if memory is None:
+            logger.warning("[FEEDBACK_SAVE_FAILED] Memory v2 not available")
+            return False
+
+        # Determine memory type based on classification
+        if feedback.classification == FeedbackClassification.ACCEPTED:
+            memory_type = MemoryType.REVIEW_ACCEPTED
+        else:
+            memory_type = MemoryType.REVIEW_REJECTED
+
+        # Calculate importance score
+        importance = calculate_feedback_importance(
+            feedback,
+            pattern_frequency=pattern_frequency,
+            impact_severity=impact_severity,
+        )
+
+        # Build memory entry key
+        key = f"review_feedback:{feedback.repo}:{feedback.pr_number}:{feedback.comment_id}"
+
+        # Build content as natural language for better vector embedding
+        # This enables semantic similarity search in the Knowledge Base
+        suggestion_preview = (
+            feedback.comment_body[:200] if feedback.comment_body else "No suggestion text"
+        )
+        file_path = feedback.comment_path or "unknown file"
+        content = (
+            f"AI review suggestion feedback: The suggestion '{suggestion_preview}' "
+            f"for code at '{file_path}' was {feedback.classification.value}. "
+            f"Confidence: {feedback.confidence:.2f}. "
+            f"Signal source: {feedback.signal_source}. "
+            f"AI source: {feedback.ai_source}."
+        )
+
+        # Build metadata for filtering and retrieval
+        # Schema version enables future migrations
+        metadata = {
+            "schema_version": "1.0",
+            "type": memory_type.value,
+            "classification": feedback.classification.value,
+            "confidence": feedback.confidence,
+            "importance": importance,
+            "repo": feedback.repo,
+            "pr_number": feedback.pr_number,
+            "comment_id": feedback.comment_id,
+            "comment_path": feedback.comment_path,
+            "comment_line": feedback.comment_line,
+            "ai_source": feedback.ai_source,
+            "signal_source": feedback.signal_source,
+            "recorded_at": feedback.recorded_at,
+            "suggestion_text": feedback.comment_body[:500] if feedback.comment_body else "",
+        }
+
+        # Create memory entry
+        entry = MemoryEntry(
+            key=key,
+            content=content,
+            layer=MemoryLayer.KNOWLEDGE_BASE,
+            scope=MemoryScope.GLOBAL,
+            metadata=metadata,
+        )
+
+        # Save to Knowledge Base
+        success = memory.save(entry)
+
+        if success:
+            logger.info(
+                "[FEEDBACK_SAVED] Saved %s feedback: key=%s, importance=%.2f",
+                feedback.classification.value,
+                key,
+                importance,
+                extra={
+                    "key": key,
+                    "classification": feedback.classification.value,
+                    "confidence": feedback.confidence,
+                    "importance": importance,
+                    "repo": feedback.repo,
+                    "pr_number": feedback.pr_number,
+                    "comment_id": feedback.comment_id,
+                }
+            )
+        else:
+            logger.warning(
+                "[FEEDBACK_SAVE_FAILED] Failed to save feedback: key=%s",
+                key,
+            )
+
+        return success
+
+    except ImportError as e:
+        logger.warning(
+            "[FEEDBACK_SAVE_FAILED] Memory v2 import failed: %s",
+            str(e),
+        )
+        return False
+    except Exception as e:
+        logger.error(
+            "[FEEDBACK_SAVE_FAILED] Unexpected error saving feedback: %s",
+            str(e),
+            exc_info=True,
+        )
+        return False
