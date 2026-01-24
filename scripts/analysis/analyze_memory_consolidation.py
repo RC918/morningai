@@ -18,21 +18,29 @@ Usage:
     # Analyze logs from stdin (pipe from Render logs)
     render logs morningai-agent-worker | python scripts/analysis/analyze_memory_consolidation.py
 
-    # Generate test data for evaluation
-    python scripts/analysis/analyze_memory_consolidation.py --generate-test-data
+    # Generate test data for evaluation (requires PYTHONPATH setup)
+    PYTHONPATH=handoff/20250928/40_App/orchestrator:$PYTHONPATH \\
+        python scripts/analysis/analyze_memory_consolidation.py --generate-test-data
 
-    # Run a manual consolidation test (requires Redis connection)
-    python scripts/analysis/analyze_memory_consolidation.py --run-test
+    # Run a manual consolidation test (requires PYTHONPATH setup)
+    PYTHONPATH=handoff/20250928/40_App/orchestrator:$PYTHONPATH \\
+        python scripts/analysis/analyze_memory_consolidation.py --run-test
 """
 
 import argparse
 import json
+import os
 import re
 import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Dict, List, Optional, TextIO
+
+SCRIPT_VERSION = "1.0.0"
+
+SCORE_THRESHOLD_HIGH = 0.8
+SCORE_THRESHOLD_MEDIUM = 0.6
+SCORE_THRESHOLD_LOW = 0.5
 
 
 @dataclass
@@ -45,6 +53,7 @@ class ConsolidationRun:
     memories_evaluated: int = 0
     memories_consolidated: int = 0
     memories_skipped: int = 0
+    error_count: int = 0
     errors: List[str] = field(default_factory=list)
     dry_run_entries: List[Dict] = field(default_factory=list)
 
@@ -113,7 +122,7 @@ class MemoryConsolidationLogAnalyzer:
             if self.current_run:
                 self.current_run.memories_consolidated = int(match.group(2))
                 self.current_run.memories_skipped = int(match.group(3))
-                error_count = int(match.group(4))
+                self.current_run.error_count = int(match.group(4))
                 self.runs.append(self.current_run)
                 self.current_run = None
 
@@ -146,16 +155,16 @@ class MemoryConsolidationLogAnalyzer:
             result.total_evaluated += run.memories_evaluated
             result.total_consolidated += run.memories_consolidated
             result.total_skipped += run.memories_skipped
-            result.total_errors += len(run.errors)
+            result.total_errors += run.error_count
 
             for entry in run.dry_run_entries:
                 memory_types[entry["type"]] += 1
                 score = entry["score"]
-                if score >= 0.8:
+                if score >= SCORE_THRESHOLD_HIGH:
                     score_buckets["0.8-1.0 (high)"] += 1
-                elif score >= 0.6:
+                elif score >= SCORE_THRESHOLD_MEDIUM:
                     score_buckets["0.6-0.8 (medium-high)"] += 1
-                elif score >= 0.5:
+                elif score >= SCORE_THRESHOLD_LOW:
                     score_buckets["0.5-0.6 (threshold)"] += 1
                 else:
                     score_buckets["<0.5 (below threshold)"] += 1
@@ -231,13 +240,6 @@ def generate_test_data():
     print("\nGenerating test data for Memory Consolidation evaluation...")
 
     try:
-        import os
-        import sys
-        sys.path.insert(0, os.path.join(
-            os.path.dirname(__file__),
-            "../../handoff/20250928/40_App/orchestrator"
-        ))
-
         from memory.memory_v2 import (
             MemoryEntry,
             MemoryLayer,
@@ -346,13 +348,6 @@ def run_manual_test():
     print("\nRunning manual Memory Consolidation test...")
 
     try:
-        import os
-        import sys
-        sys.path.insert(0, os.path.join(
-            os.path.dirname(__file__),
-            "../../handoff/20250928/40_App/orchestrator"
-        ))
-
         from memory.memory_consolidation import get_consolidation_job
 
         job = get_consolidation_job()
@@ -442,6 +437,7 @@ def main():
 
     if args.json:
         output = {
+            "version": SCRIPT_VERSION,
             "total_runs": result.total_runs,
             "total_scanned": result.total_scanned,
             "total_evaluated": result.total_evaluated,
