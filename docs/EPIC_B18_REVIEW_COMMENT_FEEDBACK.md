@@ -82,6 +82,7 @@ However, it **cannot**:
    | Thumbs down reaction | REJECTED | High |
    | Reply contains "false positive" | REJECTED | High |
    | Reply contains "good catch" | ACCEPTED | High |
+   | Reply contains "?" or "what do you mean" | CLARIFIED | Medium |
    | No response after 24h | UNKNOWN | Low |
 
 ### B-18.2: Negative Example Storage
@@ -110,6 +111,7 @@ However, it **cannot**:
            "rejection_reason": "Python regex guarantees capture groups exist",
            "feedback": "rejected",
            "confidence": 0.9,
+           "recorded_at": 1737720000,  # Unix timestamp (seconds since epoch UTC)
        }),
        layer=MemoryLayer.KNOWLEDGE_BASE,
        metadata={
@@ -117,9 +119,12 @@ However, it **cannot**:
            "suggestion_category": "error_handling",
            "language": "python",
            "pattern_hash": hash_of_code_pattern,
+           "recorded_at": 1737720000,  # Duplicated for query efficiency
        },
    )
    ```
+   
+   **Note**: `recorded_at` uses Unix timestamp in seconds since epoch (UTC). This enables log correlation across services and temporal analysis of feedback patterns.
 
 3. **Importance Scoring for Feedback**
    ```python
@@ -130,6 +135,11 @@ However, it **cannot**:
        impact_severity * 0.3           # How bad was the false positive?
    )
    ```
+   
+   **Variable Definitions**:
+   - `rejection_confidence`: The confidence score from feedback classification (0.0-1.0)
+   - `pattern_frequency`: How often this code pattern appears in the codebase, normalized to 0.0-1.0 (e.g., 0.1 = rare, 0.9 = very common). Calculated by counting similar patterns in recent PRs.
+   - `impact_severity`: Based on the original suggestion's severity level, mapped to 0.0-1.0 (low=0.25, medium=0.5, high=0.75, critical=1.0). Higher severity false positives are more important to remember.
 
 ### B-18.3: Negative Pattern Retrieval
 
