@@ -39,3 +39,9 @@ REVIEWER_VERSION = "v1"
 LABEL_ORCHESTRATOR_DOCS = "orchestrator-docs"
 LABEL_ORCHESTRATOR_DOCS_TEST = "orchestrator-docs-test"
 LABEL_ORCHESTRATOR_APPROVED = "orchestrator-approved"
+
+# D-4 Test: Intentional lint error for CI failure auto-fix testing
+# This unused variable will trigger flake8 F841 error
+def d4_test_function():
+    unused_variable = "This variable is intentionally unused to trigger lint error"
+    return True
