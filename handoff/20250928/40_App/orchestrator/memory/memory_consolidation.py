@@ -51,6 +51,10 @@ class MemoryType(Enum):
     ROUTING_DECISION = "routing_decision"
     SAFETY_PATTERN = "safety_pattern"
     GENERAL = "general"
+    # B-18.2: Review Comment Feedback memory types
+    # These store human feedback on AI review comments for learning
+    REVIEW_ACCEPTED = "review_accepted"    # Human accepted AI suggestion
+    REVIEW_REJECTED = "review_rejected"    # Human rejected AI suggestion (false positive)
 
 
 @dataclass
