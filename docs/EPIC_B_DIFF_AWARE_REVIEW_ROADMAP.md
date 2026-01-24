@@ -779,6 +779,51 @@ ReviewOutcome {                        │
 
 ---
 
+### B-18: Review Comment Feedback (Human-in-the-Loop Learning)
+
+> **Type**: New Capability
+> **Issue**: TBD
+> **Effort**: High (9-14 days)
+> **Status**: Planning
+> **Detailed Spec**: [EPIC_B18_REVIEW_COMMENT_FEEDBACK.md](./EPIC_B18_REVIEW_COMMENT_FEEDBACK.md)
+
+**Problem**: Reviewer Agent produces false positives (e.g., suggesting error handling for Python regex matches where capture groups are guaranteed). The system accumulates positive experience but has no mechanism to learn "what NOT to suggest."
+
+**Solution**: Implement human feedback capture for review comments, storing rejected suggestions as negative examples in Memory v2.
+
+**Implementation Plan**:
+
+1. **B-18.1 Feedback Signal Capture**:
+   - Extend webhook handler for comment status changes (resolved/unresolved)
+   - Detect emoji reactions (thumbs up = accept, thumbs down = reject)
+   - Classify feedback: ACCEPTED, REJECTED, DISMISSED, CLARIFIED, UNKNOWN
+
+2. **B-18.2 Negative Example Storage**:
+   - Add `REVIEW_ACCEPTED` and `REVIEW_REJECTED` memory types
+   - Store rejected suggestions with code pattern, rejection reason, confidence
+   - High importance scoring for negative examples to prevent repetition
+
+3. **B-18.3 Negative Pattern Retrieval**:
+   - Extend `get_relevant_patterns()` to retrieve both positive and negative patterns
+   - Update review prompt with "Patterns to AVOID" section
+   - LLM instruction: "DO NOT repeat these suggestions for similar code patterns"
+
+4. **B-18.4 Feature Flags**:
+   - `ENABLE_REVIEW_COMMENT_FEEDBACK` (default: False)
+   - `ENABLE_NEGATIVE_PATTERN_RETRIEVAL` (default: False)
+   - `REVIEW_FEEDBACK_CONFIDENCE_THRESHOLD` (default: 0.7)
+
+**Critical Dependency**: B-18 should be implemented and enabled BEFORE enabling Memory Consolidation write mode (`MEMORY_CONSOLIDATION_DRY_RUN=FALSE`). This ensures the Knowledge Base captures both positive AND negative signals from day one.
+
+**Acceptance Criteria**:
+- [ ] Webhook handler captures comment feedback signals
+- [ ] Negative examples stored in Knowledge Base
+- [ ] Negative patterns retrieved during review
+- [ ] LLM prompt includes "patterns to avoid"
+- [ ] Feature flags for staged rollout
+
+---
+
 ## Phase 7-8 Dependencies
 
 ```
@@ -840,8 +885,9 @@ EPIC D Additions (from EPIC B):
 | B-11 | 3-5 days | B-9 | Planning (flagging only) | New Capability |
 | B-12 | 3-5 days | B-9 | Planning (flagging only) | New Capability |
 | B-13 | 7-10 days | B-9, EPIC G | Planning | New Capability |
+| B-18 | 9-14 days | EPIC G | Planning | New Capability |
 
-**Total Estimated Duration**: 3-5 weeks (can start immediately)
+**Total Estimated Duration**: 4-6 weeks (can start immediately)
 
 **Note (2026-01-11 CRITICAL CORRECTION)**: B-7 (Codebase Context) and B-8 (Semantic Understanding) were incorrectly placed in EPIC B. These are **Coder Agent capabilities** (EPIC D), NOT Reviewer capabilities. CodeIndexer, KnowledgeGraphManager, and LSP/AST are tools for the Coder Agent. The Reviewer Agent only needs to review the PR diff - it does NOT need to understand the entire codebase.
 

@@ -128,6 +128,7 @@ EPIC I (Runtime Governance) <-- Cross-cutting: monitors all LLM calls from A/B/C
 | B-11 | Test Coverage Flagging (Reviewer flags only, Test Agent v2 generates) | Planning |
 | B-12 | Dependency Analysis (Flagging Only, no fixes) | Planning |
 | B-13 | Real-time Feedback Loop (EPIC G Memory v2 dependency) | Planning |
+| B-18 | Review Comment Feedback (Human-in-the-Loop Learning) - [Spec](../EPIC_B18_REVIEW_COMMENT_FEEDBACK.md) | Planning |
 
 **Telemetry 說明**: EPIC B 實作了 Reviewer 相關的 telemetry 欄位（trace_id, fallback_reason, drift metrics），這是 Blueprint 5.2 Telemetry v2 願景的一部分。完整的 Telemetry v2（執行軌跡重建、多代理回放）屬於 Infrastructure Layer，跨越多個 EPIC。
 
