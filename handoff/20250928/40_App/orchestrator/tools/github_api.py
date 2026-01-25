@@ -2003,7 +2003,9 @@ def get_check_run_logs(
                     if check_run.conclusion in failure_conclusions:
                         # If failed_check_name is provided, try to match
                         if failed_check_name:
-                            if failed_check_name.lower() in check_run.name.lower():
+                            # Guard against None name (follows codebase pattern)
+                            check_run_name = check_run.name.lower() if check_run.name else ""
+                            if failed_check_name.lower() in check_run_name:
                                 target_check_run = check_run
                                 break
                         else:
@@ -2070,7 +2072,8 @@ def get_check_run_logs(
                 error_lines = []
                 for ann in annotation_data[:10]:  # Limit to first 10 annotations
                     if ann.get("path") and ann.get("message"):
-                        line = ann.get("start_line", 0)
+                        # Use `or 0` instead of default param since key exists with None value
+                        line = ann.get("start_line") or 0
                         error_lines.append(f"{ann['path']}:{line}: {ann['message'][:200]}")
                 if error_lines:
                     result["logs"] = "\n".join(error_lines)
