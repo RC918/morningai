@@ -1,18 +1,6 @@
 {
-                "aiPolicies": {
-                  "list": {
-                    "policyCount": "{{count}} policy",
-                    "policyCount_plural": "{{count}} policies"
-                  },
-                  "subtitle": "Configure AI governance policies and compliance rules",
-                  "title": "AI Policies"
-                },
-        "failureExperiment": {
-          "subtitle": "Test system resilience with controlled failure scenarios",
-          "title": "Failure Experiments"
-        },
-        "agentEvaluation": {
-      "belowTarget": "Below Target",
+  "agentEvaluation": {
+    "belowTarget": "Below Target",
     "history": {
       "ciPassed": "CI Passed",
       "completed": "Completed",
@@ -97,100 +85,58 @@
     "logoutSuccess": "Logout successful",
     "rememberMe": "Remember me"
   },
-    "common": {
-            "accessDenied": {
-              "message": "You don't have permission to access this feature. Please contact your administrator if you believe this is an error.",
-              "messageWithRole": "This feature requires {{role}} access. Please contact your administrator if you need access.",
-              "title": "Access Restricted"
-            },
-            "roles": {
-              "platformAdmin": "Platform Admin"
-            },
-            "cancel": "Cancel",
-      "changeLanguage": "Change language",
-      "delete": "Delete",
-      "edit": "Edit",
-      "error": "Error",
-      "export": "Export",
-      "fail": "✗ Fail",
-      "filter": "Filter",
-      "idShort": "ID: {{id}}",
-      "loading": "Loading...",
-      "ms": "ms",
-      "na": "N/A",
-      "pass": "✓ Pass",
-      "refresh": "Refresh",
-      "retry": "Retry",
-      "save": "Save",
-      "search": "Search",
-      "success": "Success",
-      "usage": "Usage",
-      "view": "View"
+  "common": {
+    "cancel": "Cancel",
+    "changeLanguage": "Change language",
+    "delete": "Delete",
+    "edit": "Edit",
+    "error": "Error",
+    "export": "Export",
+    "fail": "✗ Fail",
+    "filter": "Filter",
+    "idShort": "ID: {{id}}",
+    "loading": "Loading...",
+    "ms": "ms",
+    "na": "N/A",
+    "pass": "✓ Pass",
+    "refresh": "Refresh",
+    "retry": "Retry",
+    "save": "Save",
+    "search": "Search",
+    "success": "Success",
+    "usage": "Usage",
+    "view": "View"
+  },
+  "dashboard": {
+    "recentActivity": {
+      "agentDeployed": "Agent deployed",
+      "maintenanceScheduled": "System maintenance scheduled",
+      "newTenant": "New tenant registered",
+      "subtitle": "Latest platform events and changes",
+      "title": "Recent Activity"
     },
-    "dashboard": {
-      "2fa": {
-        "prompt": {
-          "description": "As an owner, we strongly recommend enabling 2FA to protect your account and platform.",
-          "setupButton": "Set Up 2FA",
-          "title": "Two-Factor Authentication Not Enabled"
-        }
-      },
-            "recentActivity": {
-              "agentDeployed": "Agent deployed",
-              "maintenanceScheduled": "System maintenance scheduled",
-              "newTenant": "New tenant registered",
-              "placeholder": {
-                "acme": "Acme Corp joined the platform",
-                "maintenance": "Scheduled for tomorrow at 2:00 AM UTC",
-                "opsAgent": "OpsAgent v2.1 deployed to production"
-              },
-              "subtitle": "Latest platform events and changes",
-              "time": {
-                "5min": "5 min ago",
-                "30min": "30 min ago",
-                "1hour": "1 hour ago"
-              },
-              "title": "Recent Activity"
-            },
-        "stats": {
-          "acrossAllTenants": "Across all tenants",
-          "activeAgents": "Active Agents",
-          "allSystemsOperational": "All systems operational",
-          "crossTenant": "Cross-tenant",
-          "monthlyCost": "Monthly Cost",
-          "platformWideUsage": "Platform-wide usage",
-          "systemHealth": "System Health",
-          "thisMonth": "this month",
-          "totalTenants": "Total Tenants"
-        },
+    "stats": {
+      "acrossAllTenants": "Across all tenants",
+      "activeAgents": "Active Agents",
+      "allSystemsOperational": "All systems operational",
+      "monthlyCost": "Monthly Cost",
+      "platformWideUsage": "Platform-wide usage",
+      "systemHealth": "System Health",
+      "thisMonth": "this month",
+      "totalTenants": "Total Tenants"
+    },
     "subtitle": "Monitor your MorningAI platform at a glance",
-      "systemStatus": {
-        "apiBackend": "API Backend",
-        "database": "Database",
-        "healthy": "Healthy",
-        "redisCache": "Redis Cache",
-        "subtitle": "Infrastructure health and performance",
-        "title": "System Status",
-        "workerNodes": "Worker Nodes"
-      },
-                  "projectProgress": {
-                    "title": "Project Progress",
-                    "subtitle": "Track ongoing platform initiatives",
-                    "agentDeployment": "Agent Deployment",
-                    "dataIntegration": "Data Integration",
-                    "securityAudit": "Security Audit",
-                    "performanceOptimization": "Performance Optimization",
-                    "hints": {
-                      "agentDeployment": "Core workflow integrated with Orchestrator",
-                      "dataIntegration": "RLS Phase 3 complete, reports in progress",
-                      "securityAudit": "2FA/TOTP live, RLS testing ongoing",
-                      "performanceOptimization": "LangGraph canary, Redis Checkpointer tuning"
-                    }
-                  },
-                        "seeAll": "See all",
-                        "title": "Platform Overview",
-                        "pageTitle": "Dashboard"
+    "systemStatus": {
+      "apiBackend": "API Backend",
+      "database": "Database",
+      "healthy": "Healthy",
+      "redisCache": "Redis Cache",
+      "subtitle": "Infrastructure health and performance",
+      "title": "System Status",
+      "workerNodes": "Worker Nodes"
     },
+    "title": "Platform Overview"
+  },
   "governance": {
     "agents": {
       "noAgents": "No agents found",
@@ -418,285 +364,16 @@
     "usedTotal": "Used/Total",
     "workers": "Workers"
   },
-        "header": {
-          "defaultRole": "Platform Owner",
-          "defaultUser": "Owner",
-          "help": "Help",
-          "notifications": "Notifications",
-          "searchPlaceholder": "Search...",
-          "settings": "Settings",
-          "userMenu": "User menu"
-        },
-                "nav": {
-                  "aiPolicies": "AI Policies",
-                  "approvalQueue": "Approval Queue",
-                  "dashboard": "Dashboard",
-                  "failureExperiments": "Failure Experiments",
-                  "governance": "Agent Governance",
-                  "logout": "Logout",
-                  "mainNavigation": "Main navigation",
-                  "monitoring": "System Monitoring",
-                  "sessions": "Agent Sessions",
-                  "settings": "Platform Settings",
-                  "tenants": "Tenant Management",
-                  "uxMetrics": "UX Metrics"
-                },
-          "sessions": {
-            "title": "Agent Sessions",
-            "subtitle": "Monitor and manage Meta Agent task execution sessions",
-            "error": {
-              "loadFailed": "Failed to load sessions",
-              "title": "Execution Failed",
-              "pauseFailed": "Failed to pause session",
-              "resumeFailed": "Failed to resume session",
-              "cancelFailed": "Failed to cancel session",
-              "saveTaskFailed": "Failed to save task",
-              "deleteTaskFailed": "Failed to delete task",
-              "reorderFailed": "Failed to reorder tasks"
-            },
-            "filter": {
-              "all": "All",
-              "running": "Running",
-              "paused": "Paused",
-              "completed": "Completed",
-              "failed": "Failed"
-            },
-              "list": {
-                "title": "Sessions",
-                "noSessions": "No sessions found",
-                "empty": "No Sessions",
-                "emptySubtitle": "No sessions match the current filter"
-              },
-              "details": {
-                "title": "Session Details",
-                "subtitle": "Select a session from the list"
-              },
-            "status": {
-              "running": "Running",
-              "paused": "Paused",
-              "completed": "Completed",
-              "failed": "Failed"
-            },
-            "needsApproval": "Needs Approval",
-            "confidence": "Confidence",
-            "time": {
-              "justNow": "just now",
-              "minutesAgo": "{{count}}m ago",
-              "hoursAgo": "{{count}}h ago"
-            },
-            "selectSession": "Select a session to view details",
-            "actions": {
-              "pause": "Pause",
-              "resume": "Resume",
-              "cancel": "Cancel",
-              "approve": "Approve"
-            },
-            "tabs": {
-              "plan": "Task Plan",
-              "codeReview": "Code Review",
-              "tests": "Tests",
-              "logs": "Activity Log",
-              "insights": "Insights"
-            },
-            "insights": {
-              "title": "Session Insights",
-              "fetchError": "Failed to load session insights",
-              "serviceUnavailable": "DeepWiki service is not available",
-              "cached": "Cached",
-              "generated": "Generated",
-              "errorTitle": "Unable to load insights",
-              "noInsights": "No insights available for this session",
-              "refresh": "Refresh insights",
-              "summary": "Summary",
-              "tasksCompleted": "Completed",
-              "tasksFailed": "Failed",
-              "duration": "Duration",
-              "durationValue": "{{count}}m",
-              "confidence": "Confidence",
-              "recommendations": "Recommendations",
-              "lastUpdated": "Last updated"
-            },
-            "codeReview": {
-              "title": "Code Review",
-              "noPR": "No pull request created yet",
-              "prStatus": "PR Status",
-              "checks": "CI Checks",
-              "checksStatus": "{{passed}}/{{total}} checks passed",
-              "fileChanges": "File Changes",
-              "reviewers": "Reviewers",
-              "comments": "Review Comments",
-              "noComments": "No review comments",
-              "status": {
-                "pending": "Pending",
-                "approved": "Approved",
-                "changes_requested": "Changes Requested",
-                "merged": "Merged",
-                "closed": "Closed"
-              }
-            },
-            "tests": {
-              "title": "Test Results",
-              "noResults": "No test results available",
-              "summary": "Test Summary",
-              "passRate": "Pass Rate",
-              "duration": "Duration",
-              "total": "Total",
-              "passed": "Passed",
-              "failed": "Failed",
-              "skipped": "Skipped",
-              "suites": "Test Suites",
-              "running": "Running..."
-            },
-            "confidenceLevel": {
-              "high": "High",
-              "medium": "Medium",
-              "low": "Low"
-            },
-            "confidenceApproval": {
-              "title": "Confidence Review",
-              "score": "Confidence Score",
-              "threshold": "Threshold",
-              "meetsThreshold": "Meets Threshold",
-              "belowThreshold": "Below Threshold",
-              "factors": "Contributing Factors",
-              "riskLevel": "Risk Level",
-              "currentTask": "Current Task",
-              "comment": "Comment",
-              "commentPlaceholder": "Add any notes or feedback...",
-              "approve": "Approve & Continue",
-              "requestChanges": "Request Changes",
-              "lowConfidenceWarning": "The confidence score is below the threshold. Review the factors above and consider requesting changes if needed."
-            },
-            "diff": {
-              "noChanges": "No changes to display",
-              "additions": "additions",
-              "deletions": "deletions"
-            },
-            "plan": {
-              "progress": "Progress",
-              "tasks": "tasks",
-              "editMode": "Edit Plan",
-              "editModeOn": "Editing",
-              "addTask": "Add Task"
-            },
-            "approval": {
-              "title": "Approval Required",
-              "review": "Review",
-              "approve": "Approve",
-              "reject": "Reject",
-              "comment": "Comment",
-              "commentPlaceholder": "Add a comment for the audit log...",
-              "riskLevel": "Risk Level",
-              "affectedResources": "Affected Resources",
-              "risk": {
-                "low": "LOW",
-                "medium": "MEDIUM",
-                "high": "HIGH",
-                "critical": "CRITICAL"
-              },
-              "errors": {
-                "approveFailed": "Failed to approve task",
-                "rejectFailed": "Failed to reject task"
-              }
-            },
-            "task": {
-              "started": "Started",
-              "completed": "Completed",
-              "duration": "Duration",
-              "approve": "Approve",
-              "edit": "Edit Task"
-            },
-            "taskEditor": {
-              "titleNew": "Add New Task",
-              "titleEdit": "Edit Task",
-              "name": "Task Name",
-              "namePlaceholder": "Enter task name...",
-              "description": "Description",
-              "descriptionPlaceholder": "Add details about this task...",
-              "type": "Task Type",
-              "errors": {
-                "nameRequired": "Task name is required",
-                "nameTooLong": "Task name must be less than 200 characters"
-              }
-            },
-            "taskType": {
-              "ANALYZE_CODE": "Analyze",
-              "SETUP_ENVIRONMENT": "Setup",
-              "WRITE_CODE": "Code",
-              "WRITE_TEST": "Test",
-              "RUN_TEST": "Run Test",
-              "CODE_REVIEW": "Review",
-              "DOCUMENTATION": "Docs",
-              "DEPLOYMENT": "Deploy",
-              "VERIFICATION": "Verify",
-              "CLEANUP": "Cleanup"
-            },
-            "startedAt": "Started",
-            "viewPR": "View Pull Request",
-            "autoRefresh": {
-              "label": "Auto",
-              "enabled": "Auto-refresh enabled (10s)",
-              "disabled": "Auto-refresh disabled"
-            },
-            "command": {
-              "quickActions": "Quick actions:",
-              "placeholder": "Type a command or instruction...",
-              "inputLabel": "Command input",
-              "send": "Send command",
-              "collapse": "Collapse input",
-              "hint": "Press Enter to send, Shift+Enter for new line, Esc to cancel",
-              "quick": {
-                "continue": "Continue",
-                "explain": "Explain current step",
-                "skip": "Skip this task",
-                "retry": "Retry last action"
-              },
-              "error": {
-                "sendFailed": "Failed to send command"
-              }
-            }
-          },
-          "approvalQueue": {
-            "title": "Approval Queue",
-            "subtitle": "Review high-risk actions requiring human approval",
-            "viewDetails": "View Details",
-            "lastUpdated": "Last updated",
-            "autoRefresh": "Auto-refresh",
-            "stats": {
-              "pending": "Pending",
-              "critical": "Critical",
-              "high": "High Risk",
-              "medium": "Medium/Low"
-            },
-            "tabs": {
-              "pending": "Pending Approvals",
-              "details": "Request Details"
-            },
-            "pending": {
-              "title": "Pending Action Requests",
-              "subtitle": "Actions awaiting your approval before execution",
-              "noRequests": "No pending approval requests"
-            },
-            "details": {
-              "selectRequest": "Select a request from the pending list to view details",
-              "agent": "Agent",
-              "created": "Created",
-              "timeout": "Timeout",
-              "traceId": "Trace ID",
-              "description": "Description",
-              "riskReason": "Risk Reason",
-              "affectedResources": "Affected Resources",
-              "actionPayload": "Action Payload",
-              "rejectionReason": "Rejection Reason (optional)",
-              "rejectionReasonLabel": "Rejection Reason (for audit trail)",
-              "rejectionReasonPlaceholder": "Enter reason for rejection...",
-              "rejectionReasonHint": "Provide a reason to help with audit trail and future reference"
-            },
-            "actions": {
-              "approving": "Approving...",
-              "rejecting": "Rejecting..."
-            }
-          },
+  "nav": {
+    "dashboard": "Dashboard",
+    "governance": "Agent Governance",
+    "logout": "Logout",
+    "mainNavigation": "Main navigation",
+    "monitoring": "System Monitoring",
+    "settings": "Platform Settings",
+    "tenants": "Tenant Management",
+    "uxMetrics": "UX Metrics"
+  },
   "settings": {
     "2fa": {
       "actions": {
@@ -823,7 +500,6 @@
     "addTenant": "Add Tenant",
     "agents": "agents",
     "allTenants": "All registered tenant organizations",
-    "noTenants": "No tenants found",
     "subtitle": "Manage tenant accounts and permissions",
     "suspended": "suspended",
     "title": "Tenant Management",

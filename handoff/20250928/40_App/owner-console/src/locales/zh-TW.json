@@ -1,17 +1,6 @@
 {
-                "aiPolicies": {
-                  "list": {
-                    "policyCount": "{{count}} 項政策"
-                  },
-                  "subtitle": "配置 AI 治理政策與合規規則",
-                  "title": "AI 政策"
-                },
-        "failureExperiment": {
-          "subtitle": "使用受控故障場景測試系統韌性",
-          "title": "故障實驗"
-        },
-        "agentEvaluation": {
-      "belowTarget": "未達標",
+  "agentEvaluation": {
+    "belowTarget": "未達標",
     "history": {
       "ciPassed": "CI 通過",
       "completed": "已完成",
@@ -96,36 +85,28 @@
     "logoutSuccess": "登出成功",
     "rememberMe": "記住我"
   },
-    "common": {
-            "accessDenied": {
-              "message": "您沒有權限存取此功能。如果您認為這是錯誤，請聯繫您的管理員。",
-              "messageWithRole": "此功能需要{{role}}權限。如果您需要存取權限，請聯繫您的管理員。",
-              "title": "存取受限"
-            },
-            "roles": {
-              "platformAdmin": "平台管理員"
-            },
-            "cancel": "取消",
-      "changeLanguage": "切換語言",
-      "delete": "刪除",
-      "edit": "編輯",
-      "error": "錯誤",
-      "export": "匯出",
-      "fail": "✗ 失敗",
-      "filter": "篩選",
-      "idShort": "ID：{{id}}",
-      "loading": "載入中...",
-      "ms": "毫秒",
-      "na": "不適用",
-      "pass": "✓ 通過",
-      "refresh": "重新整理",
-      "retry": "重試",
-      "save": "儲存",
-      "search": "搜尋",
-      "success": "成功",
-      "usage": "使用量",
-      "view": "檢視"
-    },
+  "common": {
+    "cancel": "取消",
+    "changeLanguage": "切換語言",
+    "delete": "刪除",
+    "edit": "編輯",
+    "error": "錯誤",
+    "export": "匯出",
+    "fail": "✗ 失敗",
+    "filter": "篩選",
+    "idShort": "ID：{{id}}",
+    "loading": "載入中...",
+    "ms": "毫秒",
+    "na": "不適用",
+    "pass": "✓ 通過",
+    "refresh": "重新整理",
+    "retry": "重試",
+    "save": "儲存",
+    "search": "搜尋",
+    "success": "成功",
+    "usage": "使用量",
+    "view": "檢視"
+  },
   "dashboard": {
     "2fa": {
       "prompt": {
@@ -134,62 +115,35 @@
         "title": "尚未啟用雙重驗證 (2FA)"
       }
     },
-                "recentActivity": {
-                  "agentDeployed": "Agent 已部署",
-                  "maintenanceScheduled": "系統維護已排程",
-                  "newTenant": "新租戶註冊",
-                  "placeholder": {
-                    "acme": "Acme Corp 加入平台",
-                    "maintenance": "排程於明天凌晨 2:00 UTC",
-                    "opsAgent": "OpsAgent v2.1 已部署至正式環境"
-                  },
-                  "subtitle": "最新的平台事件與變更",
-                  "time": {
-                    "5min": "5 分鐘前",
-                    "30min": "30 分鐘前",
-                    "1hour": "1 小時前"
-                  },
-                  "title": "最近活動"
-                },
-        "stats": {
-          "acrossAllTenants": "跨所有租戶",
-          "activeAgents": "活躍 Agents",
-          "allSystemsOperational": "所有系統正常運作",
-          "crossTenant": "跨租戶",
-          "monthlyCost": "每月成本",
-          "platformWideUsage": "平台全域使用量",
-          "systemHealth": "系統健康度",
-          "thisMonth": "本月",
-          "totalTenants": "總租戶數"
-        },
-    "subtitle": "一目了然地監控您的 MorningAI 平台",
-      "systemStatus": {
-        "apiBackend": "API 後端",
-        "database": "資料庫",
-        "healthy": "健康",
-        "redisCache": "Redis 快取",
-        "subtitle": "基礎設施健康狀態與效能",
-        "title": "系統狀態",
-        "workerNodes": "Worker 節點"
-      },
-                  "projectProgress": {
-                    "title": "專案進度",
-                    "subtitle": "追蹤進行中的平台計畫",
-                    "agentDeployment": "Agent 部署",
-                    "dataIntegration": "資料整合",
-                    "securityAudit": "安全稽核",
-                    "performanceOptimization": "效能優化",
-                    "hints": {
-                      "agentDeployment": "核心工作流程已與 Orchestrator 整合",
-                      "dataIntegration": "RLS 第三階段完成，報表進行中",
-                      "securityAudit": "2FA/TOTP 已上線，RLS 測試進行中",
-                      "performanceOptimization": "LangGraph 金絲雀版本，Redis Checkpointer 調校中"
-                    }
-                  },
-                        "seeAll": "查看全部",
-                        "title": "平台概覽",
-                        "pageTitle": "儀表板"
+    "recentActivity": {
+      "agentDeployed": "Agent 已部署",
+      "maintenanceScheduled": "系統維護已排程",
+      "newTenant": "新租戶註冊",
+      "subtitle": "最新的平台事件與變更",
+      "title": "最近活動"
     },
+    "stats": {
+      "acrossAllTenants": "跨所有租戶",
+      "activeAgents": "活躍 Agents",
+      "allSystemsOperational": "所有系統正常運作",
+      "monthlyCost": "每月成本",
+      "platformWideUsage": "平台全域使用量",
+      "systemHealth": "系統健康度",
+      "thisMonth": "本月",
+      "totalTenants": "總租戶數"
+    },
+    "subtitle": "一目了然地監控您的 MorningAI 平台",
+    "systemStatus": {
+      "apiBackend": "API 後端",
+      "database": "資料庫",
+      "healthy": "健康",
+      "redisCache": "Redis 快取",
+      "subtitle": "基礎設施健康狀態與效能",
+      "title": "系統狀態",
+      "workerNodes": "Worker 節點"
+    },
+    "title": "平台概覽"
+  },
   "governance": {
     "agents": {
       "noAgents": "找不到 agents",
@@ -417,286 +371,16 @@
     "usedTotal": "已用/總量",
     "workers": "Workers"
   },
-        "header": {
-          "defaultRole": "平台擁有者",
-          "defaultUser": "Owner",
-          "help": "說明",
-          "notifications": "通知",
-          "searchPlaceholder": "搜尋...",
-          "settings": "設定",
-          "userMenu": "使用者選單"
-        },
-                "nav": {
-                  "aiPolicies": "AI 政策",
-                  "approvalQueue": "審核佇列",
-                  "dashboard": "儀表板",
-                  "failureExperiments": "故障實驗",
-                  "governance": "Agent 治理",
-                  "logout": "登出",
-                  "mainNavigation": "主導覽",
-                  "monitoring": "系統監控",
-                  "providerHealth": "Provider 健康",
-                  "sessions": "Agent 會話",
-                            "settings": "帳戶設定",
-                            "tenants": "租戶管理",
-                  "uxMetrics": "UX 指標"
-                },
-        "sessions": {
-          "title": "Agent 會話",
-          "subtitle": "監控與管理 Meta Agent 任務執行會話",
-          "error": {
-            "loadFailed": "載入會話失敗",
-            "title": "執行失敗",
-            "pauseFailed": "暫停會話失敗",
-            "resumeFailed": "繼續會話失敗",
-            "cancelFailed": "取消會話失敗",
-            "saveTaskFailed": "儲存任務失敗",
-            "deleteTaskFailed": "刪除任務失敗",
-            "reorderFailed": "重新排序任務失敗"
-          },
-          "filter": {
-            "all": "全部",
-            "running": "執行中",
-            "paused": "已暫停",
-            "completed": "已完成",
-            "failed": "失敗"
-          },
-          "list": {
-            "title": "會話列表",
-            "noSessions": "找不到會話",
-            "empty": "沒有會話",
-            "emptySubtitle": "沒有符合目前篩選條件的會話"
-          },
-          "details": {
-            "title": "會話詳情",
-            "subtitle": "從列表中選擇一個會話"
-          },
-          "status": {
-            "running": "執行中",
-            "paused": "已暫停",
-            "completed": "已完成",
-            "failed": "失敗"
-          },
-          "needsApproval": "需要審核",
-          "confidence": "信心度",
-          "time": {
-            "justNow": "剛剛",
-            "minutesAgo": "{{count}} 分鐘前",
-            "hoursAgo": "{{count}} 小時前"
-          },
-          "selectSession": "選擇一個會話以查看詳情",
-          "actions": {
-            "pause": "暫停",
-            "resume": "繼續",
-            "cancel": "取消",
-            "approve": "核准"
-          },
-          "tabs": {
-            "plan": "任務計劃",
-            "codeReview": "程式碼審查",
-            "tests": "測試結果",
-            "logs": "活動日誌",
-            "insights": "洞察分析"
-          },
-          "insights": {
-            "title": "會話洞察",
-            "fetchError": "載入會話洞察失敗",
-            "serviceUnavailable": "DeepWiki 服務目前無法使用",
-            "cached": "快取",
-            "generated": "即時產生",
-            "errorTitle": "無法載入洞察",
-            "noInsights": "此會話沒有可用的洞察分析",
-            "refresh": "重新整理洞察",
-            "summary": "摘要",
-            "tasksCompleted": "已完成",
-            "tasksFailed": "失敗",
-            "duration": "執行時間",
-            "durationValue": "{{count}} 分鐘",
-            "confidence": "信心度",
-            "recommendations": "建議",
-            "lastUpdated": "最後更新"
-          },
-          "codeReview": {
-            "title": "程式碼審查",
-            "noPR": "尚未建立 Pull Request",
-            "prStatus": "PR 狀態",
-            "checks": "CI 檢查",
-            "checksStatus": "{{passed}}/{{total}} 項檢查通過",
-            "fileChanges": "檔案變更",
-            "reviewers": "審查者",
-            "comments": "審查評論",
-            "noComments": "沒有審查評論",
-            "status": {
-              "pending": "待審核",
-              "approved": "已核准",
-              "changes_requested": "需要修改",
-              "merged": "已合併",
-              "closed": "已關閉"
-            }
-          },
-          "tests": {
-            "title": "測試結果",
-            "noResults": "沒有可用的測試結果",
-            "summary": "測試摘要",
-            "passRate": "通過率",
-            "duration": "執行時間",
-            "total": "總計",
-            "passed": "通過",
-            "failed": "失敗",
-            "skipped": "跳過",
-            "suites": "測試套件",
-            "running": "執行中..."
-          },
-          "confidenceLevel": {
-            "high": "高",
-            "medium": "中",
-            "low": "低"
-          },
-          "confidenceApproval": {
-            "title": "信心度審核",
-            "score": "信心分數",
-            "threshold": "閾值",
-            "meetsThreshold": "達到閾值",
-            "belowThreshold": "低於閾值",
-            "factors": "影響因素",
-            "riskLevel": "風險等級",
-            "currentTask": "目前任務",
-            "comment": "備註",
-            "commentPlaceholder": "新增備註或回饋...",
-            "approve": "核准並繼續",
-            "requestChanges": "要求修改",
-            "lowConfidenceWarning": "信心分數低於閾值。請檢視上方因素，並考慮是否需要要求修改。"
-          },
-          "diff": {
-            "noChanges": "沒有變更可顯示",
-            "additions": "新增",
-            "deletions": "刪除"
-          },
-          "plan": {
-            "progress": "進度",
-            "tasks": "個任務",
-            "editMode": "編輯計劃",
-            "editModeOn": "編輯中",
-            "addTask": "新增任務"
-          },
-          "approval": {
-            "title": "需要審核",
-            "review": "審核",
-            "approve": "核准",
-            "reject": "拒絕",
-            "comment": "備註",
-            "commentPlaceholder": "新增備註至審計日誌...",
-            "riskLevel": "風險等級",
-            "affectedResources": "受影響資源",
-            "risk": {
-              "low": "低",
-              "medium": "中",
-              "high": "高",
-              "critical": "嚴重"
-            },
-            "errors": {
-              "approveFailed": "核准任務失敗",
-              "rejectFailed": "拒絕任務失敗"
-            }
-          },
-          "task": {
-            "started": "開始時間",
-            "completed": "完成時間",
-            "duration": "持續時間",
-            "approve": "核准",
-            "edit": "編輯任務"
-          },
-          "taskEditor": {
-            "titleNew": "新增任務",
-            "titleEdit": "編輯任務",
-            "name": "任務名稱",
-            "namePlaceholder": "輸入任務名稱...",
-            "description": "描述",
-            "descriptionPlaceholder": "新增任務詳情...",
-            "type": "任務類型",
-            "errors": {
-              "nameRequired": "任務名稱為必填",
-              "nameTooLong": "任務名稱不得超過 200 字元"
-            }
-          },
-          "taskType": {
-            "ANALYZE_CODE": "分析",
-            "SETUP_ENVIRONMENT": "設定",
-            "WRITE_CODE": "編碼",
-            "WRITE_TEST": "測試",
-            "RUN_TEST": "執行測試",
-            "CODE_REVIEW": "審查",
-            "DOCUMENTATION": "文件",
-            "DEPLOYMENT": "部署",
-            "VERIFICATION": "驗證",
-            "CLEANUP": "清理"
-          },
-          "startedAt": "開始時間",
-          "viewPR": "查看 Pull Request",
-          "autoRefresh": {
-            "label": "自動",
-            "enabled": "自動刷新已啟用 (10秒)",
-            "disabled": "自動刷新已停用"
-          },
-          "command": {
-            "quickActions": "快速操作：",
-            "placeholder": "輸入指令或說明...",
-            "inputLabel": "指令輸入",
-            "send": "發送指令",
-            "collapse": "收合輸入",
-            "hint": "按 Enter 發送，Shift+Enter 換行，Esc 取消",
-            "quick": {
-              "continue": "繼續",
-              "explain": "說明目前步驟",
-              "skip": "跳過此任務",
-              "retry": "重試上一個操作"
-            },
-            "error": {
-              "sendFailed": "發送指令失敗"
-            }
-          }
-        },
-        "approvalQueue": {
-          "title": "審核佇列",
-          "subtitle": "審核需要人工授權的高風險操作",
-          "viewDetails": "查看詳情",
-          "lastUpdated": "最後更新",
-          "autoRefresh": "自動刷新",
-          "stats": {
-            "pending": "待審核",
-            "critical": "嚴重",
-            "high": "高風險",
-            "medium": "中/低風險"
-          },
-          "tabs": {
-            "pending": "待審核項目",
-            "details": "請求詳情"
-          },
-          "pending": {
-            "title": "待審核操作請求",
-            "subtitle": "等待您核准後才會執行的操作",
-            "noRequests": "沒有待審核的請求"
-          },
-          "details": {
-            "selectRequest": "從待審核清單中選擇一個請求以查看詳情",
-            "agent": "Agent",
-            "created": "建立時間",
-            "timeout": "逾時",
-            "traceId": "追蹤 ID",
-            "description": "描述",
-            "riskReason": "風險原因",
-            "affectedResources": "受影響的資源",
-            "actionPayload": "操作內容",
-            "rejectionReason": "拒絕原因（選填）",
-            "rejectionReasonLabel": "拒絕原因（用於審計追蹤）",
-            "rejectionReasonPlaceholder": "輸入拒絕原因...",
-            "rejectionReasonHint": "提供原因以協助審計追蹤和未來參考"
-          },
-          "actions": {
-            "approving": "核准中...",
-            "rejecting": "拒絕中..."
-          }
-        },
+  "nav": {
+    "dashboard": "儀表板",
+    "governance": "Agent 治理",
+    "logout": "登出",
+    "mainNavigation": "主導覽",
+    "monitoring": "系統監控",
+    "settings": "平台設定",
+    "tenants": "租戶管理",
+    "uxMetrics": "UX 指標"
+  },
   "settings": {
     "2fa": {
       "actions": {
@@ -813,9 +497,9 @@
       "subtitle": "配置安全與合規設定",
       "title": "安全政策"
     },
-      "subtitle": "配置平台全域設定與政策",
-      "title": "帳戶設定"
-    },
+    "subtitle": "配置平台全域設定與政策",
+    "title": "平台設定"
+  },
   "sidebar": {
     "collapse": "收起側邊欄",
     "expand": "展開側邊欄",
@@ -830,7 +514,6 @@
     "addTenant": "新增租戶",
     "agents": "個 agents",
     "allTenants": "所有已註冊的租戶組織",
-    "noTenants": "找不到租戶",
     "subtitle": "管理租戶帳戶與權限",
     "suspended": "已暫停",
     "title": "租戶管理",
@@ -876,34 +559,5 @@
     "totalPRs": "總 PR 數",
     "vrtMismatch": "VRT 不匹配",
     "vrtTests": "VRT 測試"
-  },
-  "providerHealth": {
-    "title": "Provider 健康儀表板",
-    "subtitle": "監控 LLM Provider 的即時健康狀態",
-    "metricsUnavailable": "Provider 健康指標目前不可用",
-    "serviceUnavailable": "健康監控服務暫時無法使用",
-    "loadError": "載入 Provider 健康資料失敗",
-    "windowSelect": "選擇時間窗口",
-    "minutes": "分鐘",
-    "autoRefreshOn": "自動刷新：開啟",
-    "autoRefreshOff": "自動刷新：關閉",
-    "averageHealth": "平均健康度",
-    "healthyProviders": "健康",
-    "degradedProviders": "降級",
-    "criticalProviders": "危急",
-    "providerDetails": "Provider 詳情",
-    "viewInGrafana": "在 Grafana 中查看",
-    "healthScore": "健康分數",
-    "latency": "延遲",
-    "errorRate": "錯誤率",
-    "driftRate": "漂移率",
-    "requests": "請求數",
-    "lastUpdated": "最後更新",
-    "noProviders": "沒有可用的 Provider 資料",
-    "noProvidersHint": "當有 LLM 請求時，Provider 指標將會顯示",
-    "alertingStatus": "告警狀態",
-    "alertingEnabled": "告警",
-    "windowLabel": "時間窗口",
-    "lastRefresh": "最後刷新"
   }
 }
