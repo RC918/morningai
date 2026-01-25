@@ -1913,6 +1913,247 @@ def cleanup_stale_orchestrator_branches(max_age_days: int = 7, dry_run: bool = T
     return results
 
 
+def get_check_run_logs(
+    repo,
+    check_suite_id: Optional[int] = None,
+    check_run_id: Optional[int] = None,
+    failed_check_name: Optional[str] = None,
+    trace_id: str = "unknown"
+) -> dict:
+    """
+    Fetch logs from a specific failed check_run for D-4 CI failure auto-fix.
+
+    Issue #4327: Separate function for D-4 Self-Correction (distinct from DiscoveryAuditor)
+    This function directly fetches logs from the failed check_run that triggered D-4,
+    avoiding the "Workflow still in_progress" issue when lint fails but tests are still running.
+
+    Unlike get_ci_test_logs (designed for DiscoveryAuditor to audit test coverage),
+    this function targets the specific failed check_run for immediate error context.
+
+    Args:
+        repo: GitHub repository object
+        check_suite_id: The check_suite ID from ci_failure_context (preferred)
+        check_run_id: The specific check_run ID (if known)
+        failed_check_name: Name of the failed check (e.g., "lint") for matching
+        trace_id: Trace ID for logging
+
+    Returns:
+        dict with keys:
+        - logs: str - The CI logs content
+        - success: bool - Whether logs were successfully fetched
+        - error: str - Error message if failed
+        - check_run_id: int - The check_run ID that was fetched
+        - check_run_name: str - The name of the check_run
+        - annotations: list - Annotations from the check_run (error details)
+    """
+    result = {
+        "logs": "",
+        "success": False,
+        "error": "",
+        "check_run_id": None,
+        "check_run_name": "",
+        "annotations": []
+    }
+
+    if repo is None:
+        result["error"] = "Repository not available"
+        logger.warning(
+            "[GitHub] get_check_run_logs: Repository not available",
+            extra={"operation": "get_check_run_logs", "trace_id": trace_id}
+        )
+        return result
+
+    try:
+        target_check_run = None
+
+        # Strategy 1: Use check_run_id directly if provided
+        if check_run_id:
+            try:
+                target_check_run = repo.get_check_run(check_run_id)
+                logger.info(
+                    "[GitHub] get_check_run_logs: Found check_run by ID",
+                    extra={
+                        "operation": "get_check_run_logs",
+                        "trace_id": trace_id,
+                        "check_run_id": check_run_id,
+                        "check_run_name": target_check_run.name if target_check_run else None,
+                    }
+                )
+            except Exception as e:
+                logger.warning(
+                    f"[GitHub] get_check_run_logs: Failed to get check_run by ID: {e}",
+                    extra={
+                        "operation": "get_check_run_logs",
+                        "trace_id": trace_id,
+                        "check_run_id": check_run_id,
+                        "error": str(e)[:100],
+                    }
+                )
+
+        # Strategy 2: Find failed check_run in check_suite
+        if not target_check_run and check_suite_id:
+            try:
+                check_suite = repo.get_check_suite(check_suite_id)
+                check_runs = check_suite.get_check_runs()
+
+                failure_conclusions = {"failure", "cancelled", "timed_out", "startup_failure", "action_required"}
+
+                for check_run in check_runs:
+                    # Find failed check_runs
+                    if check_run.conclusion in failure_conclusions:
+                        # If failed_check_name is provided, try to match
+                        if failed_check_name:
+                            if failed_check_name.lower() in check_run.name.lower():
+                                target_check_run = check_run
+                                break
+                        else:
+                            # Use first failed check_run
+                            target_check_run = check_run
+                            break
+
+                if target_check_run:
+                    logger.info(
+                        "[GitHub] get_check_run_logs: Found failed check_run in suite",
+                        extra={
+                            "operation": "get_check_run_logs",
+                            "trace_id": trace_id,
+                            "check_suite_id": check_suite_id,
+                            "check_run_id": target_check_run.id,
+                            "check_run_name": target_check_run.name,
+                        }
+                    )
+                else:
+                    logger.warning(
+                        "[GitHub] get_check_run_logs: No failed check_run found in suite",
+                        extra={
+                            "operation": "get_check_run_logs",
+                            "trace_id": trace_id,
+                            "check_suite_id": check_suite_id,
+                            "failed_check_name": failed_check_name,
+                        }
+                    )
+            except Exception as e:
+                logger.warning(
+                    f"[GitHub] get_check_run_logs: Failed to get check_suite: {e}",
+                    extra={
+                        "operation": "get_check_run_logs",
+                        "trace_id": trace_id,
+                        "check_suite_id": check_suite_id,
+                        "error": str(e)[:100],
+                    }
+                )
+
+        if not target_check_run:
+            result["error"] = "No check_run found"
+            return result
+
+        result["check_run_id"] = target_check_run.id
+        result["check_run_name"] = target_check_run.name
+
+        # Extract annotations (structured error information)
+        try:
+            annotations = list(target_check_run.get_annotations())
+            annotation_data = []
+            for ann in annotations:
+                ann_info = {
+                    "path": getattr(ann, 'path', None),
+                    "start_line": getattr(ann, 'start_line', None),
+                    "end_line": getattr(ann, 'end_line', None),
+                    "message": getattr(ann, 'message', None),
+                    "annotation_level": getattr(ann, 'annotation_level', None),
+                }
+                annotation_data.append(ann_info)
+            result["annotations"] = annotation_data
+
+            # Build error summary from annotations
+            if annotation_data:
+                error_lines = []
+                for ann in annotation_data[:10]:  # Limit to first 10 annotations
+                    if ann.get("path") and ann.get("message"):
+                        line = ann.get("start_line", 0)
+                        error_lines.append(f"{ann['path']}:{line}: {ann['message'][:200]}")
+                if error_lines:
+                    result["logs"] = "\n".join(error_lines)
+                    result["success"] = True
+                    logger.info(
+                        f"[GitHub] get_check_run_logs: Extracted {len(annotation_data)} annotations",
+                        extra={
+                            "operation": "get_check_run_logs",
+                            "trace_id": trace_id,
+                            "check_run_id": target_check_run.id,
+                            "annotations_count": len(annotation_data),
+                        }
+                    )
+                    return result
+        except Exception as ann_err:
+            logger.warning(
+                f"[GitHub] get_check_run_logs: Failed to get annotations: {ann_err}",
+                extra={
+                    "operation": "get_check_run_logs",
+                    "trace_id": trace_id,
+                    "check_run_id": target_check_run.id,
+                    "error": str(ann_err)[:100],
+                }
+            )
+
+        # Fallback: Try to get output summary
+        try:
+            output = target_check_run.output
+            if output:
+                summary = output.get("summary") if isinstance(output, dict) else getattr(output, "summary", None)
+                text = output.get("text") if isinstance(output, dict) else getattr(output, "text", None)
+
+                if summary or text:
+                    result["logs"] = f"{summary or ''}\n{text or ''}".strip()
+                    result["success"] = True
+                    logger.info(
+                        "[GitHub] get_check_run_logs: Got output summary",
+                        extra={
+                            "operation": "get_check_run_logs",
+                            "trace_id": trace_id,
+                            "check_run_id": target_check_run.id,
+                            "logs_length": len(result["logs"]),
+                        }
+                    )
+                    return result
+        except Exception as output_err:
+            logger.warning(
+                f"[GitHub] get_check_run_logs: Failed to get output: {output_err}",
+                extra={
+                    "operation": "get_check_run_logs",
+                    "trace_id": trace_id,
+                    "check_run_id": target_check_run.id,
+                    "error": str(output_err)[:100],
+                }
+            )
+
+        # If no annotations or output, return with check_run info but no logs
+        result["error"] = "No annotations or output available"
+        logger.info(
+            "[GitHub] get_check_run_logs: No logs available for check_run",
+            extra={
+                "operation": "get_check_run_logs",
+                "trace_id": trace_id,
+                "check_run_id": target_check_run.id,
+                "check_run_name": target_check_run.name,
+            }
+        )
+
+    except Exception as e:
+        result["error"] = f"Unexpected error: {e}"
+        logger.error(
+            "[GitHub] get_check_run_logs: Unexpected error",
+            extra={
+                "operation": "get_check_run_logs",
+                "trace_id": trace_id,
+                "error": str(e)[:200],
+            },
+            exc_info=True
+        )
+
+    return result
+
+
 def get_ci_test_logs(
     repo,
     pr_number: int,

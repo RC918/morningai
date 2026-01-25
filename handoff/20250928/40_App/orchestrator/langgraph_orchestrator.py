@@ -4955,54 +4955,109 @@ def _attempt_self_correction_fix(
 
     # Issue #3803: Fetch CI logs from GitHub Actions if error_summary is empty
     # GitHub Actions annotations (source of error_summary) are not automatically
-    # created by pytest. We need to fetch the actual CI logs using get_ci_test_logs().
+    # created by pytest. We need to fetch the actual CI logs.
+    # Issue #4327: Use get_check_run_logs for D-4 CI failure auto-fix (fail-fast recovery)
+    # This avoids "Workflow still in_progress" issue when lint fails but tests are still running.
     if not test_output:
         pr_number = ci_context.get("pr_number")
         head_sha = ci_context.get("head_sha")
+        check_suite_id = ci_context.get("check_suite_id")
+        check_run_id = ci_context.get("check_run_id")
+        failed_check_name = ci_context.get("failed_check_name")
         if pr_number:
             try:
-                from tools.github_api import get_ci_test_logs, get_repo
+                from tools.github_api import get_check_run_logs, get_ci_test_logs, get_repo
                 repo = get_repo()
                 if repo:
-                    logger.info(
-                        f"[SELF_CORRECTION_INTEGRATION_FETCH_LOGS] Fetching CI logs from GitHub Actions. "
-                        f"pr_number={pr_number}, trace_id={trace_id}",
-                        extra={
-                            "operation": "self_correction_fetch_logs",
-                            "trace_id": trace_id,
-                            "event_code": "SELF_CORRECTION_INTEGRATION_FETCH_LOGS",
-                            "pr_number": pr_number,
-                        }
-                    )
-                    ci_logs_result = get_ci_test_logs(
-                        repo=repo,
-                        pr_number=pr_number,
-                        head_sha=head_sha,
-                        trace_id=trace_id
-                    )
-                    if ci_logs_result.get("success"):
-                        test_output = ci_logs_result.get("logs", "")
+                    # Issue #4327: Try get_check_run_logs first (direct check_run access)
+                    # This is faster and works even when other workflows are still running
+                    if check_suite_id or check_run_id:
                         logger.info(
-                            f"[SELF_CORRECTION_INTEGRATION_LOGS_FETCHED] Successfully fetched CI logs. "
-                            f"logs_length={len(test_output)}, trace_id={trace_id}",
+                            f"[SELF_CORRECTION_INTEGRATION_FETCH_CHECK_RUN_LOGS] Fetching logs from check_run. "
+                            f"check_suite_id={check_suite_id}, check_run_id={check_run_id}, trace_id={trace_id}",
                             extra={
-                                "operation": "self_correction_logs_fetched",
+                                "operation": "self_correction_fetch_check_run_logs",
                                 "trace_id": trace_id,
-                                "event_code": "SELF_CORRECTION_INTEGRATION_LOGS_FETCHED",
-                                "logs_length": len(test_output),
+                                "event_code": "SELF_CORRECTION_INTEGRATION_FETCH_CHECK_RUN_LOGS",
+                                "check_suite_id": check_suite_id,
+                                "check_run_id": check_run_id,
+                                "failed_check_name": failed_check_name,
                             }
                         )
-                    else:
-                        logger.warning(
-                            f"[SELF_CORRECTION_INTEGRATION_LOGS_FETCH_FAILED] Failed to fetch CI logs. "
-                            f"error={ci_logs_result.get('error', 'unknown')}, trace_id={trace_id}",
+                        check_run_result = get_check_run_logs(
+                            repo=repo,
+                            check_suite_id=check_suite_id,
+                            check_run_id=check_run_id,
+                            failed_check_name=failed_check_name,
+                            trace_id=trace_id
+                        )
+                        if check_run_result.get("success"):
+                            test_output = check_run_result.get("logs", "")
+                            logger.info(
+                                f"[SELF_CORRECTION_INTEGRATION_CHECK_RUN_LOGS_FETCHED] Successfully fetched check_run logs. "
+                                f"logs_length={len(test_output)}, check_run_name={check_run_result.get('check_run_name')}, trace_id={trace_id}",
+                                extra={
+                                    "operation": "self_correction_check_run_logs_fetched",
+                                    "trace_id": trace_id,
+                                    "event_code": "SELF_CORRECTION_INTEGRATION_CHECK_RUN_LOGS_FETCHED",
+                                    "logs_length": len(test_output),
+                                    "check_run_name": check_run_result.get("check_run_name"),
+                                    "annotations_count": len(check_run_result.get("annotations", [])),
+                                }
+                            )
+                        else:
+                            logger.warning(
+                                f"[SELF_CORRECTION_INTEGRATION_CHECK_RUN_LOGS_FAILED] Failed to fetch check_run logs. "
+                                f"error={check_run_result.get('error', 'unknown')}, trace_id={trace_id}",
+                                extra={
+                                    "operation": "self_correction_check_run_logs_failed",
+                                    "trace_id": trace_id,
+                                    "event_code": "SELF_CORRECTION_INTEGRATION_CHECK_RUN_LOGS_FAILED",
+                                    "error": check_run_result.get("error", "unknown"),
+                                }
+                            )
+
+                    # Fallback to get_ci_test_logs if check_run logs not available
+                    if not test_output:
+                        logger.info(
+                            f"[SELF_CORRECTION_INTEGRATION_FETCH_LOGS] Fetching CI logs from GitHub Actions. "
+                            f"pr_number={pr_number}, trace_id={trace_id}",
                             extra={
-                                "operation": "self_correction_logs_fetch_failed",
+                                "operation": "self_correction_fetch_logs",
                                 "trace_id": trace_id,
-                                "event_code": "SELF_CORRECTION_INTEGRATION_LOGS_FETCH_FAILED",
-                                "error": ci_logs_result.get("error", "unknown"),
+                                "event_code": "SELF_CORRECTION_INTEGRATION_FETCH_LOGS",
+                                "pr_number": pr_number,
                             }
                         )
+                        ci_logs_result = get_ci_test_logs(
+                            repo=repo,
+                            pr_number=pr_number,
+                            head_sha=head_sha,
+                            trace_id=trace_id
+                        )
+                        if ci_logs_result.get("success"):
+                            test_output = ci_logs_result.get("logs", "")
+                            logger.info(
+                                f"[SELF_CORRECTION_INTEGRATION_LOGS_FETCHED] Successfully fetched CI logs. "
+                                f"logs_length={len(test_output)}, trace_id={trace_id}",
+                                extra={
+                                    "operation": "self_correction_logs_fetched",
+                                    "trace_id": trace_id,
+                                    "event_code": "SELF_CORRECTION_INTEGRATION_LOGS_FETCHED",
+                                    "logs_length": len(test_output),
+                                }
+                            )
+                        else:
+                            logger.warning(
+                                f"[SELF_CORRECTION_INTEGRATION_LOGS_FETCH_FAILED] Failed to fetch CI logs. "
+                                f"error={ci_logs_result.get('error', 'unknown')}, trace_id={trace_id}",
+                                extra={
+                                    "operation": "self_correction_logs_fetch_failed",
+                                    "trace_id": trace_id,
+                                    "event_code": "SELF_CORRECTION_INTEGRATION_LOGS_FETCH_FAILED",
+                                    "error": ci_logs_result.get("error", "unknown"),
+                                }
+                            )
             except Exception as fetch_err:
                 logger.warning(
                     f"[SELF_CORRECTION_INTEGRATION_LOGS_FETCH_ERROR] Error fetching CI logs: {fetch_err}. "
