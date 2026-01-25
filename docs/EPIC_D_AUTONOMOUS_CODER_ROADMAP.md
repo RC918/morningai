@@ -269,6 +269,6 @@ All verification signals confirmed:
 
 | Date | Author | Changes |
 |------|--------|---------|
-| 2026-01-25 | Devin AI | D-4 CI failure auto-fix verified: LintErrorParser (#4332), get_check_run_logs (#4327, #4331), AUTO_FIX_ENABLED check (#4323), CI signature deduplication (#4321). Rollback tag: v9.5.0-d4-ci-autofix-stable |
+| 2026-01-25 | Devin AI | D-4 CI failure auto-fix verified:<br/>- `LintErrorParser` (#4332)<br/>- `get_check_run_logs` (#4327, #4331)<br/>- `AUTO_FIX_ENABLED` check (#4323)<br/>- CI signature deduplication (#4321)<br/>Rollback tag: `v9.5.0-d4-ci-autofix-stable` |
 | 2026-01-11 | Devin AI | Mark Stage 1, Stage 2, HITL Gate as Completed; Add D-3/D-4 implementation details and PR references |
 | 2026-01-02 | Ryan Chen (@RC918) with Devin AI | Initial roadmap document |
