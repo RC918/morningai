@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **D-4 CI Failure Auto-Fix Enhancement** (PRs #4321, #4323, #4327, #4331, #4332)
+  - **Date**: 2026-01-25
+  - **Tag**: `v9.5.0-d4-ci-autofix-stable`
+  - **Changes**:
+    - Added `LintErrorParser` class supporting ruff, flake8, eslint, pylint output parsing (#4332)
+    - Added `get_check_run_logs` function for direct CI log fetching from failed check_runs (#4327)
+    - Added fallback mechanism for check_run name matching when webhook name differs (#4331)
+    - Added `AUTO_FIX_ENABLED` environment variable check in CI failure path (#4323)
+    - Fixed CI signature deduplication to properly set `loop_protection_triggered` (#4321)
+    - Fixed LLM Reviewer type check for `response.usage` (#4312)
+  - **Verified**: D-4 successfully auto-fixed lint error (F401 unused import) on PR #4330
+  - **Blueprint Alignment**: Section 3.3 (Agent Catalog V2 - Coder Family), D-4 Self-Correction Loop
+
 ### Changed
 - **EPIC I Encapsulation Improvements** (PR #4009, Issues #3958, #3961)
   - **Date**: 2026-01-15

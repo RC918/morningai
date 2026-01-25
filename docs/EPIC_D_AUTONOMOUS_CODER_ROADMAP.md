@@ -1,6 +1,6 @@
 # EPIC D: Autonomous Coder Agent Family - Roadmap
 
-> Last Updated: 2026-01-11
+> Last Updated: 2026-01-25
 
 ## Overview
 
@@ -127,18 +127,23 @@ Spec-driven development and self-correction capabilities.
 
 **Implementation**:
 - `SelfCorrectionLoop` class with retry logic
-- `TestLogParser` for error extraction
-- CI failure webhook integration
+- `TestLogParser` for error extraction (pytest, jest, mocha)
+- `LintErrorParser` for lint tool output (ruff, flake8, eslint, pylint) - PR #4332
+- `get_check_run_logs` for direct CI log fetching - PR #4327, #4331
+- CI failure webhook integration with `AUTO_FIX_ENABLED` check - PR #4323
 - Loop protection with max 3 attempts
-- CISignatureDeduplication for cost optimization
+- CISignatureDeduplication for cost optimization - PR #4321
 
 **Acceptance Criteria Met**:
 - [x] Detect `npm test` / `pytest` failures automatically
+- [x] Detect lint failures (ruff F401, eslint no-unused-vars, etc.)
 - [x] Parse error logs and identify fix targets
 - [x] Attempt self-fix without Reviewer intervention
 - [x] Maximum retry limit with HITL escalation
 
-**Verified**: 2026-01-11 - D-4 successfully triggered on test PR #3823
+**Verified**: 
+- 2026-01-11 - D-4 successfully triggered on test PR #3823
+- 2026-01-25 - D-4 successfully auto-fixed lint error (F401 unused import) on PR #4330
 
 ---
 
@@ -264,5 +269,6 @@ All verification signals confirmed:
 
 | Date | Author | Changes |
 |------|--------|---------|
+| 2026-01-25 | Devin AI | D-4 CI failure auto-fix verified:<br/>- `LintErrorParser` (#4332)<br/>- `get_check_run_logs` (#4327, #4331)<br/>- `AUTO_FIX_ENABLED` check (#4323)<br/>- CI signature deduplication (#4321)<br/>Rollback tag: `v9.5.0-d4-ci-autofix-stable` |
 | 2026-01-11 | Devin AI | Mark Stage 1, Stage 2, HITL Gate as Completed; Add D-3/D-4 implementation details and PR references |
 | 2026-01-02 | Ryan Chen (@RC918) with Devin AI | Initial roadmap document |
