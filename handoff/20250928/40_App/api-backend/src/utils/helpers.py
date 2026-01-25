@@ -10,7 +10,6 @@ See: docs/PHASE1_MAIN_PY_REFACTORING_PLAN.md - Patch Canonical Target
 
 # D-4 Test: Intentional lint error for CI failure auto-fix testing
 # This unused import will trigger ruff F401 error
-import json
 
 
 def _as_bool(val):
