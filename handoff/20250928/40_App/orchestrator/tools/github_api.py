@@ -1998,20 +1998,47 @@ def get_check_run_logs(
 
                 failure_conclusions = {"failure", "cancelled", "timed_out", "startup_failure", "action_required"}
 
+                # Track first failed check_run as fallback (in case name matching fails)
+                first_failed_check_run = None
+
                 for check_run in check_runs:
                     # Find failed check_runs
                     if check_run.conclusion in failure_conclusions:
+                        # Capture first failed check_run as fallback
+                        if first_failed_check_run is None:
+                            first_failed_check_run = check_run
+
                         # If failed_check_name is provided, try to match
                         if failed_check_name:
-                            # Guard against None name (follows codebase pattern)
-                            check_run_name = check_run.name.lower() if check_run.name else ""
-                            if failed_check_name.lower() in check_run_name:
+                            # Guard against None/empty name (follows codebase pattern)
+                            check_run_name = check_run.name.lower().strip() if check_run.name else ""
+                            # Try both directions: name in failed_check_name OR failed_check_name in name
+                            # This handles cases where webhook sends "GitHub Actions" but check_run is "lint"
+                            # Guard: only check reverse direction if check_run_name is non-empty
+                            # (empty string is substring of any string, causing false positives)
+                            if (failed_check_name.lower() in check_run_name or
+                                    (check_run_name and check_run_name in failed_check_name.lower())):
                                 target_check_run = check_run
                                 break
                         else:
                             # Use first failed check_run
                             target_check_run = check_run
                             break
+
+                # Fallback: use first failed check_run if name matching failed
+                if not target_check_run and first_failed_check_run:
+                    target_check_run = first_failed_check_run
+                    logger.info(
+                        "[GitHub] get_check_run_logs: Using first failed check_run as fallback (name mismatch)",
+                        extra={
+                            "operation": "get_check_run_logs",
+                            "trace_id": trace_id,
+                            "check_suite_id": check_suite_id,
+                            "check_run_id": target_check_run.id,
+                            "check_run_name": target_check_run.name,
+                            "failed_check_name": failed_check_name,
+                        }
+                    )
 
                 if target_check_run:
                     logger.info(
