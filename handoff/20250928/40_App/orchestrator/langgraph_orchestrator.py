@@ -5083,7 +5083,8 @@ def _attempt_self_correction_fix(
         )
         return False, "No test output in CI failure context"
 
-    # Check if this looks like a test failure (not lint, build, etc.)
+    # Check if this looks like a test or lint failure (not build, deploy, etc.)
+    # Issue #4332: D-4 Self-Correction Loop - Lint Error Support
     failed_check_name = ci_context.get("failed_check_name", "").lower()
     is_test_failure = any(
         keyword in failed_check_name
@@ -5092,19 +5093,28 @@ def _attempt_self_correction_fix(
         keyword in test_output.lower()
         for keyword in ("failed", "error", "assert", "expect")
     )
+    # Issue #4332: Also handle lint failures (ruff, flake8, eslint, etc.)
+    is_lint_failure = any(
+        keyword in failed_check_name
+        for keyword in ("lint", "ruff", "flake8", "eslint", "pylint", "style", "format")
+    ) or any(
+        # Check for common lint error patterns in output
+        pattern in test_output
+        for pattern in ("F401", "E501", "W291", "no-unused-vars")
+    )
 
-    if not is_test_failure:
+    if not is_test_failure and not is_lint_failure:
         logger.info(
-            f"[SELF_CORRECTION_INTEGRATION_NOT_TEST_FAILURE] Not a test failure. "
+            f"[SELF_CORRECTION_INTEGRATION_NOT_SUPPORTED_FAILURE] Not a test or lint failure. "
             f"failed_check_name={failed_check_name}, trace_id={trace_id}",
             extra={
                 "operation": "self_correction_integration",
                 "trace_id": trace_id,
-                "event_code": "SELF_CORRECTION_INTEGRATION_NOT_TEST_FAILURE",
+                "event_code": "SELF_CORRECTION_INTEGRATION_NOT_SUPPORTED_FAILURE",
                 "failed_check_name": failed_check_name,
             }
         )
-        return False, "CI failure is not a test failure"
+        return False, "CI failure is not a test or lint failure"
 
     logger.info(
         f"[SELF_CORRECTION_INTEGRATION_START] Starting self-correction for test failure. "
@@ -5172,12 +5182,15 @@ def _attempt_self_correction_fix(
         return False, "No files available for self-correction"
 
     # Attempt self-correction
+    # Issue #4332: Pass failed_check_name to select appropriate parser (test vs lint)
+    original_failed_check_name = ci_context.get("failed_check_name", "")
     try:
         loop = get_self_correction_loop()
         result = loop.attempt_correction(
             test_output=test_output,
             files=files_with_content,
-            run_tests_callback=None  # No callback - we'll verify via CI
+            run_tests_callback=None,  # No callback - we'll verify via CI
+            failed_check_name=original_failed_check_name
         )
 
         if result.success:

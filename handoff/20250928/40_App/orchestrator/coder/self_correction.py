@@ -466,6 +466,303 @@ class TestLogParser:
 
 
 # =============================================================================
+# Lint Error Parser
+# =============================================================================
+
+class LintErrorParser:
+    """Parser for lint tool output (ruff, flake8, eslint, etc.).
+
+    Issue #4332: D-4 Self-Correction Loop - Lint Error Support
+    Blueprint alignment: Extends D-4 to handle all CI failure types
+
+    Supports:
+    - ruff (Python)
+    - flake8 (Python)
+    - eslint (JavaScript/TypeScript)
+    - pylint (Python)
+
+    Event Codes (greppable):
+        [LINT_LOG_PARSE_START] - Started parsing lint output
+        [LINT_LOG_PARSE_COMPLETE] - Completed parsing
+        [LINT_LOG_PARSE_FAILURE] - Found a lint error
+    """
+
+    # Ruff/Flake8 patterns
+    # Format: "path/to/file.py:line:col: CODE message"
+    # Example: "api-backend/src/utils/helpers.py:1:1: F401 `json` imported but unused"
+    # Note: Also matches .pyi stub files (Gemini Code Assist suggestion)
+    RUFF_FLAKE8_PATTERN = re.compile(
+        r"([^\s:]+\.(?:py|pyi)):(\d+):(\d+):\s*([A-Z]\d+)\s+(.+)",
+        re.MULTILINE
+    )
+
+    # ESLint patterns
+    # Format: "path/to/file.js:line:col: error/warning message (rule-name)"
+    # Example: "src/app.js:10:5: error 'foo' is defined but never used (no-unused-vars)"
+    ESLINT_PATTERN = re.compile(
+        r"([^\s:]+\.(?:js|jsx|ts|tsx)):(\d+):(\d+):\s*(error|warning)\s+(.+?)\s*\(([^)]+)\)",
+        re.MULTILINE
+    )
+
+    # Pylint patterns
+    # Format: "path/to/file.py:line:col: CODE: message (symbol)"
+    # Example: "api-backend/src/utils/helpers.py:1:0: W0611: Unused import json (unused-import)"
+    # Note: Also matches .pyi stub files (Gemini Code Assist suggestion)
+    PYLINT_PATTERN = re.compile(
+        r"([^\s:]+\.(?:py|pyi)):(\d+):(\d+):\s*([A-Z]\d+):\s+(.+?)\s*\(([^)]+)\)",
+        re.MULTILINE
+    )
+
+    # GitHub Actions annotation pattern (from check_run annotations)
+    # Format: "::error file=path,line=N,col=M::message"
+    GITHUB_ANNOTATION_PATTERN = re.compile(
+        r"::error\s+file=([^,]+),line=(\d+)(?:,col=(\d+))?::(.+)",
+        re.MULTILINE
+    )
+
+    # Lint error code to ErrorType mapping
+    LINT_CODE_TO_ERROR_TYPE = {
+        # Ruff/Flake8 codes
+        "F401": ErrorType.IMPORT,  # imported but unused
+        "F811": ErrorType.IMPORT,  # redefinition of unused name
+        "E999": ErrorType.SYNTAX,  # syntax error
+        "E501": ErrorType.RUNTIME,  # line too long
+        "E302": ErrorType.RUNTIME,  # expected 2 blank lines
+        "W291": ErrorType.RUNTIME,  # trailing whitespace
+        # Pylint codes
+        "W0611": ErrorType.IMPORT,  # unused-import
+        "W0612": ErrorType.RUNTIME,  # unused-variable
+        "E0001": ErrorType.SYNTAX,  # syntax-error
+        "E1101": ErrorType.TYPE,  # no-member
+    }
+
+    def parse(self, lint_output: str) -> TestLogParseResult:
+        """Parse lint output and extract error information.
+
+        Args:
+            lint_output: Raw lint output string
+
+        Returns:
+            TestLogParseResult with parsed failures
+
+        Event Codes:
+            [LINT_LOG_PARSE_START] - Started parsing
+            [LINT_LOG_PARSE_COMPLETE] - Completed parsing
+        """
+        logger.info("[LINT_LOG_PARSE_START] Parsing lint output")
+
+        result = TestLogParseResult(raw_output=lint_output)
+
+        # Detect lint tool
+        result.test_framework = self._detect_lint_tool(lint_output)
+
+        # Parse based on tool
+        if result.test_framework == "ruff":
+            self._parse_ruff_flake8(lint_output, result)
+        elif result.test_framework == "flake8":
+            self._parse_ruff_flake8(lint_output, result)
+        elif result.test_framework == "eslint":
+            self._parse_eslint(lint_output, result)
+        elif result.test_framework == "pylint":
+            self._parse_pylint(lint_output, result)
+        else:
+            # Try all patterns as fallback
+            self._parse_generic_lint(lint_output, result)
+
+        result.failed_tests = len(result.failures)
+        result.total_tests = len(result.failures)
+
+        logger.info(
+            f"[LINT_LOG_PARSE_COMPLETE] Found {len(result.failures)} lint errors "
+            f"(tool={result.test_framework})"
+        )
+
+        return result
+
+    def _detect_lint_tool(self, output: str) -> str:
+        """Detect the lint tool from output."""
+        output_lower = output.lower()
+
+        if "ruff" in output_lower or "ruff check" in output_lower:
+            return "ruff"
+        elif "flake8" in output_lower:
+            return "flake8"
+        elif "eslint" in output_lower:
+            return "eslint"
+        elif "pylint" in output_lower:
+            return "pylint"
+        # Check for common lint error patterns
+        elif re.search(r"[A-Z]\d{3,4}\s+", output):
+            # Looks like ruff/flake8 error codes (F401, E501, etc.)
+            return "ruff"
+        elif "error" in output_lower and ("no-unused-vars" in output_lower or "rule" in output_lower):
+            return "eslint"
+        else:
+            return "lint"  # Generic lint
+
+    def _parse_ruff_flake8(self, output: str, result: TestLogParseResult) -> None:
+        """Parse ruff/flake8 output."""
+        for match in self.RUFF_FLAKE8_PATTERN.finditer(output):
+            file_path = match.group(1)
+            line_number = int(match.group(2))
+            # col_number = int(match.group(3))  # Available but not used currently
+            error_code = match.group(4)
+            error_message = match.group(5)
+
+            failure = ParsedTestFailure(
+                test_name=f"{file_path}:{line_number}",
+                error_type=self._get_error_type(error_code),
+                error_message=f"{error_code} {error_message}",
+                file_path=file_path,
+                line_number=line_number,
+            )
+
+            result.failures.append(failure)
+            logger.debug(f"[LINT_LOG_PARSE_FAILURE] {file_path}:{line_number}: {error_code} {error_message}")
+
+    def _parse_eslint(self, output: str, result: TestLogParseResult) -> None:
+        """Parse eslint output."""
+        for match in self.ESLINT_PATTERN.finditer(output):
+            file_path = match.group(1)
+            line_number = int(match.group(2))
+            # col_number = int(match.group(3))
+            severity = match.group(4)
+            error_message = match.group(5)
+            rule_name = match.group(6)
+
+            # Only process errors, not warnings
+            if severity == "error":
+                failure = ParsedTestFailure(
+                    test_name=f"{file_path}:{line_number}",
+                    error_type=self._get_eslint_error_type(rule_name),
+                    error_message=f"{error_message} ({rule_name})",
+                    file_path=file_path,
+                    line_number=line_number,
+                )
+
+                result.failures.append(failure)
+                logger.debug(f"[LINT_LOG_PARSE_FAILURE] {file_path}:{line_number}: {error_message}")
+
+    def _parse_pylint(self, output: str, result: TestLogParseResult) -> None:
+        """Parse pylint output."""
+        for match in self.PYLINT_PATTERN.finditer(output):
+            file_path = match.group(1)
+            line_number = int(match.group(2))
+            # col_number = int(match.group(3))
+            error_code = match.group(4)
+            error_message = match.group(5)
+            # symbol = match.group(6)
+
+            failure = ParsedTestFailure(
+                test_name=f"{file_path}:{line_number}",
+                error_type=self._get_error_type(error_code),
+                error_message=f"{error_code} {error_message}",
+                file_path=file_path,
+                line_number=line_number,
+            )
+
+            result.failures.append(failure)
+            logger.debug(f"[LINT_LOG_PARSE_FAILURE] {file_path}:{line_number}: {error_code} {error_message}")
+
+    def _parse_generic_lint(self, output: str, result: TestLogParseResult) -> None:
+        """Parse generic lint output using all patterns.
+
+        Cursor Bugbot fix: Try ALL patterns, not just ruff/flake8 and GitHub annotations.
+        This ensures eslint and pylint errors are also parsed when tool detection fails.
+        """
+        # Track seen errors to avoid duplicates (MorningAI suggestion)
+        seen_errors: set = set()
+
+        def _add_failure_if_new(failure: ParsedTestFailure) -> None:
+            """Add failure only if not already seen."""
+            key = (failure.file_path, failure.line_number, failure.error_message)
+            if key not in seen_errors:
+                seen_errors.add(key)
+                result.failures.append(failure)
+                logger.debug(
+                    f"[LINT_LOG_PARSE_FAILURE] {failure.file_path}:{failure.line_number}: "
+                    f"{failure.error_message}"
+                )
+
+        # Try ruff/flake8 pattern
+        for match in self.RUFF_FLAKE8_PATTERN.finditer(output):
+            file_path = match.group(1)
+            line_number = int(match.group(2))
+            error_code = match.group(4)
+            error_message = match.group(5)
+            _add_failure_if_new(ParsedTestFailure(
+                test_name=f"{file_path}:{line_number}",
+                error_type=self._get_error_type(error_code),
+                error_message=f"{error_code} {error_message}",
+                file_path=file_path,
+                line_number=line_number,
+            ))
+
+        # Try eslint pattern (Cursor Bugbot fix: was missing from generic parser)
+        for match in self.ESLINT_PATTERN.finditer(output):
+            file_path = match.group(1)
+            line_number = int(match.group(2))
+            severity = match.group(4)
+            error_message = match.group(5)
+            rule_name = match.group(6)
+            if severity == "error":
+                _add_failure_if_new(ParsedTestFailure(
+                    test_name=f"{file_path}:{line_number}",
+                    error_type=self._get_eslint_error_type(rule_name),
+                    error_message=f"{error_message} ({rule_name})",
+                    file_path=file_path,
+                    line_number=line_number,
+                ))
+
+        # Try pylint pattern (Cursor Bugbot fix: was missing from generic parser)
+        for match in self.PYLINT_PATTERN.finditer(output):
+            file_path = match.group(1)
+            line_number = int(match.group(2))
+            error_code = match.group(4)
+            error_message = match.group(5)
+            _add_failure_if_new(ParsedTestFailure(
+                test_name=f"{file_path}:{line_number}",
+                error_type=self._get_error_type(error_code),
+                error_message=f"{error_code} {error_message}",
+                file_path=file_path,
+                line_number=line_number,
+            ))
+
+        # Try GitHub annotation pattern as fallback
+        for match in self.GITHUB_ANNOTATION_PATTERN.finditer(output):
+            file_path = match.group(1)
+            line_number = int(match.group(2))
+            error_message = match.group(4)
+
+            # Try to extract error code from message
+            error_code_match = re.search(r"([A-Z]\d{3,4})", error_message)
+            error_code = error_code_match.group(1) if error_code_match else "LINT"
+
+            _add_failure_if_new(ParsedTestFailure(
+                test_name=f"{file_path}:{line_number}",
+                error_type=self._get_error_type(error_code),
+                error_message=error_message,
+                file_path=file_path,
+                line_number=line_number,
+            ))
+
+    def _get_error_type(self, error_code: str) -> ErrorType:
+        """Get ErrorType from lint error code."""
+        return self.LINT_CODE_TO_ERROR_TYPE.get(error_code, ErrorType.RUNTIME)
+
+    def _get_eslint_error_type(self, rule_name: str) -> ErrorType:
+        """Get ErrorType from eslint rule name."""
+        if "unused" in rule_name or "no-unused" in rule_name:
+            return ErrorType.IMPORT
+        elif "syntax" in rule_name or "parsing" in rule_name:
+            return ErrorType.SYNTAX
+        elif "type" in rule_name:
+            return ErrorType.TYPE
+        else:
+            return ErrorType.RUNTIME
+
+
+# =============================================================================
 # Error Analyzer
 # =============================================================================
 
@@ -720,24 +1017,76 @@ class SelfCorrectionLoop:
             max_attempts: Maximum correction attempts before escalation
         """
         self.max_attempts = max_attempts
-        self.parser = TestLogParser()
+        self.test_parser = TestLogParser()
+        self.lint_parser = LintErrorParser()
         self.analyzer = ErrorAnalyzer()
         logger.info(
             f"[SelfCorrectionLoop] Initialized with max_attempts={max_attempts}"
         )
 
+    def _select_parser(
+        self,
+        failed_check_name: Optional[str] = None,
+        output: Optional[str] = None
+    ):
+        """Select the appropriate parser based on the failed check name and output.
+
+        Issue #4332: D-4 Self-Correction Loop - Lint Error Support
+        Fix: Also check output patterns when check name doesn't indicate lint
+             (Cursor Bugbot suggestion)
+
+        Args:
+            failed_check_name: Name of the failed CI check (e.g., "lint", "test", "pytest")
+            output: Raw output to check for lint patterns
+
+        Returns:
+            Appropriate parser (TestLogParser or LintErrorParser)
+        """
+        # Check for lint-related keywords in check name
+        lint_keywords = ("lint", "ruff", "flake8", "eslint", "pylint", "style", "format")
+
+        if failed_check_name:
+            check_name_lower = failed_check_name.lower()
+            if any(keyword in check_name_lower for keyword in lint_keywords):
+                logger.info(
+                    f"[SELF_CORRECTION_PARSER_SELECT] Using LintErrorParser for check: {failed_check_name}"
+                )
+                return self.lint_parser
+
+        # Also check output for lint patterns (Cursor Bugbot fix)
+        # This handles cases like "CI Build" check that produces lint output
+        if output:
+            lint_patterns = ("F401", "E501", "W291", "no-unused-vars")
+            if any(pattern in output for pattern in lint_patterns):
+                logger.info(
+                    f"[SELF_CORRECTION_PARSER_SELECT] Using LintErrorParser based on output patterns "
+                    f"(check: {failed_check_name})"
+                )
+                return self.lint_parser
+
+        # Default to test parser
+        logger.info(
+            f"[SELF_CORRECTION_PARSER_SELECT] Using TestLogParser for check: {failed_check_name}"
+        )
+        return self.test_parser
+
     def attempt_correction(
         self,
         test_output: str,
         files: List[Dict[str, str]],
-        run_tests_callback: Optional[callable] = None
+        run_tests_callback: Optional[callable] = None,
+        failed_check_name: Optional[str] = None
     ) -> SelfCorrectionResult:
-        """Attempt to correct test failures.
+        """Attempt to correct test/lint failures.
+
+        Issue #4332: D-4 Self-Correction Loop - Lint Error Support
 
         Args:
-            test_output: Raw test output with failures
+            test_output: Raw test/lint output with failures
             files: List of files with "path" and "content" keys
             run_tests_callback: Optional callback to re-run tests after fix
+            failed_check_name: Name of the failed CI check (e.g., "lint", "test")
+                              Used to select the appropriate parser
 
         Returns:
             SelfCorrectionResult with correction outcome
@@ -749,12 +1098,19 @@ class SelfCorrectionLoop:
             [SELF_CORRECTION_FAIL] - Failure
             [SELF_CORRECTION_ESCALATE] - Escalation
         """
-        logger.info("[SELF_CORRECTION_START] Starting self-correction loop")
+        logger.info(
+            f"[SELF_CORRECTION_START] Starting self-correction loop "
+            f"(failed_check_name={failed_check_name})"
+        )
 
         result = SelfCorrectionResult(success=False)
 
-        # Parse test output
-        parse_result = self.parser.parse(test_output)
+        # Select appropriate parser based on check name AND output patterns
+        # (Cursor Bugbot fix: also check output for lint patterns)
+        parser = self._select_parser(failed_check_name, test_output)
+
+        # Parse test/lint output
+        parse_result = parser.parse(test_output)
 
         if not parse_result.failures:
             logger.info("[SELF_CORRECTION_SUCCESS] No failures found in test output")
@@ -782,7 +1138,7 @@ class SelfCorrectionLoop:
                     # If we have a callback to re-run tests, use it
                     if run_tests_callback:
                         new_output = run_tests_callback(correction)
-                        new_parse = self.parser.parse(new_output)
+                        new_parse = parser.parse(new_output)
 
                         if not new_parse.failures:
                             logger.info(
