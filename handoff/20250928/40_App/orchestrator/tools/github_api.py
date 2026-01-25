@@ -2010,12 +2010,14 @@ def get_check_run_logs(
 
                         # If failed_check_name is provided, try to match
                         if failed_check_name:
-                            # Guard against None name (follows codebase pattern)
-                            check_run_name = check_run.name.lower() if check_run.name else ""
+                            # Guard against None/empty name (follows codebase pattern)
+                            check_run_name = check_run.name.lower().strip() if check_run.name else ""
                             # Try both directions: name in failed_check_name OR failed_check_name in name
                             # This handles cases where webhook sends "GitHub Actions" but check_run is "lint"
+                            # Guard: only check reverse direction if check_run_name is non-empty
+                            # (empty string is substring of any string, causing false positives)
                             if (failed_check_name.lower() in check_run_name or
-                                    check_run_name in failed_check_name.lower()):
+                                    (check_run_name and check_run_name in failed_check_name.lower())):
                                 target_check_run = check_run
                                 break
                         else:
