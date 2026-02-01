@@ -17,7 +17,7 @@ setup(
         "google-genai==1.56.0",
         "requests==2.32.5",
         "sentry-sdk==2.48.0",
-        "redis>=5.2.0,<6.0.0",
+        "redis>=5.2.0,<7.0.0",
         "rq==1.16.2",
         "python-dotenv==1.2.1",
         "httpx>=0.28.1,<0.29",

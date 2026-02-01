@@ -1,6 +1,6 @@
 python-dotenv==1.2.1
 PyGithub==2.8.1
-redis>=5.2.0,<6.0.0
+redis>=5.2.0,<7.0.0
 rq==1.16.2
 supabase==2.27.0
 # openai>=1.55.0 required for httpx>=0.28 compatibility (fixes 'proxies' kwarg error)
