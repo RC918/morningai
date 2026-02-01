@@ -45,7 +45,7 @@ jobs:
 
       - name: Restore previous status
         id: cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: .scorecard-status
           key: scorecard-status-${{ github.repository }}-
@@ -113,7 +113,7 @@ jobs:
         run: echo "${{ steps.scorecard.outputs.status }}" > .scorecard-status
 
       - name: Update status cache
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: .scorecard-status
           key: scorecard-status-${{ github.repository }}-${{ github.run_id }}
